@@ -1,0 +1,152 @@
+// Outmat Propostas — Prisma schema (Sprint 0)
+//
+// IMPORTANTE (Sprint 0): os models são APENAS ESTRUTURAIS.
+// Não há regras de negócio nem os campos de domínio definitivos.
+// Cada model carrega somente id, timestamps, o vínculo relacional essencial
+// e, quando faz sentido, um identificador `nome` (necessário para o seed/tabelas).
+// A expansão dos campos ocorrerá nas próximas Sprints via migrations incrementais,
+// sem alteração estrutural das camadas da aplicação.
+//
+// Docs de arquitetura: ARCHITECTURE.md
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+/// Discriminador do modelo de proposta.
+/// COMERCIAL    -> produtos + serviços + módulos opcionais (ex.: Wi-Fi, Som).
+/// SIMPLIFICADA -> apenas produtos (nunca serviços, nunca módulos).
+/// As regras de negócio serão implementadas nas próximas Sprints.
+enum ModeloProposta {
+  COMERCIAL
+  SIMPLIFICADA
+}
+
+// ---------------------------------------------------------------------------
+// Cadastros base
+// ---------------------------------------------------------------------------
+
+model Cliente {
+  id        String   @id @default(cuid())
+  nome      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  propostas Proposta[]
+
+  @@map("clientes")
+}
+
+model Produto {
+  id        String   @id @default(cuid())
+  nome      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("produtos")
+}
+
+model Vendedor {
+  id        String   @id @default(cuid())
+  nome      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  propostas Proposta[]
+
+  @@map("vendedores")
+}
+
+// ---------------------------------------------------------------------------
+// Propostas — hierarquia: Proposta > Revisão > Seção > Item
+// ---------------------------------------------------------------------------
+
+model Proposta {
+  id        String         @id @default(cuid())
+  modelo    ModeloProposta @default(COMERCIAL)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  clienteId  String
+  cliente    Cliente   @relation(fields: [clienteId], references: [id])
+  vendedorId String?
+  vendedor   Vendedor? @relation(fields: [vendedorId], references: [id])
+
+  revisoes PropostaRevisao[]
+
+  @@index([clienteId])
+  @@index([vendedorId])
+  @@map("propostas")
+}
+
+model PropostaRevisao {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  propostaId String
+  proposta   Proposta @relation(fields: [propostaId], references: [id], onDelete: Cascade)
+
+  secoes PropostaSecao[]
+
+  @@index([propostaId])
+  @@map("proposta_revisoes")
+}
+
+/// Seção = agrupador NEUTRO de itens.
+/// Exemplos válidos: "Sala", "Cozinha", "Casa 92", "Apartamento Flávio",
+/// "Área Externa", "Recepção", "Piso Superior".
+/// NÃO representa obrigatoriamente um "ambiente" — NUNCA tratar como Ambiente internamente.
+model PropostaSecao {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  revisaoId String
+  revisao   PropostaRevisao @relation(fields: [revisaoId], references: [id], onDelete: Cascade)
+
+  itens PropostaItem[]
+
+  @@index([revisaoId])
+  @@map("proposta_secoes")
+}
+
+model PropostaItem {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  secaoId String
+  secao   PropostaSecao @relation(fields: [secaoId], references: [id], onDelete: Cascade)
+
+  @@index([secaoId])
+  @@map("proposta_itens")
+}
+
+// ---------------------------------------------------------------------------
+// Configuração do sistema — SINGLETON (existe apenas UM registro)
+// ---------------------------------------------------------------------------
+
+/// Registro único de configuração da aplicação.
+/// Ponto ÚNICO de expansão futura, SEM alteração estrutural de camadas:
+/// dados da empresa, logo, endereço, telefones, WhatsApp, email, site,
+/// redes sociais, rodapé do PDF, textos institucionais, templates,
+/// caminhos de armazenamento e configurações gerais.
+/// Esses campos serão adicionados nas próximas Sprints via migration incremental.
+model ConfiguracaoSistema {
+  /// id fixo garante a natureza singleton (sempre "singleton").
+  id        String   @id @default("singleton")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("configuracao_sistema")
+}
