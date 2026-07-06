@@ -1,17 +1,30 @@
 import { Inbox, type LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { cn } from "@/lib/utils";
 
 interface EmptyStateProps {
   icon?: LucideIcon;
   title: string;
   description?: string;
+  /** Botão(ões) opcional(is) — ex.: "Novo cliente". */
   action?: ReactNode;
   className?: string;
 }
 
-/** Estado vazio para listas/telas sem dados. */
+/**
+ * Estado vazio padrão do sistema. Construído sobre os primitivos `Empty` do
+ * shadcn/ui para um visual moderno e consistente. Reutilizável em todas as
+ * telas (listas sem dados, telas em construção, resultados de busca vazios).
+ */
 export function EmptyState({
   icon: Icon = Inbox,
   title,
@@ -20,24 +33,23 @@ export function EmptyState({
   className,
 }: EmptyStateProps) {
   return (
-    <div
+    <Empty
       className={cn(
-        "flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed px-6 py-16 text-center",
+        "rounded-xl border border-dashed bg-card/40 py-14",
         className,
       )}
     >
-      <div className="rounded-full bg-muted p-3">
-        <Icon className="h-6 w-6 text-muted-foreground" aria-hidden />
-      </div>
-      <div className="space-y-1">
-        <h3 className="font-medium">{title}</h3>
-        {description && (
-          <p className="mx-auto max-w-sm text-sm text-muted-foreground">
-            {description}
-          </p>
-        )}
-      </div>
-      {action}
-    </div>
+      <EmptyHeader>
+        <EmptyMedia
+          variant="icon"
+          className="size-12 rounded-xl [&_svg:not([class*='size-'])]:size-6"
+        >
+          <Icon aria-hidden />
+        </EmptyMedia>
+        <EmptyTitle className="text-base">{title}</EmptyTitle>
+        {description && <EmptyDescription>{description}</EmptyDescription>}
+      </EmptyHeader>
+      {action && <EmptyContent>{action}</EmptyContent>}
+    </Empty>
   );
 }

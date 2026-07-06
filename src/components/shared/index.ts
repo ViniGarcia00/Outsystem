@@ -1,5 +1,6 @@
 export { PageContainer } from "./page-container";
 export { PageHeader } from "./page-header";
+export { PageActions } from "./page-actions";
 export { Section } from "./section";
 export { Loading } from "./loading";
 export { EmptyState } from "./empty-state";

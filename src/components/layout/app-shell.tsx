@@ -53,7 +53,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <DesktopSidebar collapsed={collapsed} />
 
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-        <SheetContent side="left" className="w-64 p-0">
+        <SheetContent side="left" className="w-56 p-0">
           <SheetTitle className="sr-only">Menu de navegação</SheetTitle>
           <SidebarContent onNavigate={() => setMobileOpen(false)} />
         </SheetContent>

@@ -19,10 +19,10 @@ export function Section({
   className,
 }: SectionProps) {
   return (
-    <section className={cn("space-y-4", className)}>
+    <section className={cn("space-y-5", className)}>
       {(title || actions) && (
-        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-          <div className="space-y-1">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-2">
             {title && <h2 className="text-lg font-medium">{title}</h2>}
             {description && (
               <p className="text-sm text-muted-foreground">{description}</p>
