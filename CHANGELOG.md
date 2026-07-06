@@ -26,6 +26,9 @@ Fundação do projeto. **Nenhuma regra de negócio** foi implementada.
   `Produto`, `Vendedor`, `Proposta`, `PropostaRevisao`, `PropostaSecao`,
   `PropostaItem`, `ConfiguracaoSistema`; enum `ModeloProposta`.
 - Migration inicial gerada offline (`prisma migrate diff`).
+- Ajustes finais de modelagem: `Proposta.proposalNumber` (numeração comercial
+  única), `Proposta.currentRevisionId` (revisão atual, 1:1 opcional) e
+  `PropostaRevisao.revisionNumber` (inteiro; UI exibe "Rev.0").
 - Seed de dados fictícios (5 clientes, 20 produtos, 3 vendedores).
 - Layout base: Sidebar recolhível (off-canvas no mobile), Header, Breadcrumb,
   área principal; tema claro/escuro/sistema.

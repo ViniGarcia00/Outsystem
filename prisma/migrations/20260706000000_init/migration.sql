@@ -37,11 +37,13 @@ CREATE TABLE "vendedores" (
 -- CreateTable
 CREATE TABLE "propostas" (
     "id" TEXT NOT NULL,
+    "proposalNumber" INTEGER NOT NULL,
     "modelo" "ModeloProposta" NOT NULL DEFAULT 'COMERCIAL',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "clienteId" TEXT NOT NULL,
     "vendedorId" TEXT,
+    "currentRevisionId" TEXT,
 
     CONSTRAINT "propostas_pkey" PRIMARY KEY ("id")
 );
@@ -49,6 +51,7 @@ CREATE TABLE "propostas" (
 -- CreateTable
 CREATE TABLE "proposta_revisoes" (
     "id" TEXT NOT NULL,
+    "revisionNumber" INTEGER NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "propostaId" TEXT NOT NULL,
@@ -86,6 +89,12 @@ CREATE TABLE "configuracao_sistema" (
 );
 
 -- CreateIndex
+CREATE UNIQUE INDEX "propostas_proposalNumber_key" ON "propostas"("proposalNumber");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "propostas_currentRevisionId_key" ON "propostas"("currentRevisionId");
+
+-- CreateIndex
 CREATE INDEX "propostas_clienteId_idx" ON "propostas"("clienteId");
 
 -- CreateIndex
@@ -93,6 +102,9 @@ CREATE INDEX "propostas_vendedorId_idx" ON "propostas"("vendedorId");
 
 -- CreateIndex
 CREATE INDEX "proposta_revisoes_propostaId_idx" ON "proposta_revisoes"("propostaId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "proposta_revisoes_propostaId_revisionNumber_key" ON "proposta_revisoes"("propostaId", "revisionNumber");
 
 -- CreateIndex
 CREATE INDEX "proposta_secoes_revisaoId_idx" ON "proposta_secoes"("revisaoId");
@@ -105,6 +117,9 @@ ALTER TABLE "propostas" ADD CONSTRAINT "propostas_clienteId_fkey" FOREIGN KEY ("
 
 -- AddForeignKey
 ALTER TABLE "propostas" ADD CONSTRAINT "propostas_vendedorId_fkey" FOREIGN KEY ("vendedorId") REFERENCES "vendedores"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "propostas" ADD CONSTRAINT "propostas_currentRevisionId_fkey" FOREIGN KEY ("currentRevisionId") REFERENCES "proposta_revisoes"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "proposta_revisoes" ADD CONSTRAINT "proposta_revisoes_propostaId_fkey" FOREIGN KEY ("propostaId") REFERENCES "propostas"("id") ON DELETE CASCADE ON UPDATE CASCADE;

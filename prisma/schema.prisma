@@ -71,7 +71,13 @@ model Vendedor {
 // ---------------------------------------------------------------------------
 
 model Proposta {
-  id        String         @id @default(cuid())
+  id String @id @default(cuid())
+
+  /// Numeração COMERCIAL da proposta (ex.: 26001001).
+  /// NÃO usar o id do banco para representar a numeração. Regra de geração
+  /// será implementada nas próximas Sprints.
+  proposalNumber Int @unique
+
   modelo    ModeloProposta @default(COMERCIAL)
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
@@ -81,7 +87,12 @@ model Proposta {
   vendedorId String?
   vendedor   Vendedor? @relation(fields: [vendedorId], references: [id])
 
-  revisoes PropostaRevisao[]
+  /// Aponta para a revisão ATUAL da proposta (evita consultar/recalcular a
+  /// última revisão a cada acesso). Relacionamento 1:1 opcional.
+  currentRevisionId String?          @unique
+  currentRevision   PropostaRevisao? @relation("PropostaRevisaoAtual", fields: [currentRevisionId], references: [id])
+
+  revisoes PropostaRevisao[] @relation("PropostaRevisoes")
 
   @@index([clienteId])
   @@index([vendedorId])
@@ -89,15 +100,24 @@ model Proposta {
 }
 
 model PropostaRevisao {
-  id        String   @id @default(cuid())
+  id String @id @default(cuid())
+
+  /// Número inteiro da revisão (0, 1, 2, ...). O banco guarda APENAS o inteiro;
+  /// a interface é responsável por exibir "Rev.0", "Rev.1" etc.
+  revisionNumber Int
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   propostaId String
-  proposta   Proposta @relation(fields: [propostaId], references: [id], onDelete: Cascade)
+  proposta   Proposta @relation("PropostaRevisoes", fields: [propostaId], references: [id], onDelete: Cascade)
+
+  /// Back-relation do vínculo "revisão atual" em Proposta.
+  propostaAtual Proposta? @relation("PropostaRevisaoAtual")
 
   secoes PropostaSecao[]
 
+  @@unique([propostaId, revisionNumber])
   @@index([propostaId])
   @@map("proposta_revisoes")
 }

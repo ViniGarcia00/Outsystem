@@ -90,8 +90,8 @@ Prisma 7 com o generator `prisma-client` (saída em `src/generated/prisma`) e
 | `Cliente`             | `clientes`              | Cadastro base                                    |
 | `Produto`             | `produtos`              | Cadastro base                                    |
 | `Vendedor`            | `vendedores`            | Cadastro base                                    |
-| `Proposta`            | `propostas`             | Raiz da hierarquia (+ enum `modelo`)             |
-| `PropostaRevisao`     | `proposta_revisoes`     | Versões de uma proposta                          |
+| `Proposta`            | `propostas`             | Raiz (`proposalNumber` único, `currentRevisionId`, enum `modelo`) |
+| `PropostaRevisao`     | `proposta_revisoes`     | Versões (`revisionNumber` inteiro, único por proposta) |
 | `PropostaSecao`       | `proposta_secoes`       | **Agrupador neutro de itens** (ver abaixo)       |
 | `PropostaItem`        | `proposta_itens`        | Item dentro de uma seção                         |
 | `ConfiguracaoSistema` | `configuracao_sistema`  | **Singleton** de configuração                    |
@@ -107,6 +107,12 @@ Proposta → PropostaRevisao → PropostaSecao → PropostaItem
   **NÃO** representa obrigatoriamente um "ambiente" — nunca tratar como Ambiente
   internamente (nomenclatura, variáveis, comentários).
 - Exclusão em cascata (`onDelete: Cascade`) da revisão para baixo.
+- **`Proposta.currentRevisionId`** aponta para a revisão atual (1:1 opcional),
+  evitando consultas para descobrir a última revisão.
+- **`Proposta.proposalNumber`** é a numeração **comercial** (ex.: `26001001`) —
+  nunca usar o `id` do banco como numeração.
+- **`PropostaRevisao.revisionNumber`** guarda apenas o inteiro; a exibição
+  (`"Rev.0"`, `"Rev.1"`) é responsabilidade da interface.
 
 ### Modelos de proposta
 
