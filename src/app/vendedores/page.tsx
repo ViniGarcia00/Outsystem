@@ -1,19 +1,19 @@
 import { UserSquare } from "lucide-react";
 import type { Metadata } from "next";
 
-import { EmptyState, PageContainer, PageHeader } from "@/components/shared";
+import { AppPage, PageEmpty, PageHeader } from "@/components/app";
 
 export const metadata: Metadata = { title: "Vendedores" };
 
 export default function VendedoresPage() {
   return (
-    <PageContainer>
+    <AppPage>
       <PageHeader title="Vendedores" description="Cadastro de vendedores." />
-      <EmptyState
+      <PageEmpty
         icon={UserSquare}
         title="Nenhum vendedor ainda"
         description="O cadastro de vendedores será implementado nas próximas Sprints."
       />
-    </PageContainer>
+    </AppPage>
   );
 }

@@ -1,0 +1,54 @@
+"use client";
+
+import type { ColumnDef } from "@tanstack/react-table";
+import type { ReactNode } from "react";
+
+import { Loading } from "@/components/shared";
+import { DataTable } from "@/components/tables";
+import { cn } from "@/lib/utils";
+
+import { PagePagination, type PagePaginationProps } from "./page-pagination";
+
+interface PageTableProps<TData, TValue> {
+  columns: ColumnDef<TData, TValue>[];
+  data: TData[];
+  loading?: boolean;
+  /** Conteúdo exibido quando não há dados (ex.: `<PageEmpty />`). */
+  empty?: ReactNode;
+  /** Mensagem simples de vazio dentro da tabela (usada se `empty` ausente). */
+  emptyMessage?: string;
+  pagination?: PagePaginationProps;
+  className?: string;
+}
+
+/**
+ * Área de tabela padrão: tabela (TanStack via `DataTable`), estado de
+ * carregamento, estado vazio rico e paginação — tudo com o mesmo visual.
+ */
+export function PageTable<TData, TValue>({
+  columns,
+  data,
+  loading = false,
+  empty,
+  emptyMessage,
+  pagination,
+  className,
+}: PageTableProps<TData, TValue>) {
+  const isEmpty = !loading && data.length === 0;
+
+  return (
+    <div className={cn("flex flex-col gap-4", className)}>
+      {loading ? (
+        <div className="rounded-md border">
+          <Loading />
+        </div>
+      ) : isEmpty && empty ? (
+        empty
+      ) : (
+        <DataTable columns={columns} data={data} emptyMessage={emptyMessage} />
+      )}
+
+      {pagination && !isEmpty && <PagePagination {...pagination} />}
+    </div>
+  );
+}

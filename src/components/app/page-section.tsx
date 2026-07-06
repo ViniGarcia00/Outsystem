@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
-interface SectionProps {
+interface PageSectionProps {
   title?: string;
   description?: string;
   actions?: ReactNode;
@@ -10,14 +10,17 @@ interface SectionProps {
   className?: string;
 }
 
-/** Bloco de conteúdo com título/descrição opcionais. */
-export function Section({
+/**
+ * Bloco de conteúdo com título/descrição opcionais e área de ações à direita.
+ * Padroniza o cabeçalho de subseções dentro de uma tela.
+ */
+export function PageSection({
   title,
   description,
   actions,
   children,
   className,
-}: SectionProps) {
+}: PageSectionProps) {
   return (
     <section className={cn("space-y-5", className)}>
       {(title || actions) && (

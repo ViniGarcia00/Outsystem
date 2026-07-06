@@ -1,19 +1,19 @@
 import { Users } from "lucide-react";
 import type { Metadata } from "next";
 
-import { EmptyState, PageContainer, PageHeader } from "@/components/shared";
+import { AppPage, PageEmpty, PageHeader } from "@/components/app";
 
 export const metadata: Metadata = { title: "Clientes" };
 
 export default function ClientesPage() {
   return (
-    <PageContainer>
+    <AppPage>
       <PageHeader title="Clientes" description="Cadastro de clientes." />
-      <EmptyState
+      <PageEmpty
         icon={Users}
         title="Nenhum cliente ainda"
         description="O cadastro de clientes será implementado nas próximas Sprints."
       />
-    </PageContainer>
+    </AppPage>
   );
 }

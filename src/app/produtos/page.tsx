@@ -1,19 +1,19 @@
 import { Package } from "lucide-react";
 import type { Metadata } from "next";
 
-import { EmptyState, PageContainer, PageHeader } from "@/components/shared";
+import { AppPage, PageEmpty, PageHeader } from "@/components/app";
 
 export const metadata: Metadata = { title: "Produtos" };
 
 export default function ProdutosPage() {
   return (
-    <PageContainer>
+    <AppPage>
       <PageHeader title="Produtos" description="Catálogo de produtos." />
-      <EmptyState
+      <PageEmpty
         icon={Package}
         title="Nenhum produto ainda"
         description="O catálogo de produtos será implementado nas próximas Sprints."
       />
-    </PageContainer>
+    </AppPage>
   );
 }

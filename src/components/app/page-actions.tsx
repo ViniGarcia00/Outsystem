@@ -22,11 +22,11 @@ interface PageActionsProps {
 }
 
 /**
- * Barra de ações de página, reutilizável nas telas das próximas Sprints
+ * Barra de ações de página, reutilizável em TODAS as telas
  * (Novo, Salvar, Cancelar, Excluir, Duplicar, Exportar).
  *
- * PREPARADO — ainda NÃO utilizado. Cada botão aparece somente quando seu
- * respectivo handler é fornecido, mantendo a barra enxuta por tela.
+ * Cada botão aparece somente quando seu respectivo handler é fornecido,
+ * mantendo a barra enxuta por tela.
  */
 export function PageActions({
   onNew,
