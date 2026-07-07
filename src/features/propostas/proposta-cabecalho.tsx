@@ -132,7 +132,7 @@ export function PropostaCabecalho({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="cab-validade">Validade (dias)</Label>
+          <Label htmlFor="cab-validade">Validade da proposta</Label>
           <Input
             id="cab-validade"
             type="number"
@@ -153,6 +153,9 @@ export function PropostaCabecalho({
               }
             }}
           />
+          <p className="text-xs text-muted-foreground">
+            Por quantos dias a proposta é válida (ex.: 7, 15, 30).
+          </p>
         </div>
       </div>
 

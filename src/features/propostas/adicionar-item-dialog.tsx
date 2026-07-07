@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { CurrencyInput } from "@/components/forms";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -22,6 +23,8 @@ interface AdicionarItemDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   titulo: string;
+  /** Exibe o campo Valor serviço (Simplificada oculta; o valor segue no snapshot). */
+  mostrarServico: boolean;
   /** Adiciona o item ao rascunho em memória (valores editáveis na proposta). */
   onAdd: (
     produto: ProdutoSuggestion,
@@ -36,6 +39,7 @@ export function AdicionarItemDialog({
   open,
   onOpenChange,
   titulo,
+  mostrarServico,
   onAdd,
   onAdded,
 }: AdicionarItemDialogProps) {
@@ -48,6 +52,7 @@ export function AdicionarItemDialog({
         {/* Form remonta a cada abertura (Radix desmonta o conteúdo ao fechar),
             então o estado reinicia sozinho — sem efeito de reset. */}
         <ItemForm
+          mostrarServico={mostrarServico}
           onAdd={onAdd}
           onAdded={onAdded}
           onClose={() => onOpenChange(false)}
@@ -58,10 +63,12 @@ export function AdicionarItemDialog({
 }
 
 function ItemForm({
+  mostrarServico,
   onAdd,
   onAdded,
   onClose,
 }: {
+  mostrarServico: boolean;
   onAdd: (
     produto: ProdutoSuggestion,
     quantidade: number,
@@ -73,26 +80,23 @@ function ItemForm({
 }) {
   const [produto, setProduto] = useState<ProdutoSuggestion | null>(null);
   const [quantidade, setQuantidade] = useState("1");
-  const [valorProduto, setValorProduto] = useState("");
-  const [valorServico, setValorServico] = useState("");
+  const [valorProduto, setValorProduto] = useState(0);
+  const [valorServico, setValorServico] = useState(0);
   const [saving, setSaving] = useState(false);
 
   const q = Number(quantidade);
-  const vp = Number(valorProduto);
-  const vs = Number(valorServico);
   const valido =
     Boolean(produto) &&
     Number.isFinite(q) &&
     q > 0 &&
-    Number.isFinite(vp) &&
-    vp >= 0 &&
-    Number.isFinite(vs) &&
-    vs >= 0;
+    valorProduto >= 0 &&
+    valorServico >= 0;
 
   const adicionar = async () => {
     if (!produto || !valido) return;
     setSaving(true);
-    const result = await onAdd(produto, q, vp, vs);
+    // Mesmo na Simplificada o valorServico do cadastro é preservado no snapshot.
+    const result = await onAdd(produto, q, valorProduto, valorServico);
     if (result.success) {
       toast.success("Produto adicionado.");
       onClose();
@@ -112,13 +116,13 @@ function ItemForm({
             setProduto(p);
             // Valores pré-preenchidos com o cadastro (editáveis na proposta).
             if (p) {
-              setValorProduto(String(p.valorProduto));
-              setValorServico(String(p.valorServico));
+              setValorProduto(p.valorProduto);
+              setValorServico(p.valorServico);
             }
           }}
         />
 
-        <div className="grid grid-cols-3 gap-4">
+        <div className={mostrarServico ? "grid grid-cols-3 gap-4" : "grid grid-cols-2 gap-4"}>
           <div className="space-y-2">
             <Label htmlFor="add-qtd">Quantidade</Label>
             <Input
@@ -133,28 +137,22 @@ function ItemForm({
           </div>
           <div className="space-y-2">
             <Label htmlFor="add-valor-produto">Valor produto</Label>
-            <Input
+            <CurrencyInput
               id="add-valor-produto"
-              type="number"
-              inputMode="decimal"
-              step="any"
-              min={0}
               value={valorProduto}
-              onChange={(e) => setValorProduto(e.target.value)}
+              onChange={setValorProduto}
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="add-valor-servico">Valor serviço</Label>
-            <Input
-              id="add-valor-servico"
-              type="number"
-              inputMode="decimal"
-              step="any"
-              min={0}
-              value={valorServico}
-              onChange={(e) => setValorServico(e.target.value)}
-            />
-          </div>
+          {mostrarServico && (
+            <div className="space-y-2">
+              <Label htmlFor="add-valor-servico">Valor serviço</Label>
+              <CurrencyInput
+                id="add-valor-servico"
+                value={valorServico}
+                onChange={setValorServico}
+              />
+            </div>
+          )}
         </div>
         <p className="text-xs text-muted-foreground">
           Os valores valem apenas para este item da proposta — não alteram o

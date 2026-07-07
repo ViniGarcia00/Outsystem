@@ -145,6 +145,7 @@ export function SecaoCard({
           actions={actions}
           readOnly={readOnly}
           refresh={refresh}
+          simplificada={false}
         />
       </CardContent>
 
@@ -161,6 +162,7 @@ export function SecaoCard({
         open={addOpen}
         onOpenChange={setAddOpen}
         titulo={`Adicionar produto — ${secao.nome}`}
+        mostrarServico
         onAdd={(produto, quantidade, valorProduto, valorServico) =>
           actions.adicionarItem(
             secao.id,

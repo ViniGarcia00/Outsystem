@@ -4,6 +4,22 @@ Todas as mudanças relevantes deste projeto são documentadas aqui.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o
 projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [0.7.1] — 2026-07-07
+
+### Sprint 2.4 (parte 1) — ajustes funcionais. Ver ADR-0218.
+
+#### Alterado
+
+- **Validade da proposta:** o campo do cabeçalho passa a se chamar **"Validade da
+  proposta"** (em dias; será usado no PDF).
+- **Máscara monetária (R$ 0,00):** os valores do item (Valor Produto / Valor
+  Serviço) usam máscara BRL, reutilizando o `CurrencyInput` (armazenamento segue
+  numérico; máscara é só de exibição).
+- **Proposta Simplificada (apresentação):** a grade oculta **Valor Serviço**,
+  **Total Produto** e **Total Serviço**; o **Total** vira Qtd × Valor Produto. Os
+  valores de serviço **continuam armazenados** (nada excluído, modelo/snapshot
+  intactos) — trocar para Completa reexibe tudo sem perda.
+
 ## [0.7.0] — 2026-07-07
 
 ### Sprint 2.3 — Serviços (Projeto de Automação) + Total da linha. Ver ADR-0215/0217.

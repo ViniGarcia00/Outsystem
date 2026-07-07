@@ -530,3 +530,26 @@ Formato: **ADR** enxuto (Architecture Decision Record).
   → Seções → Itens) sem reescrever a arquitetura de itens. Nenhuma nomenclatura
   "automação" foi gravada em schema/código (o módulo continua "Propostas"); o
   enquadramento é apenas conceitual.
+
+---
+
+## Sprint 2.4 — Ajustes funcionais (parte 1)
+
+### ADR-0218 — Simplificada é apresentação; máscara monetária; validade da proposta
+
+- **Simplificada = regra de APRESENTAÇÃO (sem tocar dados):** no modelo
+  Simplificada a grade oculta **Valor Serviço**, **Total Produto** e **Total
+  Serviço**, e o **Total** passa a ser Qtd × Valor Produto. Os valores de serviço
+  **continuam armazenados** no snapshot — nada é excluído, o modelo/snapshot não
+  muda. Trocar para **Completa** faz tudo reaparecer sem perda nem recálculo
+  (verificado). A distinção vive só na UI, dirigida pelo `modelo` (`ItensTable`
+  recebe `simplificada`; o diálogo recebe `mostrarServico`).
+- **Máscara monetária (BRL):** os campos de valor do item (Valor Produto / Valor
+  Serviço) usam máscara `R$ 0,00` reutilizando o `CurrencyInput` existente
+  (armazenamento continua numérico; máscara é só exibição). Os mesmos componentes
+  servirão a Desconto/Frete/Totais nas próximas Sprints.
+- **Validade da proposta:** o campo de cabeçalho é rotulado **"Validade da
+  proposta"** (em dias; usado futuramente no PDF). Sem mudança de modelo
+  (`validadeDias`).
+- **Consequência:** sem nova tabela/entidade/migração; apresentação condicionada
+  ao tipo da proposta, com dados sempre completos no banco.

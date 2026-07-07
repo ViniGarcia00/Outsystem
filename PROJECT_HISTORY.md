@@ -355,5 +355,27 @@ ADRs, problemas, soluções, lições e o hash do commit.
 
 ---
 
+## Sprint 2.4 (parte 1) — Ajustes funcionais
+
+- **Versão:** 0.7.1
+- **Data:** 2026-07-07
+- **Objetivo:** ajustes funcionais do módulo de Propostas antes dos Totais da
+  proposta (que completam a Sprint 2.4).
+- **Principais entregas:**
+  - Cabeçalho: campo **"Validade da proposta"** (em dias; futuro PDF).
+  - **Máscara monetária (R$ 0,00)** nos valores do item, reutilizando o
+    `CurrencyInput` (armazenamento numérico; máscara só de exibição).
+  - **Simplificada = apresentação:** grade oculta Valor Serviço / Total Produto /
+    Total Serviço; Total = Qtd × Valor Produto. Dados de serviço preservados
+    (nada excluído; modelo/snapshot intactos) — Completa reexibe tudo (verificado
+    por script).
+- **ADRs criadas:** ADR-0218.
+- **Gate:** lint 0, typecheck 0, build 0, smoke 7/7, `/api/health` 200.
+- **Hash do commit:** `PENDENTE`
+- **Observação:** os **Totais da proposta** (subtotal/total geral) completam a
+  Sprint 2.4 numa etapa seguinte.
+
+---
+
 > Próximas Sprints: adicionar uma nova seção ao final, seguindo este mesmo
 > formato, ao concluir cada Sprint.

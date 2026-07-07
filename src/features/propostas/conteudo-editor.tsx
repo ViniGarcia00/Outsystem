@@ -78,6 +78,7 @@ function ConteudoSimplificado({
           actions={actions}
           readOnly={readOnly}
           refresh={refresh}
+          simplificada
         />
       </CardContent>
       {!readOnly && (
@@ -92,6 +93,7 @@ function ConteudoSimplificado({
         open={addOpen}
         onOpenChange={setAddOpen}
         titulo="Adicionar produto"
+        mostrarServico={false}
         onAdd={(produto, quantidade, valorProduto, valorServico) =>
           actions.adicionarItemAvulso(
             produto,

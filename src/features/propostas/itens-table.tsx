@@ -1,8 +1,10 @@
 "use client";
 
 import { ChevronDown, ChevronUp, Trash2 } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 
+import { CurrencyInput } from "@/components/forms";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -19,24 +21,28 @@ import { formatCurrency } from "@/utils";
 import type { ConteudoActions } from "./conteudo-handlers";
 
 /**
- * Grade de produtos: Código · Descrição · Qtd · UN · Valor Produto · Valor
- * Serviço · Total Produto · Total Serviço · Total · Ações.
+ * Grade de produtos. No modelo **Completo** (Comercial): Código · Descrição ·
+ * Qtd · UN · Valor Produto · Valor Serviço · Total Produto · Total Serviço ·
+ * Total · Ações. No modelo **Simplificada**, as colunas de serviço são ocultadas
+ * (apenas visual — os valores de serviço continuam armazenados) e o Total passa
+ * a ser Qtd × Valor Produto.
+ *
+ * Valores monetários usam máscara BRL (R$ 0,00); armazenamento continua numérico.
  * Qtd, Valor Produto e Valor Serviço são editáveis (gravam no snapshot do item,
- * não no cadastro). Totais (apenas visuais):
- *  - Total Produto = Qtd × Valor Produto
- *  - Total Serviço = Qtd × Valor Serviço
- *  - Total (da linha) = Total Produto + Total Serviço
+ * não no cadastro).
  */
 export function ItensTable({
   itens,
   actions,
   readOnly,
   refresh,
+  simplificada,
 }: {
   itens: ItemDTO[];
   actions: ConteudoActions;
   readOnly: boolean;
   refresh: () => void;
+  simplificada: boolean;
 }) {
   if (itens.length === 0) {
     return (
@@ -56,9 +62,9 @@ export function ItensTable({
             <TableHead>Qtd.</TableHead>
             <TableHead>UN</TableHead>
             <TableHead>Valor Produto</TableHead>
-            <TableHead>Valor Serviço</TableHead>
-            <TableHead>Total Produto</TableHead>
-            <TableHead>Total Serviço</TableHead>
+            {!simplificada && <TableHead>Valor Serviço</TableHead>}
+            {!simplificada && <TableHead>Total Produto</TableHead>}
+            {!simplificada && <TableHead>Total Serviço</TableHead>}
             <TableHead>Total</TableHead>
             {!readOnly && <TableHead className="sr-only">Ações</TableHead>}
           </TableRow>
@@ -70,6 +76,7 @@ export function ItensTable({
               item={item}
               actions={actions}
               readOnly={readOnly}
+              simplificada={simplificada}
               isFirst={index === 0}
               isLast={index === itens.length - 1}
               refresh={refresh}
@@ -81,10 +88,35 @@ export function ItensTable({
   );
 }
 
+/** Campo monetário editável (máscara BRL); comita ao sair se o valor mudou. */
+function EditableMoney({
+  valor,
+  onCommit,
+  ariaLabel,
+}: {
+  valor: number;
+  onCommit: (v: number) => void;
+  ariaLabel: string;
+}) {
+  const [v, setV] = useState(valor);
+  return (
+    <CurrencyInput
+      value={v}
+      onChange={setV}
+      onBlur={() => {
+        if (v !== valor) onCommit(v);
+      }}
+      className="h-8 w-32"
+      aria-label={ariaLabel}
+    />
+  );
+}
+
 function ItemRow({
   item,
   actions,
   readOnly,
+  simplificada,
   isFirst,
   isLast,
   refresh,
@@ -92,13 +124,15 @@ function ItemRow({
   item: ItemDTO;
   actions: ConteudoActions;
   readOnly: boolean;
+  simplificada: boolean;
   isFirst: boolean;
   isLast: boolean;
   refresh: () => void;
 }) {
   const totalProduto = item.quantidade * item.valorProduto;
   const totalServico = item.quantidade * item.valorServico;
-  const totalLinha = totalProduto + totalServico;
+  // No modelo Simplificada, o Total é apenas o do produto (serviço oculto).
+  const totalLinha = simplificada ? totalProduto : totalProduto + totalServico;
 
   const salvarQtd = async (valor: string) => {
     const q = Number(valor);
@@ -108,17 +142,13 @@ function ItemRow({
     else toast.error(result.error);
   };
 
-  const salvarValorProduto = async (valor: string) => {
-    const v = Number(valor);
-    if (!Number.isFinite(v) || v < 0 || v === item.valorProduto) return;
+  const salvarValorProduto = async (v: number) => {
     const result = await actions.atualizarValorProduto(item.id, v);
     if (result.success) refresh();
     else toast.error(result.error);
   };
 
-  const salvarValorServico = async (valor: string) => {
-    const v = Number(valor);
-    if (!Number.isFinite(v) || v < 0 || v === item.valorServico) return;
+  const salvarValorServico = async (v: number) => {
     const result = await actions.atualizarValorServico(item.id, v);
     if (result.success) refresh();
     else toast.error(result.error);
@@ -161,40 +191,36 @@ function ItemRow({
         {readOnly ? (
           formatCurrency(item.valorProduto)
         ) : (
-          <Input
-            type="number"
-            inputMode="decimal"
-            step="any"
-            min={0}
-            defaultValue={item.valorProduto}
-            onBlur={(e) => salvarValorProduto(e.target.value)}
-            className="h-8 w-28"
-            aria-label="Valor produto"
+          <EditableMoney
+            valor={item.valorProduto}
+            onCommit={salvarValorProduto}
+            ariaLabel="Valor produto"
           />
         )}
       </TableCell>
-      <TableCell>
-        {readOnly ? (
-          formatCurrency(item.valorServico)
-        ) : (
-          <Input
-            type="number"
-            inputMode="decimal"
-            step="any"
-            min={0}
-            defaultValue={item.valorServico}
-            onBlur={(e) => salvarValorServico(e.target.value)}
-            className="h-8 w-28"
-            aria-label="Valor serviço"
-          />
-        )}
-      </TableCell>
-      <TableCell className="tabular-nums">
-        {formatCurrency(totalProduto)}
-      </TableCell>
-      <TableCell className="tabular-nums">
-        {formatCurrency(totalServico)}
-      </TableCell>
+      {!simplificada && (
+        <TableCell>
+          {readOnly ? (
+            formatCurrency(item.valorServico)
+          ) : (
+            <EditableMoney
+              valor={item.valorServico}
+              onCommit={salvarValorServico}
+              ariaLabel="Valor serviço"
+            />
+          )}
+        </TableCell>
+      )}
+      {!simplificada && (
+        <TableCell className="tabular-nums">
+          {formatCurrency(totalProduto)}
+        </TableCell>
+      )}
+      {!simplificada && (
+        <TableCell className="tabular-nums">
+          {formatCurrency(totalServico)}
+        </TableCell>
+      )}
       <TableCell className="font-medium tabular-nums">
         {formatCurrency(totalLinha)}
       </TableCell>
