@@ -471,7 +471,7 @@ ADRs, problemas, soluções, lições e o hash do commit.
 - **Gate:** lint 0, typecheck 0, build 0, smoke **7/7** (preenchimento +
   persistência dos 4 campos na Completa; Previsão oculta na Simplificada),
   `/api/health` 200 (db up).
-- **Hash do commit:** `PENDENTE`
+- **Hash do commit:** `94fa946`
 - **Próxima:** **2.7 PDF**.
 
 ---
