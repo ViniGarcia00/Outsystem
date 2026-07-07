@@ -317,7 +317,7 @@ ADRs, problemas, soluções, lições e o hash do commit.
 - **Gate:** lint 0, typecheck 0, build 0, smoke **7/7**, `/api/health` 200 (db
   up). Verificado por script: replace no RASCUNHO, fork no save (Rev.1 +
   RASCUNHO, Rev.0 congelada), auditoria consolidada.
-- **Hash do commit:** `PENDENTE`
+- **Hash do commit:** `856e0af`
 
 ---
 
