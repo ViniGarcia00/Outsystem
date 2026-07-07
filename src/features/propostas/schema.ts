@@ -12,6 +12,7 @@ export const cabecalhoPatchSchema = z
   .object({
     clienteId: z.string().nullable(),
     vendedorId: z.string().nullable(),
+    nomeProjeto: z.string().max(200).nullable(),
     modelo: modeloEnum,
     validadeDias: z
       .number({ message: "Informe a validade em dias." })
@@ -35,6 +36,7 @@ export const novaPropostaSchema = z.object({
   // Cliente é OBRIGATÓRIO para criar a proposta (item de homologação).
   clienteId: z.string().min(1, "Selecione o cliente."),
   vendedorId: z.string().nullable(),
+  nomeProjeto: z.string().max(200).nullable(),
   modelo: modeloEnum,
   validadeDias: z
     .number()

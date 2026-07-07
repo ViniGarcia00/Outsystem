@@ -4,6 +4,24 @@ Todas as mudanças relevantes deste projeto são documentadas aqui.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o
 projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [0.12.4] — 2026-07-07
+
+### Sprint 2.7.8 — Refinamentos de UX e PDF. Ver ADR-0227.
+
+#### Propostas
+
+- Novo campo **Nome do Projeto** (na mesma linha do Cliente); pertence à
+  Proposta e é persistido. Vendedor e Validade da proposta em linhas próprias.
+- **Desconto percentual** passa a exibir também o **valor monetário**
+  correspondente (Subtotal × Percentual); desconto em valor inalterado.
+- **Legenda de status** reorganizada em bloco contido, mantendo a
+  responsividade (cores e badges inalterados).
+
+#### PDF
+
+- Tabela: **Código em negrito**, Descrição em peso normal (demais colunas
+  inalteradas).
+
 ## [0.12.3] — 2026-07-07
 
 ### Sprint 2.7.7 — Refinamentos de UX e PDF. Ver ADR-0226.

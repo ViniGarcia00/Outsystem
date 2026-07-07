@@ -275,9 +275,8 @@ export function PropostasList({
         }}
       />
 
-      {/* Legenda das cores de status — quebra em várias linhas em telas menores,
-          sem estourar a largura. */}
-      <div className="mt-3 flex w-full flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
+      {/* Legenda das cores de status — bloco contido, com quebra responsiva. */}
+      <div className="mt-3 flex w-full flex-wrap items-center gap-x-4 gap-y-2 rounded-md border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
         <span className="font-medium">Status:</span>
         {(
           [

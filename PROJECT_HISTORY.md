@@ -590,5 +590,27 @@ ADRs, problemas, soluções, lições e o hash do commit.
 
 ---
 
+## Sprint 2.7.8 — Refinamentos de UX e PDF
+
+- **Versão:** 0.12.4
+- **Data:** 2026-07-07
+- **Objetivo:** rodada de refinamentos de UX/PDF com escopo estrito.
+- **Principais entregas:**
+  - **Nome do Projeto** na Proposta (migration aditiva
+    `20260707090000_nome_projeto`); no cabeçalho, mesma linha do Cliente;
+    Vendedor e Validade em linhas próprias.
+  - **Desconto percentual** exibe também o valor monetário (Subtotal ×
+    Percentual) via `DescontoInput` recebendo o subtotal (reuso de `totais`).
+  - **Legenda de status** em bloco contido, responsiva (cores/badges inalterados).
+  - **PDF:** Código em negrito, Descrição em peso normal.
+- **ADRs criadas:** ADR-0227.
+- **Gate:** lint 0, typecheck 0, build 0, **unit 17/17**, smoke **7/7** (Nome do
+  Projeto persistência, não-duplicidade, coluna Valor/legenda), `/api/health`
+  200 (db up). PDF revalidado (render OK).
+- **Hash do commit:** `PENDENTE`
+- **Próxima:** **2.8 homologação geral**.
+
+---
+
 > Próximas Sprints: adicionar uma nova seção ao final, seguindo este mesmo
 > formato, ao concluir cada Sprint.

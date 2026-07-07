@@ -54,6 +54,7 @@ export function PropostaWorkspace({
     clienteId: data.clienteId,
     clienteNome: data.clienteNome,
     vendedorId: data.vendedorId,
+    nomeProjeto: data.nomeProjeto,
     modelo: data.modelo,
     validadeDias: data.validadeDias,
     obsInternas: data.obsInternas,
@@ -93,6 +94,9 @@ export function PropostaWorkspace({
       ...(patch.vendedorId !== undefined
         ? { vendedorId: patch.vendedorId }
         : {}),
+      ...(patch.nomeProjeto !== undefined
+        ? { nomeProjeto: patch.nomeProjeto ?? "" }
+        : {}),
       ...(patch.modelo !== undefined ? { modelo: patch.modelo } : {}),
       ...(patch.validadeDias !== undefined
         ? { validadeDias: patch.validadeDias }
@@ -124,6 +128,7 @@ export function PropostaWorkspace({
     const result = await salvarPropostaAction(data.id, {
       clienteId: header.clienteId,
       vendedorId: header.vendedorId,
+      nomeProjeto: header.nomeProjeto || null,
       modelo: header.modelo,
       validadeDias: header.validadeDias,
       obsInternas: header.obsInternas || null,

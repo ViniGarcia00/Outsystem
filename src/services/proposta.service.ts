@@ -201,6 +201,7 @@ export interface NovaPropostaSecao {
 export interface NovaPropostaPayload {
   clienteId: string | null;
   vendedorId: string | null;
+  nomeProjeto?: string | null;
   modelo: ModeloProposta;
   validadeDias: number;
   obsInternas: string | null;
@@ -230,6 +231,7 @@ export async function criarPropostaCompleta(
       data: {
         clienteId: payload.clienteId,
         vendedorId: payload.vendedorId,
+        nomeProjeto: trimOrNull(payload.nomeProjeto),
         modelo: payload.modelo,
         validadeDias: payload.validadeDias,
         obsInternas: trimOrNull(payload.obsInternas),
@@ -375,6 +377,7 @@ export async function salvarProposta(
       data: {
         clienteId: payload.clienteId,
         vendedorId: payload.vendedorId,
+        nomeProjeto: trimOrNull(payload.nomeProjeto),
         modelo: payload.modelo,
         validadeDias: payload.validadeDias,
         obsInternas: trimOrNull(payload.obsInternas),

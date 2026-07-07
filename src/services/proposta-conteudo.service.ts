@@ -52,6 +52,7 @@ export interface WorkspaceDTO {
   clienteNome: string | null;
   vendedorId: string | null;
   vendedorNome: string | null;
+  nomeProjeto: string;
   modelo: ModeloProposta;
   validadeDias: number;
   obsInternas: string;
@@ -90,6 +91,7 @@ export async function getWorkspace(
       proposalNumber: true,
       status: true,
       modelo: true,
+      nomeProjeto: true,
       validadeDias: true,
       motivoCancelamento: true,
       obsCancelamento: true,
@@ -153,6 +155,7 @@ export async function getWorkspace(
     clienteNome: p.cliente ? clienteDisplay(p.cliente) : null,
     vendedorId: p.vendedorId,
     vendedorNome: p.vendedor?.nome ?? null,
+    nomeProjeto: p.nomeProjeto ?? "",
     modelo: p.modelo,
     validadeDias: p.validadeDias,
     obsInternas: p.obsInternas ?? "",

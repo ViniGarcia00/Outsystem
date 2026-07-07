@@ -28,6 +28,7 @@ const CABECALHO_INICIAL: CabecalhoValores = {
   clienteId: null,
   clienteNome: null,
   vendedorId: null,
+  nomeProjeto: "",
   modelo: "COMERCIAL" as ModeloProposta,
   validadeDias: 5,
   obsInternas: "",
@@ -65,6 +66,9 @@ export function NovaPropostaWorkspace({
       ...(patch.vendedorId !== undefined
         ? { vendedorId: patch.vendedorId }
         : {}),
+      ...(patch.nomeProjeto !== undefined
+        ? { nomeProjeto: patch.nomeProjeto ?? "" }
+        : {}),
       ...(patch.modelo !== undefined ? { modelo: patch.modelo } : {}),
       ...(patch.validadeDias !== undefined
         ? { validadeDias: patch.validadeDias }
@@ -97,6 +101,7 @@ export function NovaPropostaWorkspace({
     const result = await criarPropostaAction({
       clienteId: header.clienteId,
       vendedorId: header.vendedorId,
+      nomeProjeto: header.nomeProjeto || null,
       modelo: header.modelo,
       validadeDias: header.validadeDias,
       obsInternas: header.obsInternas || null,

@@ -28,6 +28,7 @@ export interface CabecalhoValores {
   clienteId: string | null;
   clienteNome: string | null;
   vendedorId: string | null;
+  nomeProjeto: string;
   modelo: ModeloProposta;
   validadeDias: number;
   obsInternas: string;
@@ -66,6 +67,7 @@ export function PropostaCabecalho({
 
   // Últimos valores comitados dos campos de texto (evita salvar sem mudança).
   const ultimaValidade = useRef(String(valores.validadeDias));
+  const ultimoNomeProjeto = useRef(valores.nomeProjeto);
   const ultimaObsInternas = useRef(valores.obsInternas);
   const ultimaObsProposta = useRef(valores.obsProposta);
 
@@ -98,6 +100,7 @@ export function PropostaCabecalho({
         </div>
       </div>
 
+      {/* Cliente | Nome do Projeto */}
       <div className="grid gap-4 sm:grid-cols-2">
         <ClienteAutocomplete
           value={clienteId}
@@ -111,6 +114,26 @@ export function PropostaCabecalho({
           }}
         />
 
+        <div className="space-y-2">
+          <Label htmlFor="cab-nome-projeto">Nome do Projeto</Label>
+          <Input
+            id="cab-nome-projeto"
+            defaultValue={valores.nomeProjeto}
+            disabled={readOnly}
+            placeholder="Opcional"
+            onBlur={(e) => {
+              const v = e.target.value;
+              if (v !== ultimoNomeProjeto.current) {
+                ultimoNomeProjeto.current = v;
+                onCampo({ nomeProjeto: v || null });
+              }
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Vendedor — meia largura, em sua própria linha. */}
+      <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="cab-vendedor">Vendedor</Label>
           <Select
@@ -135,7 +158,10 @@ export function PropostaCabecalho({
             </SelectContent>
           </Select>
         </div>
+      </div>
 
+      {/* Validade da proposta — meia largura, em sua própria linha. */}
+      <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="cab-validade">Validade da proposta</Label>
           <Input

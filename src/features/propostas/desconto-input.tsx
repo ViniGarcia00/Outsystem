@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { formatCurrency } from "@/utils";
 
-import type { Desconto } from "./totais";
+import { aplicarDesconto, type Desconto } from "./totais";
 
 /** Número no formato BR: "7,5" → 7.5; "1.234,56" → 1234.56; "500" → 500. */
 function parseNumeroBR(texto: string): number {
@@ -51,11 +51,14 @@ function toEditable(d: Desconto): string {
 export function DescontoInput({
   value,
   onChange,
+  subtotal,
   disabled = false,
   id,
 }: {
   value: Desconto;
   onChange: (desconto: Desconto) => void;
+  /** Subtotal — usado para exibir o valor monetário do desconto percentual. */
+  subtotal: number;
   disabled?: boolean;
   id?: string;
 }) {
@@ -63,10 +66,11 @@ export function DescontoInput({
   const [texto, setTexto] = useState("");
 
   // Interpretação em TEMPO REAL: enquanto digita, reflete o texto; fora do foco,
-  // reflete o valor confirmado. "-" quando não há desconto informado.
+  // reflete o valor confirmado. Mostra o **valor monetário** do desconto
+  // (Subtotal × Percentual, quando percentual); "-" quando não há desconto.
   const interpretado = focado ? parseDesconto(texto) : value;
-  const interpretacao =
-    interpretado.valor > 0 ? formatDesconto(interpretado) : "-";
+  const aplicado = aplicarDesconto(subtotal, interpretado);
+  const interpretacao = aplicado > 0 ? formatCurrency(aplicado) : "-";
 
   return (
     <div className="flex items-center gap-2">

@@ -796,3 +796,28 @@ alterações fora do escopo):
   Vendedor · **Status** · Última alteração (o badge sai da célula de ação); a
   coluna **Valor** passa a ficar após Cliente. **Legenda** de status com quebra
   responsiva (não estoura a largura em telas menores).
+
+---
+
+## Sprint 2.7.8 — Refinamentos de UX e PDF
+
+### ADR-0227 — Nome do Projeto; desconto percentual em R$; legenda; PDF
+
+Sprint de refinamento (escopo estrito):
+
+- **Nome do Projeto:** novo campo **texto** pertencente à Proposta
+  (`Proposta.nomeProjeto`, migration aditiva `20260707090000_nome_projeto`).
+  No cabeçalho fica na **mesma linha do Cliente** (Cliente | Nome do Projeto);
+  Vendedor e Validade da proposta seguem cada um em sua própria linha. Plumbing
+  completo (`CabecalhoValores`/`cabecalhoPatchSchema`/`novaPropostaSchema`,
+  workspaces, `NovaPropostaPayload`/`criar`/`salvar`, `WorkspaceDTO`/
+  `getWorkspace`) via `trimOrNull`.
+- **Desconto percentual → valor monetário:** a interpretação do desconto passa a
+  exibir o **valor aplicado em R$** (Subtotal × Percentual). `DescontoInput`
+  recebe o `subtotal` e mostra `formatCurrency(aplicarDesconto(subtotal, …))`
+  (reuso do helper `totais`), "-" quando vazio. O input segue mostrando "10%"
+  (percentual) ou "R$ 500,00" (valor) — comportamento do valor inalterado.
+- **Legenda de status:** apresentação em bloco contido (borda/fundo suave),
+  mantendo a responsividade; cores e badges inalterados.
+- **PDF — tabela:** **Código em negrito**, Descrição em peso normal; demais
+  colunas inalteradas.

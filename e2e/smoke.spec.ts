@@ -125,6 +125,10 @@ test("Propostas: criação diferida, emitir e revisão automática", async ({
   await page.getByLabel("Cliente", { exact: true }).fill(clienteNome);
   await page.getByRole("option", { name: clienteNome }).click();
 
+  // Nome do Projeto (pertence à Proposta; persistido).
+  await expect(page.getByLabel("Nome do Projeto")).toBeVisible();
+  await page.getByLabel("Nome do Projeto").fill("Projeto E2E");
+
   await page.getByPlaceholder("Nome da nova seção (ex.: Sala)").fill("Sala E2E");
   await page.getByRole("button", { name: "Adicionar seção" }).click();
   await expect(page.getByRole("heading", { name: "Sala E2E" })).toBeVisible();
@@ -191,6 +195,8 @@ test("Propostas: criação diferida, emitir e revisão automática", async ({
   await expect(page).toHaveURL(/\/propostas\/(?!nova$)[^/]+$/);
   await expect(page.getByRole("heading", { name: "Conteúdo" })).toBeVisible();
   const propostaPath = new URL(page.url()).pathname;
+  // Nome do Projeto persistiu (round-trip).
+  await expect(page.getByLabel("Nome do Projeto")).toHaveValue("Projeto E2E");
 
   // Persistência da finalização (round-trip pós-criação).
   await expect(page.getByLabel("Forma de pagamento")).toHaveValue(

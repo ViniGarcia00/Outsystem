@@ -48,6 +48,7 @@ export function RodapeTotais({
             <DescontoInput
               value={desconto}
               onChange={onDescontoChange}
+              subtotal={t.subtotal}
               disabled={readOnly}
             />
           </dd>

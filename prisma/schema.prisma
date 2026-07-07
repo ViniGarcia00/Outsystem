@@ -175,6 +175,9 @@ model Proposta {
   /// Ciclo de vida (ADR-0204). Cancelada apenas via ação Cancelar (ADR-0203).
   status StatusProposta @default(RASCUNHO)
 
+  /// Nome do projeto (ADR-0227). Texto livre pertencente à Proposta.
+  nomeProjeto String?
+
   /// Validade em dias (nasce com 5; usuário pode alterar).
   validadeDias Int @default(5)
 

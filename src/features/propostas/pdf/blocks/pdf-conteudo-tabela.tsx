@@ -155,7 +155,6 @@ export function PdfConteudoTabela({
             >
               {cols.map((col) => {
                 const isCodigo = col.chave === "codigo";
-                const isDescricao = col.chave === "descricao";
                 return (
                   <Text
                     key={col.chave}
@@ -163,8 +162,9 @@ export function PdfConteudoTabela({
                       ...celulaStyle(col),
                       fontFamily: tema.fonte,
                       fontSize: isCodigo ? tema.tamanho.xs : tema.tamanho.base,
-                      fontWeight: isDescricao
-                        ? tema.pesos.medium
+                      // Código em negrito; Descrição (e demais) em peso normal.
+                      fontWeight: isCodigo
+                        ? tema.pesos.bold
                         : tema.pesos.regular,
                       // Código legível (cor escura); mantém tamanho menor.
                       color: tema.cores.texto,
