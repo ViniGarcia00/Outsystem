@@ -230,5 +230,35 @@ ADRs, problemas, soluções, lições e o hash do commit.
 
 ---
 
+## Homologação 0.6.1 — criação diferida + ajustes de UX
+
+- **Versão:** 0.6.1
+- **Data:** 2026-07-07
+- **Objetivo:** aplicar os ajustes da 1ª etapa de homologação da 0.6.0, antes da
+  Sprint 2.3.
+- **Principais entregas:**
+  - **Home = `/propostas`** (raiz + sidebar; item/rota Dashboard removidos).
+  - **Criação diferida (ADR-0212):** "Nova proposta" abre um workspace de
+    **montagem em memória** (`/propostas/nova`, client-side); só "Criar Proposta"
+    persiste tudo numa transação (`criarPropostaCompleta`). Abrir e abandonar não
+    cria nada nem consome número (verificado: contagem estável ao abrir `/nova`).
+  - **Editor de conteúdo reutilizável** via `ConteudoActions` (servidor vs
+    memória) — mesmo `ConteudoEditor`/`SecaoCard` nos dois fluxos.
+  - **Autocomplete** exibe o documento (CPF/CNPJ); **Modelo** em meia largura;
+    **revisão única** (removido "Conteúdo — Rev.N").
+- **ADRs criadas:** ADR-0212 (homologação: criação diferida, home, revisão única,
+  autocomplete, modelo). Revisa a numeração eager da ADR-0211.
+- **Problemas encontrados:** merge do patch do cabeçalho (nullable) vs
+  `CabecalhoValores` (obs string) no fluxo em memória.
+- **Como foram resolvidos:** normalização `null → ""` no `onCampo` da montagem.
+- **Lições aprendidas:** abstrair as operações de conteúdo atrás de uma interface
+  permitiu criar o fluxo em memória sem duplicar UI nem tocar a lógica do
+  servidor.
+- **Gate:** lint 0, typecheck 0, build 0, smoke 6/6, `/api/health` 200 (db up),
+  criação diferida verificada (abrir `/nova` não cria proposta).
+- **Hash do commit:** `PENDENTE`
+
+---
+
 > Próximas Sprints: adicionar uma nova seção ao final, seguindo este mesmo
 > formato, ao concluir cada Sprint.

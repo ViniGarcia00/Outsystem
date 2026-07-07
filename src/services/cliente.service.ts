@@ -150,8 +150,8 @@ function toSuggestion(c: {
 }): ClienteSuggestion {
   const label =
     (c.tipoPessoa === "PJ" ? c.empresa || c.nome : c.nome || c.empresa) || "—";
-  const sublabel =
-    c.cpfCnpj ?? (c.tipoPessoa === "PJ" ? "Pessoa jurídica" : "Pessoa física");
+  // Sub-rótulo = documento (CPF/CNPJ) para diferenciar clientes homônimos.
+  const sublabel = c.cpfCnpj ?? "Sem documento";
   return { id: c.id, label, sublabel };
 }
 

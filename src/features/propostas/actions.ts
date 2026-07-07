@@ -8,7 +8,7 @@ import {
 } from "@/services/cliente.service";
 import {
   cancelarProposta,
-  criarProposta,
+  criarPropostaCompleta,
   duplicarProposta,
   emitirProposta,
   listPropostas,
@@ -17,7 +17,11 @@ import {
 } from "@/services/proposta.service";
 import { fail, ok, type ActionResult } from "@/types";
 
-import { cabecalhoPatchSchema, cancelarSchema } from "./schema";
+import {
+  cabecalhoPatchSchema,
+  cancelarSchema,
+  novaPropostaSchema,
+} from "./schema";
 
 export async function listPropostasAction(): Promise<PropostaListItem[]> {
   return listPropostas();
@@ -30,16 +34,25 @@ export async function searchClientesAction(
   return searchClientes(query);
 }
 
-/** Cria a proposta completa já numerada (RASCUNHO, Rev.0) e devolve o id. */
-export async function criarPropostaAction(): Promise<
-  ActionResult<{ id: string }>
-> {
+/**
+ * Confirma a criação da proposta (montagem em memória → transação única).
+ * Só aqui a proposta passa a existir e consome um número.
+ */
+export async function criarPropostaAction(
+  payload: unknown,
+): Promise<ActionResult<{ id: string }>> {
+  const parsed = novaPropostaSchema.safeParse(payload);
+  if (!parsed.success) {
+    return fail("Dados inválidos. Verifique os campos destacados.");
+  }
   try {
-    const { id } = await criarProposta();
+    const { id } = await criarPropostaCompleta(parsed.data);
     revalidatePath("/propostas");
     return ok({ id });
   } catch (error) {
-    return fail(error instanceof Error ? error.message : "Falha ao criar.");
+    return fail(
+      error instanceof Error ? error.message : "Falha ao criar a proposta.",
+    );
   }
 }
 

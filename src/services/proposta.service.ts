@@ -239,14 +239,42 @@ export async function ensureEditableRevision(
 // Escrita (sempre com auditoria na mesma transação)
 // ---------------------------------------------------------------------------
 
-/** Cria a proposta completa já numerada (RASCUNHO, Rev.0, sem cliente ainda). */
-export async function criarProposta(): Promise<{
-  id: string;
-  proposalNumber: number;
-}> {
+/** Item/seção montados no cliente antes da confirmação da criação. */
+export interface NovaPropostaSecao {
+  nome: string;
+  itens: { produtoId: string; quantidade: number }[];
+}
+
+export interface NovaPropostaPayload {
+  clienteId: string | null;
+  vendedorId: string | null;
+  modelo: ModeloProposta;
+  validadeDias: number;
+  obsInternas: string | null;
+  obsProposta: string | null;
+  secoes: NovaPropostaSecao[];
+}
+
+/**
+ * Confirma a criação da proposta ("Criar Proposta"). Só aqui a proposta passa a
+ * existir: consome o próximo número, cria Rev.0, grava cabeçalho + seções +
+ * produtos (snapshot autoritativo do produto pelo servidor) e inicia a
+ * auditoria — tudo em UMA transação. Antes disso nada é persistido.
+ */
+export async function criarPropostaCompleta(
+  payload: NovaPropostaPayload,
+): Promise<{ id: string; proposalNumber: number }> {
   return prisma.$transaction(async (tx) => {
     const proposta = await tx.proposta.create({
-      data: { status: "RASCUNHO" },
+      data: {
+        clienteId: payload.clienteId,
+        vendedorId: payload.vendedorId,
+        modelo: payload.modelo,
+        validadeDias: payload.validadeDias,
+        obsInternas: trimOrNull(payload.obsInternas),
+        obsProposta: trimOrNull(payload.obsProposta),
+        status: "RASCUNHO",
+      },
       select: { id: true, proposalNumber: true },
     });
     const revisao = await tx.propostaRevisao.create({
@@ -257,8 +285,53 @@ export async function criarProposta(): Promise<{
       where: { id: proposta.id },
       data: { currentRevisionId: revisao.id },
     });
+
+    for (let si = 0; si < payload.secoes.length; si++) {
+      const s = payload.secoes[si];
+      const secao = await tx.propostaSecao.create({
+        data: { revisaoId: revisao.id, nome: s.nome.trim(), ordem: si },
+        select: { id: true },
+      });
+      for (let ii = 0; ii < s.itens.length; ii++) {
+        const linha = s.itens[ii];
+        const prod = await tx.produto.findUniqueOrThrow({
+          where: { id: linha.produtoId },
+          select: {
+            codigo: true,
+            descricao: true,
+            unidade: true,
+            valorProduto: true,
+            valorServico: true,
+          },
+        });
+        await tx.propostaItem.create({
+          data: {
+            secaoId: secao.id,
+            tipo: "PRODUTO",
+            produtoId: linha.produtoId,
+            codigo: prod.codigo,
+            descricao: prod.descricao,
+            unidade: prod.unidade,
+            valorProduto: prod.valorProduto,
+            valorServico: prod.valorServico,
+            quantidade: linha.quantidade,
+            ordem: ii,
+          },
+        });
+      }
+    }
+
+    const totalSecoes = payload.secoes.length;
+    const totalItens = payload.secoes.reduce((n, s) => n + s.itens.length, 0);
     await tx.propostaAuditoria.create({
-      data: { propostaId: proposta.id, evento: "CRIACAO", revisionNumber: 0 },
+      data: {
+        propostaId: proposta.id,
+        evento: "CRIACAO",
+        revisionNumber: 0,
+        observacao: totalSecoes
+          ? `Criada com ${totalSecoes} seção(ões) e ${totalItens} item(ns)`
+          : null,
+      },
     });
     return proposta;
   });

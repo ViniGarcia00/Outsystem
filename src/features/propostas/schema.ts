@@ -24,6 +24,33 @@ export const cabecalhoPatchSchema = z
 
 export type CabecalhoPatchValues = z.infer<typeof cabecalhoPatchSchema>;
 
+/** Payload de confirmação da criação (montagem em memória → transação). */
+export const novaPropostaSchema = z.object({
+  clienteId: z.string().nullable(),
+  vendedorId: z.string().nullable(),
+  modelo: modeloEnum,
+  validadeDias: z
+    .number()
+    .int("Use um número inteiro de dias.")
+    .min(1, "Mínimo de 1 dia.")
+    .max(3650, "Máximo de 3650 dias."),
+  obsInternas: z.string().max(5000).nullable(),
+  obsProposta: z.string().max(5000).nullable(),
+  secoes: z.array(
+    z.object({
+      nome: z.string().trim().min(1, "Informe o nome da seção."),
+      itens: z.array(
+        z.object({
+          produtoId: z.string().min(1),
+          quantidade: z.number().positive(),
+        }),
+      ),
+    }),
+  ),
+});
+
+export type NovaPropostaValues = z.infer<typeof novaPropostaSchema>;
+
 /** Cancelamento — motivo obrigatório; obs obrigatória quando "Outro". */
 export const motivoEnum = z.enum([
   "CLIENTE_DESISTIU",

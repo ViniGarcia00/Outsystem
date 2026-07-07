@@ -1,25 +1,28 @@
 "use client";
 
-import { AlertTriangle, Ban, FileDown, Plus } from "lucide-react";
+import { AlertTriangle, Ban, FileDown } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { AppPage, PageHeader } from "@/components/app";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import type { WorkspaceDTO } from "@/services/proposta-conteudo.service";
 import { formatDate } from "@/utils";
 
-import { cancelarPropostaAction, emitirPropostaAction } from "./actions";
+import {
+  cancelarPropostaAction,
+  emitirPropostaAction,
+  salvarCabecalhoAction,
+} from "./actions";
 import { CancelarDialog } from "./cancelar-dialog";
-import { adicionarSecaoAction } from "./conteudo-actions";
+import { ConteudoEditor } from "./conteudo-editor";
+import { serverConteudoActions } from "./conteudo-handlers";
 import { STATUS_BADGE_VARIANT, STATUS_LABEL } from "./labels";
 import { PropostaCabecalho } from "./proposta-cabecalho";
-import type { CancelarFormValues } from "./schema";
-import { SecaoCard } from "./secao-card";
+import type { CabecalhoPatchValues, CancelarFormValues } from "./schema";
 
 interface Option {
   value: string;
@@ -36,12 +39,12 @@ export function PropostaWorkspace({
   vendedores: Option[];
 }) {
   const router = useRouter();
-  const [novaSecao, setNovaSecao] = useState("");
   const [cancelOpen, setCancelOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const readOnly = data.readOnly;
 
   const refresh = () => router.refresh();
+  const actions = useMemo(() => serverConteudoActions(data.id), [data.id]);
 
   // Toast quando o sistema cria automaticamente uma nova revisão (fork pós-emissão).
   const prevRev = useRef<number | null>(null);
@@ -55,16 +58,10 @@ export function PropostaWorkspace({
     prevRev.current = atual;
   }, [data.revisaoAtual]);
 
-  const adicionarSecao = async () => {
-    const nome = novaSecao.trim();
-    if (!nome) return;
-    const result = await adicionarSecaoAction(data.id, nome);
-    if (result.success) {
-      setNovaSecao("");
-      refresh();
-    } else {
-      toast.error(result.error);
-    }
+  const salvarCabecalho = async (patch: CabecalhoPatchValues) => {
+    const result = await salvarCabecalhoAction(data.id, patch);
+    if (result.success) refresh();
+    else toast.error(result.error);
   };
 
   const gerarPdf = async () => {
@@ -97,6 +94,16 @@ export function PropostaWorkspace({
     hour: "2-digit",
     minute: "2-digit",
   });
+
+  const valores = {
+    clienteId: data.clienteId,
+    clienteNome: data.clienteNome,
+    vendedorId: data.vendedorId,
+    modelo: data.modelo,
+    validadeDias: data.validadeDias,
+    obsInternas: data.obsInternas,
+    obsProposta: data.obsProposta,
+  };
 
   return (
     <AppPage>
@@ -157,62 +164,22 @@ export function PropostaWorkspace({
       <Card>
         <CardContent>
           <PropostaCabecalho
-            data={data}
+            valores={valores}
             vendedores={vendedores}
             readOnly={readOnly}
-            onSaved={refresh}
+            onCampo={salvarCabecalho}
           />
         </CardContent>
       </Card>
 
       {/* Conteúdo da revisão atual */}
-      <section className="space-y-4">
-        <h2 className="text-lg font-semibold tracking-tight">
-          Conteúdo — Rev.{data.revisaoAtual ?? 0}
-        </h2>
-
-        {data.secoes.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Nenhuma seção nesta revisão.
-            {!readOnly && " Adicione a primeira seção abaixo."}
-          </p>
-        ) : (
-          <div className="flex flex-col gap-4">
-            {data.secoes.map((secao, index) => (
-              <SecaoCard
-                key={secao.id}
-                secao={secao}
-                produtos={produtos}
-                readOnly={readOnly}
-                isFirst={index === 0}
-                isLast={index === data.secoes.length - 1}
-                refresh={refresh}
-              />
-            ))}
-          </div>
-        )}
-
-        {!readOnly && (
-          <div className="flex items-center gap-2">
-            <Input
-              value={novaSecao}
-              onChange={(e) => setNovaSecao(e.target.value)}
-              placeholder="Nome da nova seção (ex.: Sala)"
-              className="max-w-xs"
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  adicionarSecao();
-                }
-              }}
-            />
-            <Button variant="outline" onClick={adicionarSecao}>
-              <Plus className="h-4 w-4" />
-              Adicionar seção
-            </Button>
-          </div>
-        )}
-      </section>
+      <ConteudoEditor
+        secoes={data.secoes}
+        produtos={produtos}
+        actions={actions}
+        readOnly={readOnly}
+        refresh={refresh}
+      />
 
       <CancelarDialog
         open={cancelOpen}

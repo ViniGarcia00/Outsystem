@@ -414,3 +414,33 @@ Formato: **ADR** enxuto (Architecture Decision Record).
   enquanto ausente; a emissão é bloqueada. `null` nunca é conceito permanente.
 - **Consequência:** menos telas, menos cliques, auditoria granular preservada,
   histórico por revisão (`emittedAt`) pronto para PDF/comparação futuras.
+
+### ADR-0212 — Homologação 0.6.1: criação diferida, home Propostas, revisão única visual
+
+- **Home:** enquanto não houver Dashboard, `/` redireciona para `/propostas` e o
+  item Dashboard sai da navegação (rota `/dashboard` removida).
+- **Criação diferida (revisa parte da ADR-0211):** a numeração **eager** é
+  substituída por **criação sob confirmação**. "Nova proposta" abre um
+  **workspace de montagem 100% em memória** (`NovaPropostaWorkspace`, rota
+  `/propostas/nova` client-side): cabeçalho + seções + produtos **não** tocam o
+  banco. O botão **"Criar Proposta"** persiste tudo numa **única transação**
+  (`criarPropostaCompleta`): consome o próximo número, cria Rev.0, grava
+  cabeçalho/seções/produtos (snapshot autoritativo do produto no servidor) e
+  inicia a auditoria (`CRIACAO`). Fechar/cancelar antes ⇒ nada existe, nenhum
+  número consumido — elimina lacunas por abandono. `proposalNumber` segue
+  autoincrement (sem `null`).
+- **Editor de conteúdo reutilizável:** as operações de conteúdo passam por uma
+  interface `ConteudoActions` (`conteudo-handlers`). O mesmo `ConteudoEditor`/
+  `SecaoCard` serve aos dois fluxos: `serverConteudoActions` (proposta
+  persistida, auto-save) e uma implementação **em memória** (criação). Zero
+  duplicação de UI.
+- **Revisão única (visual):** removido o rótulo "Conteúdo — Rev.N"; a revisão
+  aparece **uma vez** (no título). O modelo já tinha um único `revisionNumber`;
+  toda alteração (cabeçalho ou conteúdo) participa da mesma revisão via
+  `ensureEditableRevision`. *Nota:* os valores do cabeçalho seguem em `Proposta`
+  (não versionados, ADR-0206); o snapshot do cabeçalho por revisão fica para
+  quando o PDF/histórico for implementado.
+- **Autocomplete:** o sub-rótulo do cliente passa a exibir o **documento**
+  (CPF/CNPJ) em vez de "Pessoa física/jurídica", para diferenciar homônimos.
+- **Modelo:** o campo ocupa ~metade da linha (restante reservado para campos
+  futuros).

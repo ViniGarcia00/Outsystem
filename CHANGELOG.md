@@ -4,6 +4,30 @@ Todas as mudanças relevantes deste projeto são documentadas aqui.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o
 projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [0.6.1] — 2026-07-07
+
+### Homologação do módulo de Propostas (ajustes pré-2.3). Ver ADR-0212.
+
+#### Alterado
+
+- **Criação diferida:** "Nova proposta" abre um workspace de **montagem em
+  memória** (cabeçalho + seções + produtos); nada é gravado até **"Criar
+  Proposta"**, que persiste tudo numa única transação (número, Rev.0, cabeçalho,
+  conteúdo, auditoria). Fechar/cancelar antes ⇒ nada existe, **nenhum número
+  consumido** (elimina lacunas por abandono).
+- **Home = `/propostas`** (raiz e sidebar); item **Dashboard** removido da
+  navegação (rota `/dashboard` removida).
+- **Autocomplete de cliente** mostra o **documento** (CPF/CNPJ) em vez do tipo de
+  pessoa.
+- **Modelo da proposta** ocupa ~metade da linha.
+- **Revisão única:** removido o rótulo "Conteúdo — Rev.N"; a revisão aparece uma
+  vez, no título.
+
+#### Interno
+
+- Editor de conteúdo reutilizável via `ConteudoActions` (servidor vs memória);
+  `criarPropostaCompleta`/`criarPropostaAction` transacional.
+
 ## [0.6.0] — 2026-07-07
 
 ### Refino do fluxo de Propostas (workspace-first + revisão automática)

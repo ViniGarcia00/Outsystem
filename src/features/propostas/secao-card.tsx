@@ -28,14 +28,7 @@ import type { ItemDTO, SecaoDTO } from "@/services/proposta-conteudo.service";
 import { formatCurrency } from "@/utils";
 
 import { AdicionarItemDialog } from "./adicionar-item-dialog";
-import {
-  atualizarQuantidadeAction,
-  moverItemAction,
-  moverSecaoAction,
-  removerItemAction,
-  removerSecaoAction,
-  renomearSecaoAction,
-} from "./conteudo-actions";
+import type { ConteudoActions } from "./conteudo-handlers";
 
 interface Option {
   value: string;
@@ -45,6 +38,7 @@ interface Option {
 interface SecaoCardProps {
   secao: SecaoDTO;
   produtos: Option[];
+  actions: ConteudoActions;
   readOnly: boolean;
   isFirst: boolean;
   isLast: boolean;
@@ -54,6 +48,7 @@ interface SecaoCardProps {
 export function SecaoCard({
   secao,
   produtos,
+  actions,
   readOnly,
   isFirst,
   isLast,
@@ -65,7 +60,7 @@ export function SecaoCard({
   const [removerOpen, setRemoverOpen] = useState(false);
 
   const salvarNome = async () => {
-    const result = await renomearSecaoAction(secao.id, nome);
+    const result = await actions.renomearSecao(secao.id, nome);
     if (result.success) {
       setEditandoNome(false);
       refresh();
@@ -75,13 +70,13 @@ export function SecaoCard({
   };
 
   const mover = async (direcao: "UP" | "DOWN") => {
-    const result = await moverSecaoAction(secao.id, direcao);
+    const result = await actions.moverSecao(secao.id, direcao);
     if (result.success) refresh();
     else toast.error(result.error);
   };
 
   const confirmarRemover = async () => {
-    const result = await removerSecaoAction(secao.id);
+    const result = await actions.removerSecao(secao.id);
     if (result.success) {
       toast.success(`Seção "${secao.nome}" removida.`);
       refresh();
@@ -190,6 +185,7 @@ export function SecaoCard({
                   <ItemRow
                     key={`${item.id}:${item.quantidade}`}
                     item={item}
+                    actions={actions}
                     readOnly={readOnly}
                     isFirst={index === 0}
                     isLast={index === secao.itens.length - 1}
@@ -217,6 +213,7 @@ export function SecaoCard({
         secaoId={secao.id}
         secaoNome={secao.nome}
         produtos={produtos}
+        actions={actions}
         onAdded={refresh}
       />
 
@@ -235,12 +232,14 @@ export function SecaoCard({
 
 function ItemRow({
   item,
+  actions,
   readOnly,
   isFirst,
   isLast,
   refresh,
 }: {
   item: ItemDTO;
+  actions: ConteudoActions;
   readOnly: boolean;
   isFirst: boolean;
   isLast: boolean;
@@ -249,19 +248,19 @@ function ItemRow({
   const salvarQtd = async (valor: string) => {
     const q = Number(valor);
     if (!Number.isFinite(q) || q <= 0 || q === item.quantidade) return;
-    const result = await atualizarQuantidadeAction(item.id, q);
+    const result = await actions.atualizarQuantidade(item.id, q);
     if (result.success) refresh();
     else toast.error(result.error);
   };
 
   const mover = async (direcao: "UP" | "DOWN") => {
-    const result = await moverItemAction(item.id, direcao);
+    const result = await actions.moverItem(item.id, direcao);
     if (result.success) refresh();
     else toast.error(result.error);
   };
 
   const remover = async () => {
-    const result = await removerItemAction(item.id);
+    const result = await actions.removerItem(item.id);
     if (result.success) refresh();
     else toast.error(result.error);
   };

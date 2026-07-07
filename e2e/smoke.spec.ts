@@ -11,14 +11,16 @@ import { expect, test } from "@playwright/test";
 const nav = (page: import("@playwright/test").Page) =>
   page.getByRole("navigation", { name: "Navegação principal" });
 
-test("home redireciona para o dashboard", async ({ page }) => {
+test("home redireciona para Propostas", async ({ page }) => {
   await page.goto("/");
-  await expect(page).toHaveURL(/\/dashboard$/);
-  await expect(page.getByRole("heading", { level: 1, name: "Dashboard" })).toBeVisible();
+  await expect(page).toHaveURL(/\/propostas$/);
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Propostas" }),
+  ).toBeVisible();
 });
 
 test("abre a Configuração do Sistema", async ({ page }) => {
-  await page.goto("/dashboard");
+  await page.goto("/propostas");
   await nav(page).getByRole("link", { name: "Configurações" }).click();
   await expect(page).toHaveURL(/\/configuracoes$/);
   await expect(
@@ -71,20 +73,20 @@ test("Clientes: criar e editar (CRUD básico)", async ({ page }) => {
 });
 
 test("navegação principal entre os módulos", async ({ page }) => {
-  await page.goto("/dashboard");
+  await page.goto("/propostas");
   for (const [name, path] of [
     ["Clientes", "/clientes"],
     ["Produtos", "/produtos"],
     ["Vendedores", "/vendedores"],
     ["Configurações", "/configuracoes"],
-    ["Dashboard", "/dashboard"],
+    ["Propostas", "/propostas"],
   ] as const) {
     await nav(page).getByRole("link", { name }).click();
     await expect(page).toHaveURL(new RegExp(`${path}$`));
   }
 });
 
-test("Propostas: workspace, conteúdo, emitir e revisão automática", async ({
+test("Propostas: criação diferida, emitir e revisão automática", async ({
   page,
 }) => {
   // Garante um cliente pesquisável (nome único) para o autocomplete.
@@ -99,16 +101,17 @@ test("Propostas: workspace, conteúdo, emitir e revisão automática", async ({
     page.getByRole("heading", { level: 1, name: "Propostas" }),
   ).toBeVisible();
 
-  // "Nova proposta" cria e abre o workspace direto (sem etapa de cabeçalho).
+  // "Nova proposta" abre o workspace de montagem em memória (nada é criado).
   await page.getByRole("button", { name: "Nova proposta" }).click();
-  await expect(page).toHaveURL(/\/propostas\/(?!nova$)[^/]+$/);
-  await expect(page.getByRole("heading", { name: /Conteúdo/ })).toBeVisible();
+  await expect(page).toHaveURL(/\/propostas\/nova$/);
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Nova proposta" }),
+  ).toBeVisible();
 
-  // Cliente por autocomplete (auto-save).
+  // Monta cabeçalho (cliente), seção e produto — tudo em memória.
   await page.getByLabel("Cliente", { exact: true }).fill(clienteNome);
   await page.getByRole("option", { name: clienteNome }).click();
 
-  // Seção + produto.
   await page.getByPlaceholder("Nome da nova seção (ex.: Sala)").fill("Sala E2E");
   await page.getByRole("button", { name: "Adicionar seção" }).click();
   await expect(page.getByRole("heading", { name: "Sala E2E" })).toBeVisible();
@@ -120,6 +123,11 @@ test("Propostas: workspace, conteúdo, emitir e revisão automática", async ({
   await expect(
     page.getByRole("columnheader", { name: "Código" }),
   ).toBeVisible();
+
+  // "Criar Proposta" persiste tudo e abre o workspace definitivo.
+  await page.getByRole("button", { name: "Criar Proposta" }).click();
+  await expect(page).toHaveURL(/\/propostas\/(?!nova$)[^/]+$/);
+  await expect(page.getByRole("heading", { name: "Conteúdo" })).toBeVisible();
 
   // "Gerar PDF" emite a proposta (RASCUNHO → EMITIDA).
   await page.getByRole("button", { name: "Gerar PDF" }).click();
@@ -135,6 +143,6 @@ test("Propostas: workspace, conteúdo, emitir e revisão automática", async ({
   ).toBeVisible();
   await expect(page.getByText("Rascunho", { exact: true })).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Conteúdo — Rev.1" }),
+    page.getByRole("heading", { name: /Rev\.1/ }),
   ).toBeVisible();
 });

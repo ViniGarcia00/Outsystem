@@ -10,7 +10,7 @@ import { SidebarNav } from "./sidebar-nav";
 function SidebarBrand({ collapsed = false }: { collapsed?: boolean }) {
   return (
     <Link
-      href="/dashboard"
+      href="/propostas"
       className="flex h-16 items-center border-b border-sidebar-border px-3"
     >
       <AppLogo collapsed={collapsed} />

@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { Form } from "@/components/ui/form";
 
-import { adicionarItemAction } from "./conteudo-actions";
+import type { ConteudoActions } from "./conteudo-handlers";
 
 const schema = z.object({
   produtoId: z.string().min(1, "Selecione um produto."),
@@ -39,6 +39,7 @@ interface AdicionarItemDialogProps {
   secaoId: string;
   secaoNome: string;
   produtos: Option[];
+  actions: ConteudoActions;
   onAdded: () => void;
 }
 
@@ -48,6 +49,7 @@ export function AdicionarItemDialog({
   secaoId,
   secaoNome,
   produtos,
+  actions,
   onAdded,
 }: AdicionarItemDialogProps) {
   const form = useForm<Values>({
@@ -60,7 +62,7 @@ export function AdicionarItemDialog({
   }, [open, form]);
 
   async function onSubmit(values: Values) {
-    const result = await adicionarItemAction(
+    const result = await actions.adicionarItem(
       secaoId,
       values.produtoId,
       values.quantidade,

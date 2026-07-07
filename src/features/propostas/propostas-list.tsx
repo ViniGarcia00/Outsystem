@@ -33,7 +33,6 @@ import { formatDateTime } from "@/utils";
 
 import {
   cancelarPropostaAction,
-  criarPropostaAction,
   duplicarPropostaAction,
   listPropostasAction,
 } from "./actions";
@@ -69,7 +68,6 @@ export function PropostasList({
   );
   const [cancelTarget, setCancelTarget] = useState<RowAction | null>(null);
   const [busy, startBusy] = useTransition();
-  const [criando, setCriando] = useState(false);
 
   const rowsByStatus = useMemo(
     () =>
@@ -98,16 +96,8 @@ export function PropostasList({
     }
   };
 
-  const handleNova = async () => {
-    setCriando(true);
-    const result = await criarPropostaAction();
-    if (result.success) {
-      router.push(`/propostas/${result.data.id}`);
-    } else {
-      setCriando(false);
-      toast.error(result.error);
-    }
-  };
+  // "Nova proposta" abre o workspace de montagem em memória; nada é criado aqui.
+  const handleNova = () => router.push("/propostas/nova");
 
   const confirmCancelar = async (values: CancelarFormValues) => {
     if (!cancelTarget) return;
@@ -255,7 +245,7 @@ export function PropostasList({
         newLabel="Nova proposta"
         columns={columns}
         data={list.pageRows}
-        loading={busy || criando}
+        loading={busy}
         filters={statusFilterNode}
         emptyIcon={FileText}
         emptyTitle="Nenhuma proposta encontrada"

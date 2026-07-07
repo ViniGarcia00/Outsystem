@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { toast } from "sonner";
+import { useRef, useState } from "react";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,9 +13,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import type { ModeloProposta } from "@/services/proposta.service";
-import type { WorkspaceDTO } from "@/services/proposta-conteudo.service";
 
-import { salvarCabecalhoAction } from "./actions";
 import { ClienteAutocomplete } from "./cliente-autocomplete";
 import { MODELO_OPTIONS } from "./labels";
 import type { CabecalhoPatchValues } from "./schema";
@@ -26,67 +23,87 @@ interface Option {
   label: string;
 }
 
+/** Valores iniciais do cabeçalho (persistido ou em memória). */
+export interface CabecalhoValores {
+  clienteId: string | null;
+  clienteNome: string | null;
+  vendedorId: string | null;
+  modelo: ModeloProposta;
+  validadeDias: number;
+  obsInternas: string;
+  obsProposta: string;
+}
+
 /** Sentinela para "sem vendedor" (o Select do shadcn não aceita value vazio). */
 const VENDEDOR_NENHUM = "__none__";
 
 /**
- * Cabeçalho editável do workspace. Cada campo auto-salva no seu evento de
- * commit (change para selects/autocomplete, blur para textos). Não há "Salvar".
+ * Cabeçalho editável, self-contained. Cada campo comita no seu evento (change
+ * para selects/autocomplete, blur para textos) chamando `onCampo` — que persiste
+ * (workspace definitivo) ou atualiza o estado em memória (criação). Não há botão
+ * "Salvar".
  */
 export function PropostaCabecalho({
-  data,
+  valores,
   vendedores,
   readOnly,
-  onSaved,
+  onCampo,
 }: {
-  data: WorkspaceDTO;
+  valores: CabecalhoValores;
   vendedores: Option[];
   readOnly: boolean;
-  onSaved: () => void;
+  onCampo: (patch: CabecalhoPatchValues) => void | Promise<void>;
 }) {
-  const [modelo, setModelo] = useState<ModeloProposta>(data.modelo);
-  const [vendedorId, setVendedorId] = useState(data.vendedorId ?? "");
+  const [modelo, setModelo] = useState<ModeloProposta>(valores.modelo);
+  const [vendedorId, setVendedorId] = useState(valores.vendedorId ?? "");
+  const [clienteId, setClienteId] = useState(valores.clienteId);
+  const [clienteLabel, setClienteLabel] = useState(valores.clienteNome ?? "");
 
-  const salvar = async (patch: CabecalhoPatchValues) => {
-    const result = await salvarCabecalhoAction(data.id, patch);
-    if (result.success) onSaved();
-    else toast.error(result.error);
-  };
+  // Últimos valores comitados dos campos de texto (evita salvar sem mudança).
+  const ultimaValidade = useRef(String(valores.validadeDias));
+  const ultimaObsInternas = useRef(valores.obsInternas);
+  const ultimaObsProposta = useRef(valores.obsProposta);
 
   return (
     <div className="space-y-4">
-      {/* Modelo — primeiro campo, linha inteira */}
-      <div className="space-y-2">
-        <Label htmlFor="cab-modelo">Modelo da proposta</Label>
-        <Select
-          value={modelo}
-          disabled={readOnly}
-          onValueChange={(v) => {
-            const m = v as ModeloProposta;
-            setModelo(m);
-            salvar({ modelo: m });
-          }}
-        >
-          <SelectTrigger id="cab-modelo">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {MODELO_OPTIONS.map((o) => (
-              <SelectItem key={o.value} value={o.value}>
-                {o.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      {/* Modelo — meia largura (o restante fica reservado para campos futuros). */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="cab-modelo">Modelo da proposta</Label>
+          <Select
+            value={modelo}
+            disabled={readOnly}
+            onValueChange={(v) => {
+              const m = v as ModeloProposta;
+              setModelo(m);
+              onCampo({ modelo: m });
+            }}
+          >
+            <SelectTrigger id="cab-modelo">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {MODELO_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <ClienteAutocomplete
-          value={data.clienteId}
-          initialLabel={data.clienteNome}
-          autoFocus={!data.clienteId}
+          value={clienteId}
+          initialLabel={clienteLabel}
+          autoFocus={!clienteId}
           disabled={readOnly}
-          onSelect={(c) => salvar({ clienteId: c?.id ?? null })}
+          onSelect={(c) => {
+            setClienteId(c?.id ?? null);
+            setClienteLabel(c?.label ?? "");
+            onCampo({ clienteId: c?.id ?? null });
+          }}
         />
 
         <div className="space-y-2">
@@ -97,7 +114,7 @@ export function PropostaCabecalho({
             onValueChange={(v) => {
               const val = v === VENDEDOR_NENHUM ? "" : v;
               setVendedorId(val);
-              salvar({ vendedorId: val || null });
+              onCampo({ vendedorId: val || null });
             }}
           >
             <SelectTrigger id="cab-vendedor">
@@ -120,17 +137,19 @@ export function PropostaCabecalho({
             id="cab-validade"
             type="number"
             min={1}
-            defaultValue={data.validadeDias}
+            defaultValue={valores.validadeDias}
             disabled={readOnly}
             onBlur={(e) => {
-              const n = Number(e.target.value);
+              const v = e.target.value;
+              const n = Number(v);
               if (
                 Number.isInteger(n) &&
                 n >= 1 &&
                 n <= 3650 &&
-                n !== data.validadeDias
+                v !== ultimaValidade.current
               ) {
-                salvar({ validadeDias: n });
+                ultimaValidade.current = v;
+                onCampo({ validadeDias: n });
               }
             }}
           />
@@ -143,11 +162,14 @@ export function PropostaCabecalho({
           <Textarea
             id="cab-obs-internas"
             rows={3}
-            defaultValue={data.obsInternas}
+            defaultValue={valores.obsInternas}
             disabled={readOnly}
             onBlur={(e) => {
               const v = e.target.value;
-              if (v !== data.obsInternas) salvar({ obsInternas: v || null });
+              if (v !== ultimaObsInternas.current) {
+                ultimaObsInternas.current = v;
+                onCampo({ obsInternas: v || null });
+              }
             }}
           />
           <p className="text-xs text-muted-foreground">
@@ -160,11 +182,14 @@ export function PropostaCabecalho({
           <Textarea
             id="cab-obs-proposta"
             rows={3}
-            defaultValue={data.obsProposta}
+            defaultValue={valores.obsProposta}
             disabled={readOnly}
             onBlur={(e) => {
               const v = e.target.value;
-              if (v !== data.obsProposta) salvar({ obsProposta: v || null });
+              if (v !== ultimaObsProposta.current) {
+                ultimaObsProposta.current = v;
+                onCampo({ obsProposta: v || null });
+              }
             }}
           />
           <p className="text-xs text-muted-foreground">
