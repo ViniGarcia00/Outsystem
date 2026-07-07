@@ -4,8 +4,10 @@ import { revalidatePath } from "next/cache";
 
 import {
   adicionarItem,
+  adicionarItemAvulso,
   adicionarSecao,
   atualizarQuantidade,
+  atualizarValorUnitario,
   moverItem,
   moverSecao,
   removerItem,
@@ -48,8 +50,21 @@ export async function adicionarItemAction(
   secaoId: string,
   produtoId: string,
   quantidade: number,
+  valorUnitario?: number,
 ) {
-  return run(() => adicionarItem(secaoId, produtoId, quantidade));
+  return run(() => adicionarItem(secaoId, produtoId, quantidade, valorUnitario));
+}
+
+/** Modelo Simplificada: adiciona o produto direto na proposta (seção implícita). */
+export async function adicionarItemAvulsoAction(
+  propostaId: string,
+  produtoId: string,
+  quantidade: number,
+  valorUnitario?: number,
+) {
+  return run(() =>
+    adicionarItemAvulso(propostaId, produtoId, quantidade, valorUnitario),
+  );
 }
 
 export async function atualizarQuantidadeAction(
@@ -57,6 +72,13 @@ export async function atualizarQuantidadeAction(
   quantidade: number,
 ) {
   return run(() => atualizarQuantidade(itemId, quantidade));
+}
+
+export async function atualizarValorUnitarioAction(
+  itemId: string,
+  valor: number,
+) {
+  return run(() => atualizarValorUnitario(itemId, valor));
 }
 
 export async function removerItemAction(itemId: string) {

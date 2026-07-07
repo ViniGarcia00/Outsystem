@@ -26,7 +26,8 @@ export type CabecalhoPatchValues = z.infer<typeof cabecalhoPatchSchema>;
 
 /** Payload de confirmação da criação (montagem em memória → transação). */
 export const novaPropostaSchema = z.object({
-  clienteId: z.string().nullable(),
+  // Cliente é OBRIGATÓRIO para criar a proposta (item de homologação).
+  clienteId: z.string().min(1, "Selecione o cliente."),
   vendedorId: z.string().nullable(),
   modelo: modeloEnum,
   validadeDias: z
@@ -43,6 +44,7 @@ export const novaPropostaSchema = z.object({
         z.object({
           produtoId: z.string().min(1),
           quantidade: z.number().positive(),
+          valorUnitario: z.number().nonnegative().optional(),
         }),
       ),
     }),

@@ -22,6 +22,57 @@ export interface ProdutoListItem {
   valorServico: number;
 }
 
+/** Sugestão do autocomplete de produtos (proposta). */
+export interface ProdutoSuggestion {
+  id: string;
+  codigo: string;
+  descricao: string;
+  unidade: string;
+  valorProduto: number;
+  valorServico: number;
+}
+
+/** Menor quantidade de caracteres para disparar a busca do autocomplete. */
+export const PRODUTO_SEARCH_MIN_CHARS = 3;
+
+/**
+ * Busca produtos ativos por Código ou Descrição para o autocomplete da proposta.
+ * Só pesquisa a partir de {@link PRODUTO_SEARCH_MIN_CHARS} caracteres.
+ */
+export async function searchProdutos(
+  query: string,
+): Promise<ProdutoSuggestion[]> {
+  const q = query.trim();
+  if (q.length < PRODUTO_SEARCH_MIN_CHARS) return [];
+  const rows = await prisma.produto.findMany({
+    where: {
+      ativo: true,
+      OR: [
+        { codigo: { contains: q, mode: "insensitive" } },
+        { descricao: { contains: q, mode: "insensitive" } },
+      ],
+    },
+    select: {
+      id: true,
+      codigo: true,
+      descricao: true,
+      unidade: true,
+      valorProduto: true,
+      valorServico: true,
+    },
+    orderBy: { codigo: "asc" },
+    take: 10,
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    codigo: r.codigo,
+    descricao: r.descricao,
+    unidade: r.unidade,
+    valorProduto: toNumber(r.valorProduto),
+    valorServico: toNumber(r.valorServico),
+  }));
+}
+
 export interface ProdutoFormDTO {
   ativo: boolean;
   codigo: string;

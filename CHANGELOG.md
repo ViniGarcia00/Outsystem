@@ -4,6 +4,29 @@ Todas as mudanças relevantes deste projeto são documentadas aqui.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o
 projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [0.6.3] — 2026-07-07
+
+### Homologação do fluxo de produtos (pré-2.3). Ver ADR-0213.
+
+#### Adicionado
+
+- **Autocomplete de produto** (busca por código/descrição, 3+ chars, teclado/
+  mouse/Enter), via um `Autocomplete` genérico reutilizado também pelo Cliente.
+- **Modelo Simplificada:** produtos entram **direto na proposta** (sem seções);
+  Comercial mantém seções. Usa uma seção única implícita ("Produtos"), sem
+  migração.
+- **Coluna Total** por linha (Qtd × Valor Unitário, apenas visual).
+
+#### Alterado
+
+- **Grade de produtos** reordenada: Código · Descrição · Qtd · UN · Valor
+  Unitário · Total · Ações.
+- **Valor unitário editável** (no diálogo e na grade): vem do cadastro, é
+  editável e grava no **snapshot** do item — não altera o cadastro do produto.
+- **"Criar Proposta" exige cliente** (botão desabilitado + mensagem; validação no
+  servidor).
+- **Dashboard** de volta ao menu (placeholder); a home segue em Propostas.
+
 ## [0.6.2] — 2026-07-07
 
 ### Alterado

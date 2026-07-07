@@ -260,5 +260,37 @@ ADRs, problemas, soluções, lições e o hash do commit.
 
 ---
 
+## Homologação 0.6.3 — Simplificada, autocomplete de produto, valor editável
+
+- **Versão:** 0.6.3
+- **Data:** 2026-07-07
+- **Objetivo:** ajustes da 2ª etapa de homologação (fluxo de produtos) antes da
+  Sprint 2.3.
+- **Principais entregas:**
+  - **Dashboard** reposto no menu (placeholder); home segue em Propostas.
+  - **Cliente obrigatório** para criar (botão desabilitado + mensagem + schema).
+  - **Simplificada** = produtos direto na proposta (seção única implícita, sem
+    migração); Comercial mantém seções.
+  - **Autocomplete de produto** via `Autocomplete` genérico (reutilizado por
+    Cliente); busca código/descrição.
+  - **Valor unitário editável** (diálogo + grade) gravando no snapshot do item,
+    sem tocar o cadastro (`atualizarValorUnitario`, `valorUnitario` em
+    `adicionarItem`/`criarPropostaCompleta`).
+  - **Grade** Código · Descrição · Qtd · UN · Valor Unitário · **Total** (visual),
+    extraída em `ItensTable` (reutilizada por Comercial e Simplificada).
+- **ADRs criadas:** ADR-0213.
+- **Problemas encontrados:** regra de lint `set-state-in-effect` no reset do
+  diálogo de item.
+- **Como foram resolvidos:** mover o form para um filho que remonta ao abrir o
+  diálogo (Radix desmonta o conteúdo ao fechar) — sem efeito de reset.
+- **Lições aprendidas:** a interface `ConteudoActions` (servidor vs memória) já
+  absorveu as novas operações (avulso, valor unitário) sem duplicar UI.
+- **Gate:** lint 0, typecheck 0, build 0, smoke **7/7**, `/api/health` 200 (db
+  up). Verificado por script: snapshot com valor editado (cadastro intacto),
+  `atualizarValorUnitario`, `adicionarItemAvulso` cria "Produtos", Total por linha.
+- **Hash do commit:** `PENDENTE`
+
+---
+
 > Próximas Sprints: adicionar uma nova seção ao final, seguindo este mesmo
 > formato, ao concluir cada Sprint.

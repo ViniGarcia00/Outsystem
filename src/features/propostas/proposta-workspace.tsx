@@ -31,11 +31,9 @@ interface Option {
 
 export function PropostaWorkspace({
   data,
-  produtos,
   vendedores,
 }: {
   data: WorkspaceDTO;
-  produtos: Option[];
   vendedores: Option[];
 }) {
   const router = useRouter();
@@ -175,10 +173,10 @@ export function PropostaWorkspace({
       {/* Conteúdo da revisão atual */}
       <ConteudoEditor
         secoes={data.secoes}
-        produtos={produtos}
         actions={actions}
         readOnly={readOnly}
         refresh={refresh}
+        simplificada={data.modelo === "SIMPLIFICADA"}
       />
 
       <CancelarDialog

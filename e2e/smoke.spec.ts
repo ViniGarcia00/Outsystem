@@ -117,11 +117,11 @@ test("Propostas: criação diferida, emitir e revisão automática", async ({
   await expect(page.getByRole("heading", { name: "Sala E2E" })).toBeVisible();
 
   await page.getByRole("button", { name: "Adicionar produto" }).click();
-  await page.getByLabel("Produto", { exact: true }).click();
+  await page.getByLabel("Produto", { exact: true }).fill("RTR");
   await page.getByRole("option").first().click();
   await page.getByRole("button", { name: "Adicionar", exact: true }).click();
   await expect(
-    page.getByRole("columnheader", { name: "Código" }),
+    page.getByRole("columnheader", { name: "Total" }),
   ).toBeVisible();
 
   // "Criar Proposta" persiste tudo e abre o workspace definitivo.
@@ -145,4 +145,42 @@ test("Propostas: criação diferida, emitir e revisão automática", async ({
   await expect(
     page.getByRole("heading", { name: /Rev\.1/ }),
   ).toBeVisible();
+});
+
+test("Propostas: modelo Simplificada (produtos sem seções)", async ({
+  page,
+}) => {
+  const clienteNome = `E2E Simplificada Cliente ${Date.now()}`;
+  await page.goto("/clientes/novo");
+  await page.getByLabel("Nome", { exact: true }).fill(clienteNome);
+  await page.getByRole("button", { name: "Salvar" }).click();
+  await expect(page).toHaveURL(/\/clientes$/);
+
+  await page.goto("/propostas/nova");
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Nova proposta" }),
+  ).toBeVisible();
+
+  // Modelo Simplificada → sem seções.
+  await page.getByLabel("Modelo da proposta").click();
+  await page.getByRole("option", { name: "Simplificada" }).click();
+  await expect(
+    page.getByPlaceholder("Nome da nova seção (ex.: Sala)"),
+  ).toHaveCount(0);
+
+  // Cliente (obrigatório para criar).
+  await page.getByLabel("Cliente", { exact: true }).fill(clienteNome);
+  await page.getByRole("option", { name: clienteNome }).click();
+
+  // Produto direto na proposta (sem card de seção).
+  await page.getByRole("button", { name: "Adicionar produto" }).click();
+  await page.getByLabel("Produto", { exact: true }).fill("RTR");
+  await page.getByRole("option").first().click();
+  await page.getByRole("button", { name: "Adicionar", exact: true }).click();
+  await expect(page.getByRole("columnheader", { name: "Total" })).toBeVisible();
+
+  // Cria e abre o workspace definitivo.
+  await page.getByRole("button", { name: "Criar Proposta" }).click();
+  await expect(page).toHaveURL(/\/propostas\/(?!nova$)[^/]+$/);
+  await expect(page.getByRole("heading", { name: "Conteúdo" })).toBeVisible();
 });

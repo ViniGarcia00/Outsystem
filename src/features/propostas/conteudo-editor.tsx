@@ -5,32 +5,110 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import type { SecaoDTO } from "@/services/proposta-conteudo.service";
 
+import { AdicionarItemDialog } from "./adicionar-item-dialog";
 import type { ConteudoActions } from "./conteudo-handlers";
+import { ItensTable } from "./itens-table";
 import { SecaoCard } from "./secao-card";
 
-interface Option {
-  value: string;
-  label: string;
-}
-
 /**
- * Editor de conteúdo (seções + produtos) reutilizado pelo workspace definitivo
- * (auto-save via Server Actions) e pelo workspace de criação (em memória). A
- * origem das operações vem de `actions`. Revisão é conceito único — não há
- * rótulo de "revisão do conteúdo" aqui.
+ * Editor de conteúdo. No modelo **Comercial**, produtos vivem dentro de seções
+ * (cards). No modelo **Simplificada**, produtos entram direto na proposta (lista
+ * plana, sem seções). A origem das operações vem de `actions` (servidor ou
+ * memória). Revisão é conceito único — sem rótulo de "revisão do conteúdo".
  */
 export function ConteudoEditor({
   secoes,
-  produtos,
+  actions,
+  readOnly,
+  refresh,
+  simplificada,
+}: {
+  secoes: SecaoDTO[];
+  actions: ConteudoActions;
+  readOnly: boolean;
+  refresh: () => void;
+  simplificada: boolean;
+}) {
+  return (
+    <section className="space-y-4">
+      <h2 className="text-lg font-semibold tracking-tight">Conteúdo</h2>
+      {simplificada ? (
+        <ConteudoSimplificado
+          secoes={secoes}
+          actions={actions}
+          readOnly={readOnly}
+          refresh={refresh}
+        />
+      ) : (
+        <ConteudoComercial
+          secoes={secoes}
+          actions={actions}
+          readOnly={readOnly}
+          refresh={refresh}
+        />
+      )}
+    </section>
+  );
+}
+
+/** Simplificada: lista plana de produtos (sem seções). */
+function ConteudoSimplificado({
+  secoes,
   actions,
   readOnly,
   refresh,
 }: {
   secoes: SecaoDTO[];
-  produtos: Option[];
+  actions: ConteudoActions;
+  readOnly: boolean;
+  refresh: () => void;
+}) {
+  const [addOpen, setAddOpen] = useState(false);
+  const itens = secoes.flatMap((s) => s.itens);
+
+  return (
+    <Card>
+      <CardContent>
+        <ItensTable
+          itens={itens}
+          actions={actions}
+          readOnly={readOnly}
+          refresh={refresh}
+        />
+      </CardContent>
+      {!readOnly && (
+        <CardFooter>
+          <Button variant="outline" size="sm" onClick={() => setAddOpen(true)}>
+            <Plus className="h-4 w-4" />
+            Adicionar produto
+          </Button>
+        </CardFooter>
+      )}
+      <AdicionarItemDialog
+        open={addOpen}
+        onOpenChange={setAddOpen}
+        titulo="Adicionar produto"
+        onAdd={(produtoId, quantidade, valorUnitario) =>
+          actions.adicionarItemAvulso(produtoId, quantidade, valorUnitario)
+        }
+        onAdded={refresh}
+      />
+    </Card>
+  );
+}
+
+/** Comercial: produtos organizados em seções. */
+function ConteudoComercial({
+  secoes,
+  actions,
+  readOnly,
+  refresh,
+}: {
+  secoes: SecaoDTO[];
   actions: ConteudoActions;
   readOnly: boolean;
   refresh: () => void;
@@ -50,9 +128,7 @@ export function ConteudoEditor({
   };
 
   return (
-    <section className="space-y-4">
-      <h2 className="text-lg font-semibold tracking-tight">Conteúdo</h2>
-
+    <>
       {secoes.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           Nenhuma seção ainda.
@@ -64,7 +140,6 @@ export function ConteudoEditor({
             <SecaoCard
               key={secao.id}
               secao={secao}
-              produtos={produtos}
               actions={actions}
               readOnly={readOnly}
               isFirst={index === 0}
@@ -95,6 +170,6 @@ export function ConteudoEditor({
           </Button>
         </div>
       )}
-    </section>
+    </>
   );
 }

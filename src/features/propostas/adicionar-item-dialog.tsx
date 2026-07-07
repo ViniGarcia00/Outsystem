@@ -1,123 +1,153 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useState } from "react";
 import { toast } from "sonner";
-import { z } from "zod";
 
-import { NumberField, SelectField } from "@/components/forms";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Form } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import type { ActionResult } from "@/types";
 
-import type { ConteudoActions } from "./conteudo-handlers";
-
-const schema = z.object({
-  produtoId: z.string().min(1, "Selecione um produto."),
-  quantidade: z
-    .number({ message: "Informe a quantidade." })
-    .positive("A quantidade deve ser maior que zero."),
-});
-type Values = z.infer<typeof schema>;
-
-interface Option {
-  value: string;
-  label: string;
-}
+import { ProdutoAutocomplete } from "./produto-autocomplete";
 
 interface AdicionarItemDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  secaoId: string;
-  secaoNome: string;
-  produtos: Option[];
-  actions: ConteudoActions;
+  titulo: string;
+  /** Persiste o item (em seção específica ou avulso). Retorna o resultado. */
+  onAdd: (
+    produtoId: string,
+    quantidade: number,
+    valorUnitario: number,
+  ) => Promise<ActionResult>;
   onAdded: () => void;
 }
 
 export function AdicionarItemDialog({
   open,
   onOpenChange,
-  secaoId,
-  secaoNome,
-  produtos,
-  actions,
+  titulo,
+  onAdd,
   onAdded,
 }: AdicionarItemDialogProps) {
-  const form = useForm<Values>({
-    resolver: zodResolver(schema),
-    defaultValues: { produtoId: "", quantidade: 1 },
-  });
-
-  useEffect(() => {
-    if (open) form.reset({ produtoId: "", quantidade: 1 });
-  }, [open, form]);
-
-  async function onSubmit(values: Values) {
-    const result = await actions.adicionarItem(
-      secaoId,
-      values.produtoId,
-      values.quantidade,
-    );
-    if (result.success) {
-      toast.success("Produto adicionado.");
-      onOpenChange(false);
-      onAdded();
-    } else {
-      toast.error(result.error);
-    }
-  }
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Adicionar produto</DialogTitle>
-          <DialogDescription>Seção: {secaoNome}</DialogDescription>
+          <DialogTitle>{titulo}</DialogTitle>
         </DialogHeader>
-
-        <Form {...form}>
-          <form
-            id="adicionar-item-form"
-            onSubmit={form.handleSubmit(onSubmit)}
-            className="flex flex-col gap-4"
-          >
-            <SelectField
-              name="produtoId"
-              label="Produto"
-              options={produtos}
-              placeholder="Selecione o produto"
-            />
-            <NumberField
-              name="quantidade"
-              label="Quantidade"
-              min={0.001}
-              step="any"
-            />
-          </form>
-        </Form>
-
-        <DialogFooter>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => onOpenChange(false)}
-          >
-            Cancelar
-          </Button>
-          <Button type="submit" form="adicionar-item-form">
-            Adicionar
-          </Button>
-        </DialogFooter>
+        {/* Form remonta a cada abertura (Radix desmonta o conteúdo ao fechar),
+            então o estado reinicia sozinho — sem efeito de reset. */}
+        <ItemForm
+          onAdd={onAdd}
+          onAdded={onAdded}
+          onClose={() => onOpenChange(false)}
+        />
       </DialogContent>
     </Dialog>
+  );
+}
+
+function ItemForm({
+  onAdd,
+  onAdded,
+  onClose,
+}: {
+  onAdd: (
+    produtoId: string,
+    quantidade: number,
+    valorUnitario: number,
+  ) => Promise<ActionResult>;
+  onAdded: () => void;
+  onClose: () => void;
+}) {
+  const [produtoId, setProdutoId] = useState<string | null>(null);
+  const [quantidade, setQuantidade] = useState("1");
+  const [valor, setValor] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const q = Number(quantidade);
+  const v = Number(valor);
+  const valido =
+    Boolean(produtoId) &&
+    Number.isFinite(q) &&
+    q > 0 &&
+    Number.isFinite(v) &&
+    v >= 0;
+
+  const adicionar = async () => {
+    if (!produtoId || !valido) return;
+    setSaving(true);
+    const result = await onAdd(produtoId, q, v);
+    if (result.success) {
+      toast.success("Produto adicionado.");
+      onClose();
+      onAdded();
+    } else {
+      setSaving(false);
+      toast.error(result.error);
+    }
+  };
+
+  return (
+    <>
+      <div className="flex flex-col gap-4">
+        <ProdutoAutocomplete
+          autoFocus
+          onSelect={(p) => {
+            setProdutoId(p?.id ?? null);
+            // Valor unitário pré-preenchido com o preço do cadastro (editável).
+            if (p) setValor(String(p.valorProduto));
+          }}
+        />
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="add-qtd">Quantidade</Label>
+            <Input
+              id="add-qtd"
+              type="number"
+              inputMode="decimal"
+              step="any"
+              min={0.001}
+              value={quantidade}
+              onChange={(e) => setQuantidade(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="add-valor">Valor unitário</Label>
+            <Input
+              id="add-valor"
+              type="number"
+              inputMode="decimal"
+              step="any"
+              min={0}
+              value={valor}
+              onChange={(e) => setValor(e.target.value)}
+            />
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          O valor vale apenas para este item da proposta — não altera o cadastro
+          do produto.
+        </p>
+      </div>
+
+      <DialogFooter>
+        <Button type="button" variant="ghost" onClick={onClose}>
+          Cancelar
+        </Button>
+        <Button type="button" onClick={adicionar} disabled={!valido || saving}>
+          Adicionar
+        </Button>
+      </DialogFooter>
+    </>
   );
 }

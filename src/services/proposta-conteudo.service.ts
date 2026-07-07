@@ -374,22 +374,25 @@ export async function moverSecao(secaoId: string, direcao: Direcao) {
 // Itens (produtos)
 // ---------------------------------------------------------------------------
 
+const PRODUTO_SELECT = {
+  codigo: true,
+  descricao: true,
+  unidade: true,
+  valorProduto: true,
+  valorServico: true,
+} as const;
+
 export async function adicionarItem(
   secaoId: string,
   produtoId: string,
   quantidade: number,
+  valorUnitario?: number,
 ) {
   await prisma.$transaction(async (tx) => {
     const ctx = await contextoSecao(tx, secaoId);
     const prod = await tx.produto.findUniqueOrThrow({
       where: { id: produtoId },
-      select: {
-        codigo: true,
-        descricao: true,
-        unidade: true,
-        valorProduto: true,
-        valorServico: true,
-      },
+      select: PRODUTO_SELECT,
     });
     const ordem = await tx.propostaItem.count({
       where: { secaoId: ctx.secaoId },
@@ -402,7 +405,8 @@ export async function adicionarItem(
         codigo: prod.codigo,
         descricao: prod.descricao,
         unidade: prod.unidade,
-        valorProduto: prod.valorProduto,
+        // Snapshot: usa o valor informado (editável) ou o do cadastro.
+        valorProduto: valorUnitario ?? prod.valorProduto,
         valorServico: prod.valorServico,
         quantidade,
         ordem,
@@ -413,6 +417,75 @@ export async function adicionarItem(
       ctx.propostaId,
       ctx.revisionNumber,
       `Produto ${prod.codigo} adicionado`,
+    );
+  });
+}
+
+/**
+ * Adiciona um produto "avulso" (modelo Simplificada — sem seções na UI). Usa uma
+ * seção única implícita da revisão (cria "Produtos" se ainda não existir).
+ */
+export async function adicionarItemAvulso(
+  propostaId: string,
+  produtoId: string,
+  quantidade: number,
+  valorUnitario?: number,
+) {
+  await prisma.$transaction(async (tx) => {
+    const ctx = await contextoProposta(tx, propostaId);
+    let secao = await tx.propostaSecao.findFirst({
+      where: { revisaoId: ctx.revisaoId },
+      orderBy: { ordem: "asc" },
+      select: { id: true },
+    });
+    if (!secao) {
+      secao = await tx.propostaSecao.create({
+        data: { revisaoId: ctx.revisaoId, nome: "Produtos", ordem: 0 },
+        select: { id: true },
+      });
+    }
+    const prod = await tx.produto.findUniqueOrThrow({
+      where: { id: produtoId },
+      select: PRODUTO_SELECT,
+    });
+    const ordem = await tx.propostaItem.count({
+      where: { secaoId: secao.id },
+    });
+    await tx.propostaItem.create({
+      data: {
+        secaoId: secao.id,
+        tipo: "PRODUTO",
+        produtoId,
+        codigo: prod.codigo,
+        descricao: prod.descricao,
+        unidade: prod.unidade,
+        valorProduto: valorUnitario ?? prod.valorProduto,
+        valorServico: prod.valorServico,
+        quantidade,
+        ordem,
+      },
+    });
+    await auditar(
+      tx,
+      ctx.propostaId,
+      ctx.revisionNumber,
+      `Produto ${prod.codigo} adicionado`,
+    );
+  });
+}
+
+export async function atualizarValorUnitario(itemId: string, valor: number) {
+  await prisma.$transaction(async (tx) => {
+    const ctx = await contextoItem(tx, itemId);
+    await tx.propostaItem.update({
+      where: { id: ctx.itemId },
+      data: { valorProduto: valor },
+    });
+    await auditar(
+      tx,
+      ctx.propostaId,
+      ctx.revisionNumber,
+      `Valor unitário do item ${ctx.codigo} alterado para ${valor}`,
     );
   });
 }

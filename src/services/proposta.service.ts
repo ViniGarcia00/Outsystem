@@ -242,7 +242,7 @@ export async function ensureEditableRevision(
 /** Item/seção montados no cliente antes da confirmação da criação. */
 export interface NovaPropostaSecao {
   nome: string;
-  itens: { produtoId: string; quantidade: number }[];
+  itens: { produtoId: string; quantidade: number; valorUnitario?: number }[];
 }
 
 export interface NovaPropostaPayload {
@@ -312,7 +312,8 @@ export async function criarPropostaCompleta(
             codigo: prod.codigo,
             descricao: prod.descricao,
             unidade: prod.unidade,
-            valorProduto: prod.valorProduto,
+            // Snapshot com o valor usado na proposta (editável na montagem).
+            valorProduto: linha.valorUnitario ?? prod.valorProduto,
             valorServico: prod.valorServico,
             quantidade: linha.quantidade,
             ordem: ii,

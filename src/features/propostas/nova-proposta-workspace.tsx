@@ -12,7 +12,7 @@ import type {
   ModeloProposta,
   SelectOption,
 } from "@/services/proposta.service";
-import type { SecaoDTO } from "@/services/proposta-conteudo.service";
+import type { ItemDTO, SecaoDTO } from "@/services/proposta-conteudo.service";
 import type { ProdutoListItem } from "@/services/produto.service";
 import { ok, fail } from "@/types";
 
@@ -28,6 +28,27 @@ import type { CabecalhoPatchValues } from "./schema";
 /** Contador de ids temporários (só para a montagem em memória). */
 let tempSeq = 0;
 const novoId = () => `tmp-${tempSeq++}`;
+
+/** Monta um item em memória (snapshot do produto; valor editável). */
+function criarItemMem(
+  prod: ProdutoListItem,
+  quantidade: number,
+  valorUnitario: number | undefined,
+  ordem: number,
+): ItemDTO {
+  return {
+    id: novoId(),
+    tipo: "PRODUTO",
+    produtoId: prod.id,
+    codigo: prod.codigo,
+    descricao: prod.descricao,
+    unidade: prod.unidade,
+    valorProduto: valorUnitario ?? prod.valorProduto,
+    valorServico: prod.valorServico,
+    quantidade,
+    ordem,
+  };
+}
 
 /** Move um item da lista e renumera `ordem` (0,1,2…). */
 function moverNaLista<T extends { id: string; ordem: number }>(
@@ -75,14 +96,6 @@ export function NovaPropostaWorkspace({
     () => new Map(produtosData.map((p) => [p.id, p])),
     [produtosData],
   );
-  const produtosOptions = useMemo(
-    () =>
-      produtosData.map((p) => ({
-        value: p.id,
-        label: `${p.codigo} — ${p.descricao}`,
-      })),
-    [produtosData],
-  );
 
   const actions: ConteudoActions = useMemo(
     () => ({
@@ -113,7 +126,7 @@ export function NovaPropostaWorkspace({
         setSecoes((prev) => moverNaLista(prev, secaoId, direcao));
         return ok(undefined);
       },
-      adicionarItem: async (secaoId, produtoId, quantidade) => {
+      adicionarItem: async (secaoId, produtoId, quantidade, valorUnitario) => {
         const prod = produtosById.get(produtoId);
         if (!prod) return fail("Produto não encontrado.");
         setSecoes((prev) =>
@@ -123,23 +136,34 @@ export function NovaPropostaWorkspace({
                   ...s,
                   itens: [
                     ...s.itens,
-                    {
-                      id: novoId(),
-                      tipo: "PRODUTO",
-                      produtoId,
-                      codigo: prod.codigo,
-                      descricao: prod.descricao,
-                      unidade: prod.unidade,
-                      valorProduto: prod.valorProduto,
-                      valorServico: prod.valorServico,
-                      quantidade,
-                      ordem: s.itens.length,
-                    },
+                    criarItemMem(prod, quantidade, valorUnitario, s.itens.length),
                   ],
                 }
               : s,
           ),
         );
+        return ok(undefined);
+      },
+      adicionarItemAvulso: async (produtoId, quantidade, valorUnitario) => {
+        const prod = produtosById.get(produtoId);
+        if (!prod) return fail("Produto não encontrado.");
+        setSecoes((prev) => {
+          const base: SecaoDTO[] =
+            prev.length > 0
+              ? prev
+              : [{ id: novoId(), nome: "Produtos", ordem: 0, itens: [] }];
+          return base.map((s, i) =>
+            i === 0
+              ? {
+                  ...s,
+                  itens: [
+                    ...s.itens,
+                    criarItemMem(prod, quantidade, valorUnitario, s.itens.length),
+                  ],
+                }
+              : s,
+          );
+        });
         return ok(undefined);
       },
       atualizarQuantidade: async (itemId, quantidade) => {
@@ -148,6 +172,17 @@ export function NovaPropostaWorkspace({
             ...s,
             itens: s.itens.map((it) =>
               it.id === itemId ? { ...it, quantidade } : it,
+            ),
+          })),
+        );
+        return ok(undefined);
+      },
+      atualizarValorUnitario: async (itemId, valor) => {
+        setSecoes((prev) =>
+          prev.map((s) => ({
+            ...s,
+            itens: s.itens.map((it) =>
+              it.id === itemId ? { ...it, valorProduto: valor } : it,
             ),
           })),
         );
@@ -197,7 +232,10 @@ export function NovaPropostaWorkspace({
         : {}),
     }));
 
+  const semCliente = !header.clienteId;
+
   const criar = async () => {
+    if (semCliente) return;
     setCriando(true);
     const result = await criarPropostaAction({
       clienteId: header.clienteId,
@@ -211,6 +249,7 @@ export function NovaPropostaWorkspace({
         itens: s.itens.map((it) => ({
           produtoId: it.produtoId as string,
           quantidade: it.quantidade,
+          valorUnitario: it.valorProduto,
         })),
       })),
     });
@@ -234,7 +273,13 @@ export function NovaPropostaWorkspace({
               <X className="h-4 w-4" />
               Cancelar
             </Button>
-            <Button onClick={criar} disabled={criando}>
+            <Button
+              onClick={criar}
+              disabled={criando || semCliente}
+              title={
+                semCliente ? "Selecione o cliente para criar a proposta." : undefined
+              }
+            >
               <Check className="h-4 w-4" />
               Criar Proposta
             </Button>
@@ -267,15 +312,20 @@ export function NovaPropostaWorkspace({
             readOnly={false}
             onCampo={onCampo}
           />
+          {semCliente && (
+            <p className="mt-3 text-sm text-amber-700 dark:text-amber-400">
+              O cliente é obrigatório para criar a proposta.
+            </p>
+          )}
         </CardContent>
       </Card>
 
       <ConteudoEditor
         secoes={secoes}
-        produtos={produtosOptions}
         actions={actions}
         readOnly={false}
         refresh={() => {}}
+        simplificada={header.modelo === "SIMPLIFICADA"}
       />
     </AppPage>
   );

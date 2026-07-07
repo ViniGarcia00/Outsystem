@@ -444,3 +444,29 @@ Formato: **ADR** enxuto (Architecture Decision Record).
   (CPF/CNPJ) em vez de "Pessoa física/jurídica", para diferenciar homônimos.
 - **Modelo:** o campo ocupa ~metade da linha (restante reservado para campos
   futuros).
+
+### ADR-0213 — Homologação 0.6.3: Simplificada, autocomplete de produto, valor editável, grade
+
+- **Dashboard:** reposto no menu (placeholder); a home (`/`) segue abrindo
+  Propostas até o Dashboard existir.
+- **Cliente obrigatório na criação:** o botão "Criar Proposta" fica desabilitado
+  enquanto não há cliente (mensagem de obrigatoriedade); `novaPropostaSchema`
+  passa a exigir `clienteId`. Após criada, valem as regras atuais (cliente
+  exigido na emissão).
+- **Modelo Simplificada = seção única implícita (sem migração):** em vez de tornar
+  `PropostaItem.secaoId` opcional, a Simplificada usa **uma seção implícita**
+  ("Produtos", criada sob demanda) e a UI esconde o conceito de seção — produtos
+  entram direto na proposta (lista plana). Comercial mantém seções. Operação
+  `adicionarItemAvulso` (garante a seção única) na versão servidor e memória.
+  Preserva fork/`idMap`/auditoria/cópia intactos.
+- **Autocomplete de produto:** extraído um **`Autocomplete` genérico**
+  (`components/forms`) reutilizado por Cliente e Produto. `ProdutoAutocomplete`
+  busca por código/descrição (3+ chars); substitui o Select no diálogo de item.
+- **Valor unitário editável:** ao adicionar, o valor vem do cadastro e é
+  **editável**; também editável na grade. Grava no **snapshot** do item
+  (`valorProduto`), nunca no cadastro. Novo `atualizarValorUnitario`; `adicionarItem`
+  e `criarPropostaCompleta` aceitam `valorUnitario`.
+- **Grade de produtos:** colunas **Código · Descrição · Qtd · UN · Valor Unitário
+  · Total · Ações**; Total = Qtd × Valor Unitário (apenas visual). Sem
+  total/subtotal/descontos/impostos/frete. Grade extraída em `ItensTable`,
+  reutilizada por Comercial (dentro do `SecaoCard`) e Simplificada (lista plana).

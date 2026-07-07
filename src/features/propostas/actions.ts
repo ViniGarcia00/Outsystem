@@ -7,6 +7,10 @@ import {
   type ClienteSuggestion,
 } from "@/services/cliente.service";
 import {
+  searchProdutos,
+  type ProdutoSuggestion,
+} from "@/services/produto.service";
+import {
   cancelarProposta,
   criarPropostaCompleta,
   duplicarProposta,
@@ -32,6 +36,13 @@ export async function searchClientesAction(
   query: string,
 ): Promise<ClienteSuggestion[]> {
   return searchClientes(query);
+}
+
+/** Autocomplete de produtos na proposta (Código/Descrição). */
+export async function searchProdutosAction(
+  query: string,
+): Promise<ProdutoSuggestion[]> {
+  return searchProdutos(query);
 }
 
 /**
