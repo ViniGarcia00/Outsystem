@@ -156,12 +156,17 @@ export function PropostaWorkspace({
     }
   };
 
+  const abrirPdf = () => {
+    window.open(`/propostas/${data.id}/pdf`, "_blank", "noopener");
+  };
+
   const gerarPdf = async () => {
     setSaving(true);
     const result = await emitirPropostaAction(data.id);
     setSaving(false);
     if (result.success) {
       toast.success(`Proposta ${data.proposalNumber} emitida.`);
+      abrirPdf();
       router.refresh();
     } else {
       toast.error(result.error);
@@ -240,6 +245,12 @@ export function PropostaWorkspace({
               >
                 <FileDown className="h-4 w-4" />
                 Gerar PDF
+              </Button>
+            )}
+            {data.status === "EMITIDA" && (
+              <Button variant="outline" onClick={abrirPdf}>
+                <FileDown className="h-4 w-4" />
+                Abrir PDF
               </Button>
             )}
             {!readOnly && (

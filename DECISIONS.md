@@ -648,3 +648,46 @@ Formato: **ADR** enxuto (Architecture Decision Record).
   os quatro campos; persistência normal (`trimOrNull`). Fora de escopo (2.6.5):
   PDF, garantia, prazo de entrega, assinatura/aceite/QR, workflow de aprovação,
   anexos, cronograma, cadastro de formas de pagamento.
+
+---
+
+## Sprint 2.7 — Documento comercial (PDF)
+
+### ADR-0223 — PDF com @react-pdf/renderer, sob demanda, reusando dados/regras
+
+- **Contexto:** o PDF é o **documento comercial oficial** (premium), não uma
+  impressão de tela. Alvo Windows Server 2019.
+- **Biblioteca:** **`@react-pdf/renderer`** (componentes React → PDF; puro
+  JS/WASM, **sem Chromium**) — melhor confiabilidade de deploy e componentização
+  para templates futuros. Descartado Puppeteer (binário Chromium ~300MB, peso de
+  patching, convida a "imprimir a tela").
+- **Geração:** **sob demanda** via Route Handler `GET /propostas/[id]/pdf`
+  (`runtime="nodejs"`, `dynamic="force-dynamic"`, `renderToBuffer` →
+  `application/pdf` inline). **Sem armazenar arquivo**; renderiza a
+  `currentRevision` (para EMITIDA = revisão congelada). "Gerar PDF" (emitir) abre
+  o documento; EMITIDA ganha "Abrir PDF".
+- **Reuso correto:** a **camada de dados/regras** é reaproveitada — `totais.ts`
+  (financeiro), `formatCurrency`/`formatDate`, e as regras da Simplificada. Os
+  **componentes de tela (shadcn) NÃO** são reutilizados (primitivas diferentes e
+  evitam "cara de tela"); o PDF tem sua própria biblioteca de blocos.
+- **Arquitetura:** IO (`proposta-pdf.service.ts`) separada da montagem pura
+  (`proposta-pdf.mapper.ts` → `PropostaPdfDTO`, testável sem banco). Blocos puros
+  em `features/propostas/pdf/blocks`, tema central (`theme.ts`, cores da Config +
+  fallback), fonte **Inter** (TTF em `public/fonts`, registro idempotente).
+  Endereço da obra = endereço do **Cliente** (sem migração). **Nenhuma migração**
+  nesta Sprint.
+- **Layout premium:** cabeçalho limpo (logo + "PROPOSTA COMERCIAL" + nº + data;
+  institucionais vão ao rodapé); bloco do cliente elegante (não-tabela); tabela
+  com **Descrição dominante** e **Código discreto** (Simplificada oculta serviço
+  e usa total = Qtd × Valor Produto); **TOTAL DA PROPOSTA** em faixa de destaque;
+  **Informações Comerciais** e **Observações** em blocos separados; área de
+  **assinaturas** (Cliente / Consultor); rodapé com institucionais + "Página X
+  de Y".
+- **Paginação:** cabeçalho do documento e da **tabela** repetidos (`fixed`);
+  `wrap={false}` em linhas/blocos de totais/observações/assinaturas;
+  `minPresenceAhead` nas bandas de seção. **Validado** com propostas de 1 a 7+
+  páginas (sem sobreposição; faixas fixas com folga reservada por padding).
+- **Evolução futura (só arquitetura):** Projeto de Som/Wi-Fi, fotos de produtos e
+  novos templates entram como **blocos** plugados na mesma composição, sem
+  reescrever o documento. Fora de escopo: armazenar o binário, garantia,
+  assinatura digital/aceite/QR, workflow de aprovação, anexos, cronograma.

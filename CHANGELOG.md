@@ -4,6 +4,36 @@ Todas as mudanças relevantes deste projeto são documentadas aqui.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o
 projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [0.12.0] — 2026-07-07
+
+### Sprint 2.7 — Documento comercial (PDF). Ver ADR-0223.
+
+#### Adicionado
+
+- **Geração de PDF** da proposta (documento comercial premium) via
+  `GET /propostas/[id]/pdf` (`@react-pdf/renderer`; sob demanda, sem armazenar;
+  renderiza a revisão atual/emitida). "Gerar PDF" passa a abrir o documento;
+  proposta emitida ganha o botão **"Abrir PDF"**.
+- **Layout profissional (A4, múltiplas páginas):** cabeçalho limpo (logo +
+  "PROPOSTA COMERCIAL" + nº + data); bloco do cliente elegante; tabela com
+  **Descrição** dominante e **Código** discreto; **TOTAL DA PROPOSTA** em
+  destaque; **Informações Comerciais** e **Observações** em blocos separados;
+  área de **assinaturas** (Cliente / Consultor); rodapé com dados institucionais
+  e **"Página X de Y"**.
+- **Regras respeitadas:** na Simplificada, sem Valor/Total Serviços e sem
+  Previsão de instalação; total da linha = Qtd × Valor Produto.
+- **Paginação estável:** cabeçalhos do documento e da tabela repetidos por
+  página; blocos de totais/observações/assinaturas não quebram; bandas de seção
+  não ficam órfãs. Validado de 1 a 7+ páginas.
+- **Arquitetura:** DTO puro (`proposta-pdf.mapper.ts`, testado) separado da IO;
+  blocos de PDF próprios (sem reuso de componentes de tela); lógica financeira
+  reutilizada de `totais.ts`. Fonte Inter (TTF em `public/fonts`).
+
+#### Interno
+
+- `vitest.config.ts` (alias `@/` → `src/`; exclui `e2e/`). Dependência
+  `@react-pdf/renderer`.
+
 ## [0.11.0] — 2026-07-07
 
 ### Sprint 2.6.5 — Finalização da Proposta. Ver ADR-0222.

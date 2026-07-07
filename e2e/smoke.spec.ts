@@ -168,6 +168,7 @@ test("Propostas: criação diferida, emitir e revisão automática", async ({
   await page.getByRole("button", { name: "Criar Proposta" }).click();
   await expect(page).toHaveURL(/\/propostas\/(?!nova$)[^/]+$/);
   await expect(page.getByRole("heading", { name: "Conteúdo" })).toBeVisible();
+  const propostaPath = new URL(page.url()).pathname;
 
   // Persistência da finalização (round-trip pós-criação).
   await expect(page.getByLabel("Forma de pagamento")).toHaveValue(
@@ -191,9 +192,17 @@ test("Propostas: criação diferida, emitir e revisão automática", async ({
   await page.getByRole("button", { name: "Salvar Alterações" }).click();
   await expect(page.getByRole("heading", { name: "Extra E2E" })).toBeVisible();
 
+  // Documento comercial (PDF): o endpoint responde application/pdf não-vazio.
+  const pdfResp = await page.request.get(`${propostaPath}/pdf`);
+  expect(pdfResp.status()).toBe(200);
+  expect(pdfResp.headers()["content-type"]).toContain("application/pdf");
+  expect((await pdfResp.body()).byteLength).toBeGreaterThan(1000);
+
   // "Gerar PDF" emite a proposta (RASCUNHO → EMITIDA).
   await page.getByRole("button", { name: "Gerar PDF" }).click();
   await expect(page.getByText("Emitida", { exact: true })).toBeVisible();
+  // Após emitir, o botão "Abrir PDF" fica disponível.
+  await expect(page.getByRole("button", { name: "Abrir PDF" })).toBeVisible();
 
   // Alteração pós-emissão + Salvar cria automaticamente a Rev.1 e volta a Rascunho.
   await page

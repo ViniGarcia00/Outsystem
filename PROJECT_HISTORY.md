@@ -476,5 +476,37 @@ ADRs, problemas, soluções, lições e o hash do commit.
 
 ---
 
+## Sprint 2.7 — Documento comercial (PDF)
+
+- **Versão:** 0.12.0
+- **Data:** 2026-07-07
+- **Objetivo:** transformar a proposta no **documento comercial oficial** da
+  Outmat (premium), pronto para envio ao cliente.
+- **Principais entregas:**
+  - **`GET /propostas/[id]/pdf`** (`@react-pdf/renderer`; sob demanda, sem
+    armazenar; renderiza a `currentRevision`). Botões "Gerar PDF" (abre após
+    emitir) e "Abrir PDF" (EMITIDA).
+  - **Layout A4 multipágina premium:** cabeçalho limpo; bloco do cliente
+    elegante; tabela com Descrição dominante/Código discreto; TOTAL em destaque;
+    Informações Comerciais e Observações separadas; assinaturas; rodapé com
+    institucionais + "Página X de Y". Simplificada oculta serviço/total
+    serviços/previsão.
+  - **Paginação:** cabeçalhos (documento e tabela) repetidos; `wrap`/
+    `minPresenceAhead` para não quebrar blocos/seções. Validado de 1 a 7+
+    páginas.
+  - **Arquitetura:** `proposta-pdf.mapper.ts` (DTO puro, testado) + IO em
+    `proposta-pdf.service.ts`; blocos próprios em `features/propostas/pdf`;
+    `totais.ts` reutilizado (sem duplicação). Fonte Inter em `public/fonts`.
+    Endereço da obra = endereço do cliente (sem migração).
+- **ADRs criadas:** ADR-0223.
+- **Gate:** lint 0, typecheck 0, build 0, **unit 17/17** (inclui o mapper do
+  PDF), smoke **7/7** (endpoint PDF 200 `application/pdf` + botão "Abrir PDF"),
+  `/api/health` 200 (db up). Renderização validada em propostas pequenas e
+  grandes (contagem de páginas).
+- **Hash do commit:** `PENDENTE`
+- **Próxima:** **2.8 homologação geral**.
+
+---
+
 > Próximas Sprints: adicionar uma nova seção ao final, seguindo este mesmo
 > formato, ao concluir cada Sprint.
