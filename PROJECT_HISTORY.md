@@ -533,7 +533,7 @@ ADRs, problemas, soluções, lições e o hash do commit.
   o Prisma client antigo (falha no cliente com RG/IE) — resolvido matando o
   processo. A tabela de produtos do dev estava vazia (seed é global-idempotente,
   ADR-0209) e foi repovoada pontualmente para o smoke.
-- **Hash do commit:** `PENDENTE`
+- **Hash do commit:** `d0cd2fe`
 - **Próxima:** **2.8 homologação geral**.
 
 ---
