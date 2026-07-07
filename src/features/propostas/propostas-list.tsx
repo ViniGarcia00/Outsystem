@@ -37,7 +37,12 @@ import {
   listPropostasAction,
 } from "./actions";
 import { CancelarDialog } from "./cancelar-dialog";
-import { MODELO_LABEL, STATUS_BADGE_VARIANT, STATUS_LABEL } from "./labels";
+import {
+  MODELO_LABEL,
+  STATUS_BADGE_CLASS,
+  STATUS_BADGE_VARIANT,
+  STATUS_LABEL,
+} from "./labels";
 import type { CancelarFormValues } from "./schema";
 
 const STATUS_ORDER: StatusProposta[] = ["RASCUNHO", "EMITIDA", "CANCELADA"];
@@ -147,6 +152,15 @@ export function PropostasList({
           ),
       },
       {
+        id: "valorTotal",
+        header: () => sortHeader("valorTotal", "Valor"),
+        cell: ({ row }) => (
+          <span className="tabular-nums">
+            {formatCurrency(row.original.valorTotal)}
+          </span>
+        ),
+      },
+      {
         id: "vendedorNome",
         header: () => (
           <span className="text-sm font-medium text-muted-foreground">
@@ -156,12 +170,15 @@ export function PropostasList({
         cell: ({ row }) => row.original.vendedorNome ?? "—",
       },
       {
-        id: "valorTotal",
-        header: () => sortHeader("valorTotal", "Valor"),
+        id: "status",
+        header: () => sortHeader("status", "Status"),
         cell: ({ row }) => (
-          <span className="tabular-nums">
-            {formatCurrency(row.original.valorTotal)}
-          </span>
+          <Badge
+            variant={STATUS_BADGE_VARIANT[row.original.status]}
+            className={STATUS_BADGE_CLASS[row.original.status]}
+          >
+            {STATUS_LABEL[row.original.status]}
+          </Badge>
         ),
       },
       {
@@ -177,11 +194,7 @@ export function PropostasList({
           const label = `Proposta ${p.proposalNumber}`;
           const cancelada = p.status === "CANCELADA";
           return (
-            <div className="flex items-center justify-end gap-2">
-              {/* Status ao lado da ação (leitura mais direta — ADR-0225). */}
-              <Badge variant={STATUS_BADGE_VARIANT[p.status]}>
-                {STATUS_LABEL[p.status]}
-              </Badge>
+            <div className="flex justify-end">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon-sm" aria-label="Ações">
@@ -262,8 +275,9 @@ export function PropostasList({
         }}
       />
 
-      {/* Legenda das cores de status (badges existentes). */}
-      <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
+      {/* Legenda das cores de status — quebra em várias linhas em telas menores,
+          sem estourar a largura. */}
+      <div className="mt-3 flex w-full flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
         <span className="font-medium">Status:</span>
         {(
           [
@@ -272,8 +286,11 @@ export function PropostasList({
             ["CANCELADA", "Cancelada"],
           ] as const
         ).map(([status, descricao]) => (
-          <span key={status} className="flex items-center gap-1.5">
-            <Badge variant={STATUS_BADGE_VARIANT[status]}>
+          <span key={status} className="flex items-center gap-1.5 whitespace-nowrap">
+            <Badge
+              variant={STATUS_BADGE_VARIANT[status]}
+              className={STATUS_BADGE_CLASS[status]}
+            >
               {STATUS_LABEL[status]}
             </Badge>
             <span>{descricao}</span>

@@ -1,8 +1,8 @@
-import { CurrencyInput } from "@/components/forms";
 import { Separator } from "@/components/ui/separator";
 import { formatCurrency } from "@/utils";
 
-import { DescontoInput, formatDesconto } from "./desconto-input";
+import { DescontoInput } from "./desconto-input";
+import { FreteInput } from "./frete-input";
 import { calcularTotais, type Desconto, type ItemCalculavel } from "./totais";
 
 /**
@@ -44,31 +44,19 @@ export function RodapeTotais({
 
         <div className="flex items-center justify-between gap-4">
           <dt className="text-muted-foreground">Desconto</dt>
-          <dd className="flex items-center gap-2">
+          <dd>
             <DescontoInput
               value={desconto}
               onChange={onDescontoChange}
               disabled={readOnly}
             />
-            {/* Interpretação na MESMA linha: "R$ 500,00" ou "10%". */}
-            <span className="w-16 text-right text-xs tabular-nums text-muted-foreground">
-              {t.descontoAplicado > 0 ? formatDesconto(desconto) : ""}
-            </span>
           </dd>
         </div>
 
         <div className="flex items-center justify-between gap-4">
           <dt className="text-muted-foreground">Frete</dt>
-          <dd className="flex items-center gap-2">
-            <CurrencyInput
-              value={frete}
-              onChange={onFreteChange}
-              disabled={readOnly}
-              aria-label="Frete"
-              className="h-8 w-32 text-right"
-            />
-            {/* Espaçador para alinhar o input com o campo de Desconto. */}
-            <span className="w-16" aria-hidden />
+          <dd>
+            <FreteInput value={frete} onChange={onFreteChange} disabled={readOnly} />
           </dd>
         </div>
 

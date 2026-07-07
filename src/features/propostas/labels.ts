@@ -22,6 +22,16 @@ export const STATUS_BADGE_VARIANT: Record<
   CANCELADA: "danger",
 };
 
+/**
+ * Classe extra por status. Escurece levemente o fundo do badge de Rascunho para
+ * melhorar o contraste, sem alterar os demais badges (ADR-0226).
+ */
+export const STATUS_BADGE_CLASS: Record<StatusProposta, string> = {
+  RASCUNHO: "bg-zinc-200 dark:bg-zinc-700",
+  EMITIDA: "",
+  CANCELADA: "",
+};
+
 export const MODELO_LABEL: Record<ModeloProposta, string> = {
   COMERCIAL: "Comercial",
   SIMPLIFICADA: "Simplificada",

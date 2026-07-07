@@ -22,7 +22,12 @@ import { CancelarDialog } from "./cancelar-dialog";
 import { ConteudoEditor } from "./conteudo-editor";
 import { useConteudoMemoria } from "./conteudo-memoria";
 import { FinalizacaoProposta } from "./finalizacao-proposta";
-import { MOTIVO_LABEL, STATUS_BADGE_VARIANT, STATUS_LABEL } from "./labels";
+import {
+  MOTIVO_LABEL,
+  STATUS_BADGE_CLASS,
+  STATUS_BADGE_VARIANT,
+  STATUS_LABEL,
+} from "./labels";
 import {
   PropostaCabecalho,
   type CabecalhoValores,
@@ -214,55 +219,18 @@ export function PropostaWorkspace({
 
       <PageHeader
         title={`Proposta ${data.proposalNumber} · Rev.${data.revisaoAtual ?? 0}`}
+        titleSuffix={
+          <Badge
+            variant={STATUS_BADGE_VARIANT[data.status]}
+            className={STATUS_BADGE_CLASS[data.status]}
+          >
+            {STATUS_LABEL[data.status]}
+          </Badge>
+        }
         description={
           readOnly
             ? "Proposta cancelada — somente leitura."
             : "Workspace da proposta — as alterações são gravadas ao clicar em Salvar Alterações."
-        }
-        actions={
-          <>
-            <Badge variant={STATUS_BADGE_VARIANT[data.status]}>
-              {STATUS_LABEL[data.status]}
-            </Badge>
-            {!readOnly && (
-              <Button onClick={salvar} disabled={!dirty || saving}>
-                <Save className="h-4 w-4" />
-                Salvar Alterações
-              </Button>
-            )}
-            {data.status === "RASCUNHO" && (
-              <Button
-                variant="outline"
-                onClick={gerarPdf}
-                disabled={!podeEmitir || saving}
-                title={
-                  dirty
-                    ? "Salve as alterações antes de gerar o PDF."
-                    : podeEmitir
-                      ? undefined
-                      : "Informe o cliente e adicione ao menos um item para emitir."
-                }
-              >
-                <FileDown className="h-4 w-4" />
-                Gerar PDF
-              </Button>
-            )}
-            {data.status === "EMITIDA" && (
-              <Button variant="outline" onClick={abrirPdf}>
-                <FileDown className="h-4 w-4" />
-                Abrir PDF
-              </Button>
-            )}
-            {!readOnly && (
-              <Button variant="outline" onClick={cancelarProposta}>
-                <Ban className="h-4 w-4" />
-                Cancelar
-              </Button>
-            )}
-            <Button variant="ghost" onClick={voltar}>
-              Voltar
-            </Button>
-          </>
         }
       />
 
@@ -333,6 +301,48 @@ export function PropostaWorkspace({
         readOnly={readOnly}
         onCampo={onCampo}
       />
+
+      {/* Ações na parte inferior — mesmo padrão dos demais módulos. */}
+      <div className="flex flex-wrap items-center justify-end gap-2 border-t pt-6">
+        {!readOnly && (
+          <Button onClick={salvar} disabled={!dirty || saving}>
+            <Save className="h-4 w-4" />
+            Salvar Alterações
+          </Button>
+        )}
+        {data.status === "RASCUNHO" && (
+          <Button
+            variant="outline"
+            onClick={gerarPdf}
+            disabled={!podeEmitir || saving}
+            title={
+              dirty
+                ? "Salve as alterações antes de gerar o PDF."
+                : podeEmitir
+                  ? undefined
+                  : "Informe o cliente e adicione ao menos um item para emitir."
+            }
+          >
+            <FileDown className="h-4 w-4" />
+            Gerar PDF
+          </Button>
+        )}
+        {data.status === "EMITIDA" && (
+          <Button variant="outline" onClick={abrirPdf}>
+            <FileDown className="h-4 w-4" />
+            Abrir PDF
+          </Button>
+        )}
+        {!readOnly && (
+          <Button variant="outline" onClick={cancelarProposta}>
+            <Ban className="h-4 w-4" />
+            Cancelar
+          </Button>
+        )}
+        <Button variant="ghost" onClick={voltar}>
+          Voltar
+        </Button>
+      </div>
 
       <CancelarDialog
         open={cancelOpen}

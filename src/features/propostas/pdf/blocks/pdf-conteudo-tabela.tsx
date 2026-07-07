@@ -166,7 +166,8 @@ export function PdfConteudoTabela({
                       fontWeight: isDescricao
                         ? tema.pesos.medium
                         : tema.pesos.regular,
-                      color: isCodigo ? tema.cores.textoClaro : tema.cores.texto,
+                      // Código legível (cor escura); mantém tamanho menor.
+                      color: tema.cores.texto,
                     }}
                   >
                     {valorCelula(item, col.chave, simplificada)}

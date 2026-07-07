@@ -566,5 +566,29 @@ ADRs, problemas, soluções, lições e o hash do commit.
 
 ---
 
+## Sprint 2.7.7 — Refinamentos de UX e PDF
+
+- **Versão:** 0.12.3
+- **Data:** 2026-07-07
+- **Objetivo:** rodada de refinamentos de UX/PDF com escopo estrito (somente os
+  itens listados).
+- **Principais entregas:**
+  - **Desconto/Frete:** interpretação em tempo real + "-" quando vazio; novo
+    `FreteInput` (input vazio no zero) no mesmo padrão do `DescontoInput`.
+  - **Botões do workspace** (proposta e nova) na **parte inferior**; `PageHeader`
+    ganhou `titleSuffix` (badge de status ao lado da revisão).
+  - Badge **Rascunho** levemente mais escuro (`STATUS_BADGE_CLASS`, escopo).
+  - Listagem: coluna **Status** em Vendedor · Status · Última alteração; **Valor**
+    após Cliente; **legenda** responsiva.
+  - **PDF:** linhas Desconto/Frete condicionais (> 0); coluna **Código** escura.
+- **ADRs criadas:** ADR-0226.
+- **Gate:** lint 0, typecheck 0, build 0, **unit 17/17**, smoke **7/7** (frete
+  vazio, coluna Valor/legenda, não-duplicidade), `/api/health` 200 (db up). PDF
+  revalidado (frete oculto no zero, render OK).
+- **Hash do commit:** `PENDENTE`
+- **Próxima:** **2.8 homologação geral**.
+
+---
+
 > Próximas Sprints: adicionar uma nova seção ao final, seguindo este mesmo
 > formato, ao concluir cada Sprint.

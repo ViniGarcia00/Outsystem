@@ -113,7 +113,10 @@ export function PdfRodapeFinanceiro({
             valor={`− ${formatCurrency(totais.descontoAplicado)}`}
           />
         )}
-        <Linha tema={tema} rotulo="Frete" valor={formatCurrency(totais.frete)} />
+        {/* Frete só aparece quando houver valor (> 0). */}
+        {totais.frete > 0 && (
+          <Linha tema={tema} rotulo="Frete" valor={formatCurrency(totais.frete)} />
+        )}
 
         {/* TOTAL — faixa de destaque. */}
         <View

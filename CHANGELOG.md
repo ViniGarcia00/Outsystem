@@ -4,6 +4,27 @@ Todas as mudanças relevantes deste projeto são documentadas aqui.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o
 projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [0.12.3] — 2026-07-07
+
+### Sprint 2.7.7 — Refinamentos de UX e PDF. Ver ADR-0226.
+
+#### Propostas
+
+- **Desconto/Frete:** interpretação (R$/%) atualiza **em tempo real** ao digitar
+  e mostra **"-"** quando vazio. O **Frete** inicia **vazio** (não preenche
+  "R$ 0,00") e segue o mesmo padrão visual do Desconto.
+- Botões do workspace movidos para a **parte inferior** (mesmo padrão dos demais
+  módulos).
+- **Badge de status** ao lado do número/revisão no workspace.
+- Badge **"Rascunho"** com fundo levemente mais escuro (contraste).
+- Listagem: coluna **Status** volta para Vendedor · Status · Última alteração;
+  coluna **Valor** após Cliente; **legenda** de status responsiva.
+
+#### PDF
+
+- Linhas **Desconto** e **Frete** só aparecem quando houver valor.
+- Coluna **Código** em cor escura (legibilidade).
+
 ## [0.12.2] — 2026-07-07
 
 ### Sprint 2.7.6 — Ajustes pós-PDF (2ª rodada). Ver ADR-0225.

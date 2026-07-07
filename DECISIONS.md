@@ -768,3 +768,31 @@ impacto em modelagem/arquitetura:
   apagado ao trocar o tipo.
 - **Placeholders no tema escuro:** regra global (`globals.css`) reduz a opacidade
   dos placeholders (mais no dark), diferenciando-os do texto digitado.
+
+---
+
+## Sprint 2.7.7 — Refinamentos de UX e PDF
+
+### ADR-0226 — Ajustes de UX/apresentação (escopo estrito)
+
+Sprint de refinamento restrita aos itens abaixo (sem novas funcionalidades nem
+alterações fora do escopo):
+
+- **Desconto/Frete — interpretação em tempo real:** a interpretação passa a
+  atualizar **enquanto digita** (não só no blur) e mostra **"-"** quando vazio.
+  `DescontoInput` e o novo `FreteInput` encapsulam input + interpretação no mesmo
+  padrão visual. **Frete inicia vazio** (não preenche "R$ 0,00"); emite o número.
+- **PDF — linhas condicionais:** as linhas **Desconto** e **Frete** só aparecem
+  quando houver valor (> 0).
+- **PDF — Código:** cor escura (legibilidade), mantendo o tamanho menor.
+- **Botões do workspace na parte inferior:** os botões dos workspaces de proposta
+  (existente e nova) foram movidos para uma barra inferior, alinhada à direita
+  (mesmo padrão dos demais módulos, que usam o rodapé do `CrudFormShell`).
+  `PageHeader` ganhou a prop opcional **`titleSuffix`** (aditiva) para o badge.
+- **Badge de status no workspace:** ao lado do título (Rev.N), via `titleSuffix`.
+- **Badge "Rascunho":** fundo levemente mais escuro para contraste, via
+  `STATUS_BADGE_CLASS` (aplicado só ao Rascunho; demais badges inalterados).
+- **Listagem de propostas:** a coluna **Status** volta para a ordem
+  Vendedor · **Status** · Última alteração (o badge sai da célula de ação); a
+  coluna **Valor** passa a ficar após Cliente. **Legenda** de status com quebra
+  responsiva (não estoura a largura em telas menores).

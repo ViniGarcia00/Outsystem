@@ -62,28 +62,39 @@ export function DescontoInput({
   const [focado, setFocado] = useState(false);
   const [texto, setTexto] = useState("");
 
+  // Interpretação em TEMPO REAL: enquanto digita, reflete o texto; fora do foco,
+  // reflete o valor confirmado. "-" quando não há desconto informado.
+  const interpretado = focado ? parseDesconto(texto) : value;
+  const interpretacao =
+    interpretado.valor > 0 ? formatDesconto(interpretado) : "-";
+
   return (
-    <Input
-      id={id}
-      inputMode="decimal"
-      autoComplete="off"
-      placeholder="Ex.: 500 ou 10%"
-      disabled={disabled}
-      aria-label="Desconto"
-      value={focado ? texto : formatDesconto(value)}
-      onFocus={() => {
-        setTexto(toEditable(value));
-        setFocado(true);
-      }}
-      onChange={(e) => setTexto(e.target.value)}
-      onBlur={() => {
-        setFocado(false);
-        const novo = parseDesconto(texto);
-        if (novo.tipo !== value.tipo || novo.valor !== value.valor) {
-          onChange(novo);
-        }
-      }}
-      className="h-8 w-32 text-right"
-    />
+    <div className="flex items-center gap-2">
+      <Input
+        id={id}
+        inputMode="decimal"
+        autoComplete="off"
+        placeholder="Ex.: 500 ou 10%"
+        disabled={disabled}
+        aria-label="Desconto"
+        value={focado ? texto : formatDesconto(value)}
+        onFocus={() => {
+          setTexto(toEditable(value));
+          setFocado(true);
+        }}
+        onChange={(e) => setTexto(e.target.value)}
+        onBlur={() => {
+          setFocado(false);
+          const novo = parseDesconto(texto);
+          if (novo.tipo !== value.tipo || novo.valor !== value.valor) {
+            onChange(novo);
+          }
+        }}
+        className="h-8 w-32 text-right"
+      />
+      <span className="w-16 text-right text-xs tabular-nums text-muted-foreground">
+        {interpretacao}
+      </span>
+    </div>
   );
 }

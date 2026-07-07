@@ -167,7 +167,8 @@ test("Propostas: criação diferida, emitir e revisão automática", async ({
   // (o formatador BRL usa espaço não-quebrável — regex tolerante ao espaço)
   await expect(page.getByText("Frete", { exact: true })).toBeVisible();
   const frete = page.getByLabel("Frete");
-  await expect(frete).toHaveValue(/R\$\s*0,00/);
+  // Frete inicia vazio (não preenche R$ 0,00 automaticamente).
+  await expect(frete).toHaveValue("");
   await frete.fill("10000");
   await expect(frete).toHaveValue(/R\$\s*100,00/);
 
@@ -279,8 +280,8 @@ test("Propostas: modelo Simplificada (produtos sem seções)", async ({
   await expect(
     page.getByRole("columnheader", { name: "Valor Serviço" }),
   ).toHaveCount(0);
-  // Frete presente também na Simplificada (padrão R$ 0,00).
-  await expect(page.getByLabel("Frete")).toHaveValue(/R\$\s*0,00/);
+  // Frete presente também na Simplificada, iniciando vazio.
+  await expect(page.getByLabel("Frete")).toHaveValue("");
 
   // Finalização: "Forma de pagamento" presente; "Previsão de instalação"
   // fica OCULTA no modelo Simplificada (regra apenas de apresentação).

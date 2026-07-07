@@ -132,26 +132,6 @@ export function NovaPropostaWorkspace({
       <PageHeader
         title="Nova proposta"
         description="Monte a proposta; ela só é criada (e recebe número) ao confirmar."
-        actions={
-          <>
-            <Button variant="outline" onClick={() => router.push("/propostas")}>
-              <X className="h-4 w-4" />
-              Cancelar
-            </Button>
-            <Button
-              onClick={criar}
-              disabled={criando || semCliente}
-              title={
-                semCliente
-                  ? "Selecione o cliente para criar a proposta."
-                  : undefined
-              }
-            >
-              <Check className="h-4 w-4" />
-              Criar Proposta
-            </Button>
-          </>
-        }
       />
 
       {/* Banner (painel Card) — só durante a criação, logo abaixo do cabeçalho. */}
@@ -206,6 +186,24 @@ export function NovaPropostaWorkspace({
         readOnly={false}
         onCampo={onCampo}
       />
+
+      {/* Ações na parte inferior — mesmo padrão dos demais módulos. */}
+      <div className="flex flex-wrap items-center justify-end gap-2 border-t pt-6">
+        <Button variant="outline" onClick={() => router.push("/propostas")}>
+          <X className="h-4 w-4" />
+          Cancelar
+        </Button>
+        <Button
+          onClick={criar}
+          disabled={criando || semCliente}
+          title={
+            semCliente ? "Selecione o cliente para criar a proposta." : undefined
+          }
+        >
+          <Check className="h-4 w-4" />
+          Criar Proposta
+        </Button>
+      </div>
     </AppPage>
   );
 }
