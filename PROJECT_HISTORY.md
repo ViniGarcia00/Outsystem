@@ -351,7 +351,7 @@ ADRs, problemas, soluções, lições e o hash do commit.
 - **Gate:** lint 0, typecheck 0, build 0, smoke **7/7**, `/api/health` 200 (db
   up). Verificado por script: snapshot dos dois valores editados (cadastro
   intacto) e os 3 totais por linha.
-- **Hash do commit:** `PENDENTE`
+- **Hash do commit:** `82324ec`
 
 ---
 
