@@ -195,5 +195,40 @@ ADRs, problemas, soluções, lições e o hash do commit.
 
 ---
 
+## Refino do fluxo de Propostas — workspace-first + revisão automática
+
+- **Versão:** 0.6.0
+- **Data:** 2026-07-07
+- **Objetivo:** simplificar o fluxo do usuário antes de adicionar Serviços:
+  workspace único, auto-save, emissão e revisão automática.
+- **Principais entregas:**
+  - **Workspace único** (`/propostas/[id]`) para criar/editar/revisar; rotas
+    `/nova` e `/editar` removidas. "Nova proposta" cria a proposta já numerada e
+    abre o workspace.
+  - **Auto-save** do cabeçalho (por campo) e do conteúdo (por operação); sem botão
+    "Salvar"; indicador "Última alteração salva às HH:mm".
+  - **"Gerar PDF"** (`emitirProposta`): emite + congela a revisão (`emittedAt`);
+    guarda cliente + ≥1 item; auditoria `EMISSAO`.
+  - **Revisão automática** na 1ª edição pós-emissão via `ensureEditableRevision`
+    (+ `idMap` para reapontar seções/itens existentes); sem botão "Nova Revisão".
+  - **Status** reduzido a RASCUNHO/EMITIDA/CANCELADA; `clienteId` opcional
+    (estado temporário; aviso de proposta incompleta + foco no Cliente).
+- **ADRs criadas:** ADR-0211 (fluxo workspace-first, revisão automática, emissão,
+  status simplificado, cliente temporário).
+- **Problemas encontrados:** cache stale de tipos do Next (`.next/types`)
+  referenciando as rotas removidas; seletor de heading ambíguo (Rev.1 no h1 e h2)
+  no smoke.
+- **Como foram resolvidos:** limpar `.next` antes do typecheck; especificar o h2
+  "Conteúdo — Rev.1" no smoke.
+- **Lições aprendidas:** centralizar a regra de fork num único
+  `ensureEditableRevision` mantém as 8 operações de conteúdo simples e o `idMap`
+  resolve o reapontamento de ids após a cópia; validar o trecho sutil com script
+  dedicado além do smoke.
+- **Gate:** lint 0, typecheck 0, build 0, smoke 6/6, `/api/health` 200 (db up),
+  `/dev/diagnostics` 200. Ciclo emitir→fork→idMap verificado por script.
+- **Hash do commit:** `PENDENTE`
+
+---
+
 > Próximas Sprints: adicionar uma nova seção ao final, seguindo este mesmo
 > formato, ao concluir cada Sprint.

@@ -41,8 +41,6 @@ enum TipoPessoa {
 enum StatusProposta {
   RASCUNHO
   EMITIDA
-  APROVADA
-  REPROVADA
   CANCELADA
 }
 
@@ -63,6 +61,7 @@ enum EventoAuditoria {
   NOVA_REVISAO
   DUPLICACAO
   MUDANCA_STATUS
+  EMISSAO
   CANCELAMENTO
 }
 
@@ -177,16 +176,17 @@ model Proposta {
   updatedAt DateTime  @updatedAt
   /// Datas de status — carimbadas apenas na 1ª transição; nunca sobrescritas.
   emitidaAt   DateTime?
-  aprovadaAt  DateTime?
-  reprovadaAt DateTime?
   canceladaAt DateTime?
 
   /// Cancelamento (ADR-0203). obsCancelamento obrigatório quando OUTRO.
   motivoCancelamento MotivoCancelamento?
   obsCancelamento    String?             @db.Text
 
-  clienteId  String
-  cliente    Cliente   @relation(fields: [clienteId], references: [id])
+  /// Cliente pode ser nulo APENAS enquanto o rascunho está sendo montado
+  /// (fluxo workspace-first). Regra de negócio: proposta válida/emitida SEMPRE
+  /// tem cliente — garantido pela guarda de emissão. ADR-0210+ (refino 2.3).
+  clienteId  String?
+  cliente    Cliente?  @relation(fields: [clienteId], references: [id])
   vendedorId String?
   vendedor   Vendedor? @relation(fields: [vendedorId], references: [id])
 
@@ -231,6 +231,9 @@ model PropostaRevisao {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  /// Momento em que ESTA revisão foi emitida (Gerar PDF). Congela a versão e
+  /// alimenta o histórico/PDF por revisão. Null enquanto rascunho.
+  emittedAt DateTime?
 
   propostaId String
   proposta   Proposta @relation("PropostaRevisoes", fields: [propostaId], references: [id], onDelete: Cascade)

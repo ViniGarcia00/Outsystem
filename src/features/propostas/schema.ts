@@ -1,45 +1,28 @@
 import { z } from "zod";
 
-import { optionalText } from "@/lib/validation";
-
 /**
- * Schema (Zod) do formulário de Proposta — fonte única (RHF + Server Action).
- * Sem produtos/serviços nesta Sprint.
+ * Schemas (Zod) do módulo de Propostas.
+ * O cabeçalho é auto-salvo por campo (patch parcial); não há formulário/submit.
  */
 export const modeloEnum = z.enum(["COMERCIAL", "SIMPLIFICADA"]);
-export const statusEnum = z.enum([
-  "RASCUNHO",
-  "EMITIDA",
-  "APROVADA",
-  "REPROVADA",
-  "CANCELADA",
-]);
 
-export const propostaSchema = z.object({
-  clienteId: z.string().min(1, "Selecione um cliente."),
-  vendedorId: z.string().optional(),
-  modelo: modeloEnum,
-  validadeDias: z
-    .number({ message: "Informe a validade em dias." })
-    .int("Use um número inteiro de dias.")
-    .min(1, "Mínimo de 1 dia.")
-    .max(3650, "Máximo de 3650 dias."),
-  obsInternas: optionalText(5000),
-  obsProposta: optionalText(5000),
-  status: statusEnum,
-});
+/** Patch parcial do cabeçalho (auto-save por campo). */
+export const cabecalhoPatchSchema = z
+  .object({
+    clienteId: z.string().nullable(),
+    vendedorId: z.string().nullable(),
+    modelo: modeloEnum,
+    validadeDias: z
+      .number({ message: "Informe a validade em dias." })
+      .int("Use um número inteiro de dias.")
+      .min(1, "Mínimo de 1 dia.")
+      .max(3650, "Máximo de 3650 dias."),
+    obsInternas: z.string().max(5000).nullable(),
+    obsProposta: z.string().max(5000).nullable(),
+  })
+  .partial();
 
-export type PropostaFormValues = z.infer<typeof propostaSchema>;
-
-export const propostaDefaults: PropostaFormValues = {
-  clienteId: "",
-  vendedorId: "",
-  modelo: "COMERCIAL",
-  validadeDias: 5,
-  obsInternas: "",
-  obsProposta: "",
-  status: "RASCUNHO",
-};
+export type CabecalhoPatchValues = z.infer<typeof cabecalhoPatchSchema>;
 
 /** Cancelamento — motivo obrigatório; obs obrigatória quando "Outro". */
 export const motivoEnum = z.enum([

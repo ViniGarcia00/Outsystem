@@ -187,7 +187,11 @@ async function main() {
       select: { id: true },
     });
     const rev = await prisma.propostaRevisao.create({
-      data: { propostaId: p.id, revisionNumber: 0 },
+      data: {
+        propostaId: p.id,
+        revisionNumber: 0,
+        ...(data.status === "EMITIDA" ? { emittedAt: new Date() } : {}),
+      },
       select: { id: true },
     });
     await prisma.proposta.update({

@@ -1,20 +1,12 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import {
-  Ban,
-  Copy,
-  FileText,
-  GitBranch,
-  MoreHorizontal,
-  Pencil,
-} from "lucide-react";
+import { Ban, Copy, FileText, MoreHorizontal, Pencil } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { CrudLayout } from "@/components/app";
-import { ConfirmDialog } from "@/components/shared";
 import { SortableHeader } from "@/components/tables";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -41,7 +33,7 @@ import { formatDateTime } from "@/utils";
 
 import {
   cancelarPropostaAction,
-  criarRevisaoAction,
+  criarPropostaAction,
   duplicarPropostaAction,
   listPropostasAction,
 } from "./actions";
@@ -49,18 +41,12 @@ import { CancelarDialog } from "./cancelar-dialog";
 import { MODELO_LABEL, STATUS_BADGE_VARIANT, STATUS_LABEL } from "./labels";
 import type { CancelarFormValues } from "./schema";
 
-const STATUS_ORDER: StatusProposta[] = [
-  "RASCUNHO",
-  "EMITIDA",
-  "APROVADA",
-  "REPROVADA",
-  "CANCELADA",
-];
+const STATUS_ORDER: StatusProposta[] = ["RASCUNHO", "EMITIDA", "CANCELADA"];
 
 const searchAccessor = (p: PropostaListItem) =>
   [
     String(p.proposalNumber),
-    p.clienteNome,
+    p.clienteNome ?? "",
     p.vendedorNome ?? "",
     STATUS_LABEL[p.status],
     MODELO_LABEL[p.modelo],
@@ -81,9 +67,9 @@ export function PropostasList({
   const [statusFilter, setStatusFilter] = useState<"TODOS" | StatusProposta>(
     "TODOS",
   );
-  const [pendingRevisao, setPendingRevisao] = useState<RowAction | null>(null);
   const [cancelTarget, setCancelTarget] = useState<RowAction | null>(null);
   const [busy, startBusy] = useTransition();
+  const [criando, setCriando] = useState(false);
 
   const rowsByStatus = useMemo(
     () =>
@@ -112,16 +98,15 @@ export function PropostasList({
     }
   };
 
-  const confirmNovaRevisao = async () => {
-    if (!pendingRevisao) return;
-    const result = await criarRevisaoAction(pendingRevisao.id);
+  const handleNova = async () => {
+    setCriando(true);
+    const result = await criarPropostaAction();
     if (result.success) {
-      toast.success(`${pendingRevisao.label}: nova revisão criada.`);
-      refresh();
+      router.push(`/propostas/${result.data.id}`);
     } else {
+      setCriando(false);
       toast.error(result.error);
     }
-    setPendingRevisao(null);
   };
 
   const confirmCancelar = async (values: CancelarFormValues) => {
@@ -166,7 +151,10 @@ export function PropostasList({
       {
         id: "clienteNome",
         header: () => sortHeader("clienteNome", "Cliente"),
-        cell: ({ row }) => row.original.clienteNome,
+        cell: ({ row }) =>
+          row.original.clienteNome ?? (
+            <span className="text-muted-foreground">Sem cliente</span>
+          ),
       },
       {
         id: "vendedorNome",
@@ -211,14 +199,7 @@ export function PropostasList({
                     onClick={() => router.push(`/propostas/${p.id}`)}
                   >
                     <Pencil className="h-4 w-4" />
-                    {cancelada ? "Visualizar" : "Editar"}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    disabled={cancelada}
-                    onClick={() => setPendingRevisao({ id: p.id, label })}
-                  >
-                    <GitBranch className="h-4 w-4" />
-                    Nova revisão
+                    {cancelada ? "Visualizar" : "Abrir"}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => handleDuplicar(p)}>
                     <Copy className="h-4 w-4" />
@@ -270,11 +251,11 @@ export function PropostasList({
         searchValue={list.search}
         onSearchChange={list.setSearch}
         searchPlaceholder="Buscar por número, cliente, vendedor, status..."
-        onNew={() => router.push("/propostas/nova")}
+        onNew={handleNova}
         newLabel="Nova proposta"
         columns={columns}
         data={list.pageRows}
-        loading={busy}
+        loading={busy || criando}
         filters={statusFilterNode}
         emptyIcon={FileText}
         emptyTitle="Nenhuma proposta encontrada"
@@ -285,21 +266,6 @@ export function PropostasList({
           onPageChange: list.setPage,
           totalLabel: `${list.total} proposta${list.total === 1 ? "" : "s"}`,
         }}
-      />
-
-      <ConfirmDialog
-        open={pendingRevisao !== null}
-        onOpenChange={(open) => {
-          if (!open) setPendingRevisao(null);
-        }}
-        title="Criar nova revisão?"
-        description={
-          pendingRevisao
-            ? `${pendingRevisao.label}: será criada uma nova revisão (a atual passa a ser somente leitura).`
-            : undefined
-        }
-        confirmLabel="Criar revisão"
-        onConfirm={confirmNovaRevisao}
       />
 
       <CancelarDialog

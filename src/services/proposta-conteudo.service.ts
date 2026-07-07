@@ -1,16 +1,17 @@
 import { prisma } from "@/infrastructure/database";
 
-import type {
-  ModeloProposta,
-  StatusProposta,
+import {
+  ensureEditableRevision,
+  type ModeloProposta,
+  type StatusProposta,
 } from "./proposta.service";
 
 /**
  * Serviço do CONTEÚDO da proposta (seções + itens) — vive dentro da revisão
- * atual (ADR-0206). Sprint 2.2: apenas PRODUTOS. Toda operação valida que a
- * proposta não está cancelada e que a seção/item pertence à revisão atual, e
- * grava auditoria `ALTERACAO` + toca `updatedAt` na mesma transação.
- * Ordenação contígua (0,1,2…) sem buracos (ADR-0208).
+ * atual (ADR-0206). Toda operação passa por `ensureEditableRevision`: se a
+ * proposta estiver EMITIDA, uma nova revisão é criada automaticamente (fork) e o
+ * alvo (seção/item) é retraduzido pelo `idMap`. Grava auditoria `ALTERACAO` +
+ * toca `updatedAt` na mesma transação. Ordenação contígua (0,1,2…) sem buracos.
  */
 
 type TipoItemProposta = "PRODUTO" | "SERVICO";
@@ -43,13 +44,21 @@ export interface WorkspaceDTO {
   proposalNumber: number;
   revisaoAtual: number | null;
   status: StatusProposta;
+  /** true apenas quando CANCELADA (read-only). EMITIDA é editável (edição forka). */
   readOnly: boolean;
-  clienteNome: string;
+  // Cabeçalho editável inline
+  clienteId: string | null;
+  clienteNome: string | null;
+  vendedorId: string | null;
   vendedorNome: string | null;
   modelo: ModeloProposta;
   validadeDias: number;
-  emitidaAt: Date | null;
+  obsInternas: string;
   obsProposta: string;
+  // Datas
+  emitidaAt: Date | null; // 1ª emissão da proposta (referência)
+  revisaoEmitidaAt: Date | null; // emissão da revisão exibida
+  updatedAt: Date; // alimenta o indicador de auto-save
   secoes: SecaoDTO[];
 }
 
@@ -75,13 +84,18 @@ export async function getWorkspace(
       status: true,
       modelo: true,
       validadeDias: true,
-      emitidaAt: true,
+      obsInternas: true,
       obsProposta: true,
+      emitidaAt: true,
+      updatedAt: true,
+      clienteId: true,
+      vendedorId: true,
       cliente: { select: { tipoPessoa: true, nome: true, empresa: true } },
       vendedor: { select: { nome: true } },
       currentRevision: {
         select: {
           revisionNumber: true,
+          emittedAt: true,
           secoes: {
             orderBy: { ordem: "asc" },
             select: {
@@ -117,12 +131,17 @@ export async function getWorkspace(
     revisaoAtual: p.currentRevision?.revisionNumber ?? null,
     status: p.status,
     readOnly: p.status === "CANCELADA",
-    clienteNome: clienteDisplay(p.cliente),
+    clienteId: p.clienteId,
+    clienteNome: p.cliente ? clienteDisplay(p.cliente) : null,
+    vendedorId: p.vendedorId,
     vendedorNome: p.vendedor?.nome ?? null,
     modelo: p.modelo,
     validadeDias: p.validadeDias,
-    emitidaAt: p.emitidaAt,
+    obsInternas: p.obsInternas ?? "",
     obsProposta: p.obsProposta ?? "",
+    emitidaAt: p.emitidaAt,
+    revisaoEmitidaAt: p.currentRevision?.emittedAt ?? null,
+    updatedAt: p.updatedAt,
     secoes: (p.currentRevision?.secoes ?? []).map((s) => ({
       id: s.id,
       nome: s.nome,
@@ -144,7 +163,7 @@ export async function getWorkspace(
 }
 
 // ---------------------------------------------------------------------------
-// Helpers de contexto/validação (revisão atual + não cancelada)
+// Helpers de contexto/validação (revisão editável + fork automático + idMap)
 // ---------------------------------------------------------------------------
 
 type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
@@ -165,52 +184,36 @@ async function auditar(
 }
 
 async function contextoProposta(tx: Tx, propostaId: string) {
-  const p = await tx.proposta.findUniqueOrThrow({
-    where: { id: propostaId },
-    select: {
-      status: true,
-      currentRevisionId: true,
-      currentRevision: { select: { revisionNumber: true } },
-    },
-  });
-  if (p.status === "CANCELADA") {
-    throw new Error("Proposta cancelada não pode ser editada.");
-  }
-  if (!p.currentRevisionId) {
-    throw new Error("Revisão atual não encontrada.");
-  }
+  const ctx = await ensureEditableRevision(tx, propostaId);
   return {
-    revisaoId: p.currentRevisionId,
-    revisionNumber: p.currentRevision?.revisionNumber ?? null,
+    propostaId,
+    revisaoId: ctx.revisaoId,
+    revisionNumber: ctx.revisionNumber,
   };
 }
 
 async function contextoSecao(tx: Tx, secaoId: string) {
   const s = await tx.propostaSecao.findUniqueOrThrow({
     where: { id: secaoId },
-    select: {
-      revisaoId: true,
-      revisao: {
-        select: {
-          revisionNumber: true,
-          proposta: {
-            select: { id: true, status: true, currentRevisionId: true },
-          },
-        },
-      },
-    },
+    select: { revisaoId: true, revisao: { select: { propostaId: true } } },
   });
-  const proposta = s.revisao.proposta;
-  if (proposta.status === "CANCELADA") {
-    throw new Error("Proposta cancelada não pode ser editada.");
-  }
-  if (s.revisaoId !== proposta.currentRevisionId) {
+  const propostaId = s.revisao.propostaId;
+  const ctx = await ensureEditableRevision(tx, propostaId);
+
+  let secaoIdEfetivo = secaoId;
+  if (ctx.forked) {
+    const mapeado = ctx.idMap.secoes.get(secaoId);
+    if (!mapeado) throw new Error("Seção não pertence à revisão editável.");
+    secaoIdEfetivo = mapeado;
+  } else if (s.revisaoId !== ctx.revisaoId) {
     throw new Error("Apenas a revisão atual pode ser editada.");
   }
+
   return {
-    propostaId: proposta.id,
-    revisaoId: s.revisaoId,
-    revisionNumber: s.revisao.revisionNumber,
+    propostaId,
+    revisaoId: ctx.revisaoId,
+    revisionNumber: ctx.revisionNumber,
+    secaoId: secaoIdEfetivo,
   };
 }
 
@@ -223,29 +226,34 @@ async function contextoItem(tx: Tx, itemId: string) {
       secao: {
         select: {
           revisaoId: true,
-          revisao: {
-            select: {
-              revisionNumber: true,
-              proposta: {
-                select: { id: true, status: true, currentRevisionId: true },
-              },
-            },
-          },
+          revisao: { select: { propostaId: true } },
         },
       },
     },
   });
-  const proposta = it.secao.revisao.proposta;
-  if (proposta.status === "CANCELADA") {
-    throw new Error("Proposta cancelada não pode ser editada.");
-  }
-  if (it.secao.revisaoId !== proposta.currentRevisionId) {
+  const propostaId = it.secao.revisao.propostaId;
+  const ctx = await ensureEditableRevision(tx, propostaId);
+
+  let itemIdEfetivo = itemId;
+  let secaoIdEfetivo = it.secaoId;
+  if (ctx.forked) {
+    const item = ctx.idMap.itens.get(itemId);
+    const secao = ctx.idMap.secoes.get(it.secaoId);
+    if (!item || !secao) {
+      throw new Error("Item não pertence à revisão editável.");
+    }
+    itemIdEfetivo = item;
+    secaoIdEfetivo = secao;
+  } else if (it.secao.revisaoId !== ctx.revisaoId) {
     throw new Error("Apenas a revisão atual pode ser editada.");
   }
+
   return {
-    propostaId: proposta.id,
-    secaoId: it.secaoId,
-    revisionNumber: it.secao.revisao.revisionNumber,
+    propostaId,
+    revisaoId: ctx.revisaoId,
+    revisionNumber: ctx.revisionNumber,
+    secaoId: secaoIdEfetivo,
+    itemId: itemIdEfetivo,
     codigo: it.codigo,
   };
 }
@@ -309,7 +317,7 @@ export async function renomearSecao(secaoId: string, nome: string) {
   await prisma.$transaction(async (tx) => {
     const ctx = await contextoSecao(tx, secaoId);
     await tx.propostaSecao.update({
-      where: { id: secaoId },
+      where: { id: ctx.secaoId },
       data: { nome: nomeLimpo },
     });
     await auditar(
@@ -325,10 +333,10 @@ export async function removerSecao(secaoId: string) {
   await prisma.$transaction(async (tx) => {
     const ctx = await contextoSecao(tx, secaoId);
     const secao = await tx.propostaSecao.findUniqueOrThrow({
-      where: { id: secaoId },
+      where: { id: ctx.secaoId },
       select: { nome: true },
     });
-    await tx.propostaSecao.delete({ where: { id: secaoId } });
+    await tx.propostaSecao.delete({ where: { id: ctx.secaoId } });
     await renumerarSecoes(tx, ctx.revisaoId);
     await auditar(
       tx,
@@ -347,7 +355,7 @@ export async function moverSecao(secaoId: string, direcao: Direcao) {
       orderBy: { ordem: "asc" },
       select: { id: true, ordem: true },
     });
-    const idx = secoes.findIndex((s) => s.id === secaoId);
+    const idx = secoes.findIndex((s) => s.id === ctx.secaoId);
     const swap = direcao === "UP" ? idx - 1 : idx + 1;
     if (swap < 0 || swap >= secoes.length) return; // limite — no-op
     await tx.propostaSecao.update({
@@ -383,10 +391,12 @@ export async function adicionarItem(
         valorServico: true,
       },
     });
-    const ordem = await tx.propostaItem.count({ where: { secaoId } });
+    const ordem = await tx.propostaItem.count({
+      where: { secaoId: ctx.secaoId },
+    });
     await tx.propostaItem.create({
       data: {
-        secaoId,
+        secaoId: ctx.secaoId,
         tipo: "PRODUTO",
         produtoId,
         codigo: prod.codigo,
@@ -411,7 +421,7 @@ export async function atualizarQuantidade(itemId: string, quantidade: number) {
   await prisma.$transaction(async (tx) => {
     const ctx = await contextoItem(tx, itemId);
     await tx.propostaItem.update({
-      where: { id: itemId },
+      where: { id: ctx.itemId },
       data: { quantidade },
     });
     await auditar(
@@ -426,7 +436,7 @@ export async function atualizarQuantidade(itemId: string, quantidade: number) {
 export async function removerItem(itemId: string) {
   await prisma.$transaction(async (tx) => {
     const ctx = await contextoItem(tx, itemId);
-    await tx.propostaItem.delete({ where: { id: itemId } });
+    await tx.propostaItem.delete({ where: { id: ctx.itemId } });
     await renumerarItens(tx, ctx.secaoId);
     await auditar(
       tx,
@@ -445,7 +455,7 @@ export async function moverItem(itemId: string, direcao: Direcao) {
       orderBy: { ordem: "asc" },
       select: { id: true, ordem: true },
     });
-    const idx = itens.findIndex((i) => i.id === itemId);
+    const idx = itens.findIndex((i) => i.id === ctx.itemId);
     const swap = direcao === "UP" ? idx - 1 : idx + 1;
     if (swap < 0 || swap >= itens.length) return;
     await tx.propostaItem.update({

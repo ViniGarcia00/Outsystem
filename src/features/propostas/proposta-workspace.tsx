@@ -1,8 +1,8 @@
 "use client";
 
-import { Pencil, Plus } from "lucide-react";
+import { AlertTriangle, Ban, FileDown, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { AppPage, PageHeader } from "@/components/app";
@@ -13,8 +13,12 @@ import { Input } from "@/components/ui/input";
 import type { WorkspaceDTO } from "@/services/proposta-conteudo.service";
 import { formatDate } from "@/utils";
 
+import { cancelarPropostaAction, emitirPropostaAction } from "./actions";
+import { CancelarDialog } from "./cancelar-dialog";
 import { adicionarSecaoAction } from "./conteudo-actions";
-import { MODELO_LABEL, STATUS_BADGE_VARIANT, STATUS_LABEL } from "./labels";
+import { STATUS_BADGE_VARIANT, STATUS_LABEL } from "./labels";
+import { PropostaCabecalho } from "./proposta-cabecalho";
+import type { CancelarFormValues } from "./schema";
 import { SecaoCard } from "./secao-card";
 
 interface Option {
@@ -25,15 +29,31 @@ interface Option {
 export function PropostaWorkspace({
   data,
   produtos,
+  vendedores,
 }: {
   data: WorkspaceDTO;
   produtos: Option[];
+  vendedores: Option[];
 }) {
   const router = useRouter();
   const [novaSecao, setNovaSecao] = useState("");
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
   const readOnly = data.readOnly;
 
   const refresh = () => router.refresh();
+
+  // Toast quando o sistema cria automaticamente uma nova revisão (fork pós-emissão).
+  const prevRev = useRef<number | null>(null);
+  useEffect(() => {
+    const atual = data.revisaoAtual;
+    if (prevRev.current !== null && atual !== null && atual > prevRev.current) {
+      toast.info(
+        `Revisão ${atual} criada automaticamente — você está editando um novo rascunho.`,
+      );
+    }
+    prevRev.current = atual;
+  }, [data.revisaoAtual]);
 
   const adicionarSecao = async () => {
     const nome = novaSecao.trim();
@@ -47,49 +67,101 @@ export function PropostaWorkspace({
     }
   };
 
-  const resumo: { label: string; value: string }[] = [
-    { label: "Cliente", value: data.clienteNome },
-    { label: "Vendedor", value: data.vendedorNome ?? "—" },
-    { label: "Modelo", value: MODELO_LABEL[data.modelo] },
-    { label: "Validade", value: `${data.validadeDias} dia(s)` },
-    {
-      label: "Emitida em",
-      value: data.emitidaAt ? formatDate(data.emitidaAt) : "—",
-    },
-  ];
+  const gerarPdf = async () => {
+    setBusy(true);
+    const result = await emitirPropostaAction(data.id);
+    setBusy(false);
+    if (result.success) {
+      toast.success(`Proposta ${data.proposalNumber} emitida.`);
+      refresh();
+    } else {
+      toast.error(result.error);
+    }
+  };
+
+  const confirmCancelar = async (values: CancelarFormValues) => {
+    const result = await cancelarPropostaAction(data.id, values);
+    if (result.success) {
+      toast.success(`Proposta ${data.proposalNumber} cancelada.`);
+      setCancelOpen(false);
+      refresh();
+    } else {
+      toast.error(result.error);
+    }
+  };
+
+  const semCliente = !data.clienteId;
+  const temItens = data.secoes.some((s) => s.itens.length > 0);
+  const podeEmitir = data.status === "RASCUNHO" && !semCliente && temItens;
+  const horaSalvo = formatDate(data.updatedAt, {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
   return (
     <AppPage>
       <PageHeader
         title={`Proposta ${data.proposalNumber} · Rev.${data.revisaoAtual ?? 0}`}
-        description="Workspace da proposta — cabeçalho e conteúdo da revisão atual."
+        description={
+          readOnly
+            ? "Proposta cancelada — somente leitura."
+            : "Workspace da proposta — monte tudo aqui; as alterações salvam automaticamente."
+        }
         actions={
           <>
             <Badge variant={STATUS_BADGE_VARIANT[data.status]}>
               {STATUS_LABEL[data.status]}
             </Badge>
-            <Button
-              variant="outline"
-              onClick={() => router.push(`/propostas/${data.id}/editar`)}
-            >
-              <Pencil className="h-4 w-4" />
-              {readOnly ? "Ver dados da proposta" : "Editar dados da proposta"}
-            </Button>
+            {data.status === "RASCUNHO" && (
+              <Button
+                onClick={gerarPdf}
+                disabled={!podeEmitir || busy}
+                title={
+                  podeEmitir
+                    ? undefined
+                    : "Informe o cliente e adicione ao menos um item para emitir."
+                }
+              >
+                <FileDown className="h-4 w-4" />
+                Gerar PDF
+              </Button>
+            )}
+            {!readOnly && (
+              <Button variant="outline" onClick={() => setCancelOpen(true)}>
+                <Ban className="h-4 w-4" />
+                Cancelar
+              </Button>
+            )}
           </>
         }
       />
 
-      {/* Cabeçalho resumido */}
+      {/* Indicador de auto-save / estado */}
+      {!readOnly && (
+        <p className="text-xs text-muted-foreground">
+          {data.status === "EMITIDA"
+            ? `Emitida em ${data.revisaoEmitidaAt ? formatDate(data.revisaoEmitidaAt) : "—"}. Ao editar, o sistema cria automaticamente uma nova revisão.`
+            : `Todas as alterações são salvas automaticamente. Última alteração salva às ${horaSalvo}.`}
+        </p>
+      )}
+
+      {/* Aviso de proposta incompleta (sem cliente) */}
+      {!readOnly && semCliente && (
+        <div className="flex items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <span>Proposta incompleta: informe o cliente para poder emitir.</span>
+        </div>
+      )}
+
+      {/* Cabeçalho editável */}
       <Card>
         <CardContent>
-          <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-3 lg:grid-cols-5">
-            {resumo.map((r) => (
-              <div key={r.label} className="flex flex-col gap-0.5">
-                <dt className="text-xs text-muted-foreground">{r.label}</dt>
-                <dd className="text-sm font-medium break-words">{r.value}</dd>
-              </div>
-            ))}
-          </dl>
+          <PropostaCabecalho
+            data={data}
+            vendedores={vendedores}
+            readOnly={readOnly}
+            onSaved={refresh}
+          />
         </CardContent>
       </Card>
 
@@ -141,6 +213,14 @@ export function PropostaWorkspace({
           </div>
         )}
       </section>
+
+      <CancelarDialog
+        open={cancelOpen}
+        onOpenChange={setCancelOpen}
+        propostaLabel={`Proposta ${data.proposalNumber}`}
+        submitting={busy}
+        onConfirm={confirmCancelar}
+      />
     </AppPage>
   );
 }

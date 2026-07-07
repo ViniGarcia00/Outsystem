@@ -1,23 +1,22 @@
 import { prisma } from "@/infrastructure/database";
 
 /**
- * Serviço de Propostas (fundação — Sprint 2.1).
+ * Serviço de Propostas (refino do fluxo — pré-2.3).
  *
- * Regras (ver DECISIONS.md ADR-0201..0205):
- * - Numeração sequencial (sequência do Postgres, inicia em 1001).
- * - Cabeçalho (cliente/vendedor/modelo) NÃO é versionado; revisões versionam o
- *   conteúdo (próximas Sprints). Rev.0 criada com a proposta.
- * - Cancelamento apenas por `cancelarProposta` (nunca excluir).
- * - Transições de status controladas; datas de status imutáveis (1ª vez).
+ * Regras (ver DECISIONS.md):
+ * - Numeração sequencial imediata (autoincrement, inicia em 1001).
+ * - Cabeçalho (cliente/vendedor/modelo/validade/obs) NÃO é versionado; o conteúdo
+ *   vive na revisão atual (ADR-0206). Rev.0 criada com a proposta.
+ * - Ciclo: RASCUNHO --Gerar PDF--> EMITIDA --1ª edição--> (fork) RASCUNHO …
+ *   A criação de revisão é 100% automática (nunca manual).
+ * - `ensureEditableRevision` é o ponto ÚNICO que garante uma revisão editável:
+ *   se a proposta está EMITIDA, cria automaticamente a Rev.N+1 (copiando o
+ *   conteúdo), volta o status para RASCUNHO e devolve o `idMap` (id antigo → novo).
+ * - Cliente é opcional apenas enquanto o rascunho é montado; a emissão exige.
  * - Toda mutação grava PropostaAuditoria na MESMA transação.
  */
 
-export type StatusProposta =
-  | "RASCUNHO"
-  | "EMITIDA"
-  | "APROVADA"
-  | "REPROVADA"
-  | "CANCELADA";
+export type StatusProposta = "RASCUNHO" | "EMITIDA" | "CANCELADA";
 export type ModeloProposta = "COMERCIAL" | "SIMPLIFICADA";
 export type MotivoCancelamento =
   | "CLIENTE_DESISTIU"
@@ -27,20 +26,11 @@ export type MotivoCancelamento =
   | "PROPOSTA_SUBSTITUIDA"
   | "OUTRO";
 
-/** Transições de status permitidas (ADR-0204). */
-const TRANSICOES: Record<StatusProposta, StatusProposta[]> = {
-  RASCUNHO: ["EMITIDA", "CANCELADA"],
-  EMITIDA: ["APROVADA", "REPROVADA", "CANCELADA"],
-  APROVADA: ["CANCELADA"],
-  REPROVADA: ["CANCELADA"],
-  CANCELADA: [],
-};
-
 export interface PropostaListItem {
   id: string;
   proposalNumber: number;
   revisaoAtual: number | null;
-  clienteNome: string;
+  clienteNome: string | null;
   vendedorNome: string | null;
   modelo: ModeloProposta;
   status: StatusProposta;
@@ -48,35 +38,12 @@ export interface PropostaListItem {
   updatedAt: Date;
 }
 
-export interface PropostaFormDTO {
-  proposalNumber: number;
-  revisaoAtual: number | null;
-  status: StatusProposta;
-  clienteId: string;
-  vendedorId: string;
-  modelo: ModeloProposta;
-  validadeDias: number;
-  obsInternas: string;
-  obsProposta: string;
-  /** true quando cancelada → somente leitura. */
-  readOnly: boolean;
-  clienteNome: string;
-  motivoCancelamento: MotivoCancelamento | null;
-  obsCancelamento: string;
+export interface SelectOption {
+  value: string;
+  label: string;
 }
 
-export interface PropostaInput {
-  clienteId: string;
-  vendedorId?: string;
-  modelo: ModeloProposta;
-  validadeDias: number;
-  obsInternas?: string;
-  obsProposta?: string;
-  /** Usado apenas no update (no create é sempre RASCUNHO). */
-  status: StatusProposta;
-}
-
-const trimOrNull = (v?: string): string | null =>
+const trimOrNull = (v?: string | null): string | null =>
   v && v.trim() ? v.trim() : null;
 
 const clienteDisplay = (c: {
@@ -85,6 +52,9 @@ const clienteDisplay = (c: {
   empresa: string | null;
 }) =>
   (c.tipoPessoa === "PJ" ? c.empresa || c.nome : c.nome || c.empresa) || "—";
+
+/** Client transacional do Prisma. */
+type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
 
 // ---------------------------------------------------------------------------
 // Leitura
@@ -110,7 +80,7 @@ export async function listPropostas(): Promise<PropostaListItem[]> {
     id: r.id,
     proposalNumber: r.proposalNumber,
     revisaoAtual: r.currentRevision?.revisionNumber ?? null,
-    clienteNome: clienteDisplay(r.cliente),
+    clienteNome: r.cliente ? clienteDisplay(r.cliente) : null,
     vendedorNome: r.vendedor?.nome ?? null,
     modelo: r.modelo,
     status: r.status,
@@ -119,184 +89,56 @@ export async function listPropostas(): Promise<PropostaListItem[]> {
   }));
 }
 
-export interface SelectOption {
-  value: string;
-  label: string;
-}
-
-/** Opções (clientes/vendedores ativos) para os selects do formulário. */
+/** Opções (vendedores ativos) para o Select do workspace. Cliente usa autocomplete. */
 export async function getPropostaFormOptions(): Promise<{
   vendedores: SelectOption[];
 }> {
-  // O cliente usa autocomplete com busca sob demanda (searchClientes); aqui só
-  // carregamos os vendedores para o Select.
   const vendedores = await prisma.vendedor.findMany({
     where: { ativo: true },
     select: { id: true, nome: true },
     orderBy: { nome: "asc" },
   });
-
-  return {
-    vendedores: vendedores.map((v) => ({ value: v.id, label: v.nome })),
-  };
-}
-
-export async function getPropostaForEdit(
-  id: string,
-): Promise<PropostaFormDTO | null> {
-  const p = await prisma.proposta.findUnique({
-    where: { id },
-    select: {
-      proposalNumber: true,
-      status: true,
-      clienteId: true,
-      vendedorId: true,
-      modelo: true,
-      validadeDias: true,
-      obsInternas: true,
-      obsProposta: true,
-      motivoCancelamento: true,
-      obsCancelamento: true,
-      currentRevision: { select: { revisionNumber: true } },
-      cliente: { select: { tipoPessoa: true, nome: true, empresa: true } },
-    },
-  });
-  if (!p) return null;
-
-  return {
-    proposalNumber: p.proposalNumber,
-    revisaoAtual: p.currentRevision?.revisionNumber ?? null,
-    status: p.status,
-    clienteId: p.clienteId,
-    vendedorId: p.vendedorId ?? "",
-    modelo: p.modelo,
-    validadeDias: p.validadeDias,
-    obsInternas: p.obsInternas ?? "",
-    obsProposta: p.obsProposta ?? "",
-    readOnly: p.status === "CANCELADA",
-    clienteNome: clienteDisplay(p.cliente),
-    motivoCancelamento: p.motivoCancelamento,
-    obsCancelamento: p.obsCancelamento ?? "",
-  };
+  return { vendedores: vendedores.map((v) => ({ value: v.id, label: v.nome })) };
 }
 
 // ---------------------------------------------------------------------------
-// Escrita (sempre com auditoria na mesma transação)
+// Revisão editável (fork automático) + cópia profunda com mapa de ids
 // ---------------------------------------------------------------------------
 
-export async function createProposta(
-  input: PropostaInput,
-): Promise<{ id: string; proposalNumber: number }> {
-  return prisma.$transaction(async (tx) => {
-    const proposta = await tx.proposta.create({
-      data: {
-        clienteId: input.clienteId,
-        vendedorId: trimOrNull(input.vendedorId),
-        modelo: input.modelo,
-        validadeDias: input.validadeDias,
-        obsInternas: trimOrNull(input.obsInternas),
-        obsProposta: trimOrNull(input.obsProposta),
-        status: "RASCUNHO", // nasce sempre Rascunho
-      },
-      select: { id: true, proposalNumber: true },
-    });
-
-    const revisao = await tx.propostaRevisao.create({
-      data: { propostaId: proposta.id, revisionNumber: 0 },
-      select: { id: true },
-    });
-    await tx.proposta.update({
-      where: { id: proposta.id },
-      data: { currentRevisionId: revisao.id },
-    });
-    await tx.propostaAuditoria.create({
-      data: { propostaId: proposta.id, evento: "CRIACAO", revisionNumber: 0 },
-    });
-
-    return proposta;
-  });
+export interface IdMap {
+  secoes: Map<string, string>;
+  itens: Map<string, string>;
 }
 
-export async function updateProposta(
-  id: string,
-  input: PropostaInput,
-): Promise<void> {
-  await prisma.$transaction(async (tx) => {
-    const current = await tx.proposta.findUniqueOrThrow({
-      where: { id },
-      select: {
-        status: true,
-        emitidaAt: true,
-        aprovadaAt: true,
-        reprovadaAt: true,
-        currentRevision: { select: { revisionNumber: true } },
-      },
-    });
-
-    if (current.status === "CANCELADA") {
-      throw new Error("Proposta cancelada não pode ser editada.");
-    }
-    if (input.status === "CANCELADA") {
-      throw new Error("Use a ação Cancelar para cancelar a proposta.");
-    }
-
-    const statusMudou = input.status !== current.status;
-    if (statusMudou && !TRANSICOES[current.status].includes(input.status)) {
-      throw new Error(
-        `Transição de status inválida: ${current.status} → ${input.status}.`,
-      );
-    }
-
-    const now = new Date();
-
-    await tx.proposta.update({
-      where: { id },
-      data: {
-        clienteId: input.clienteId,
-        vendedorId: trimOrNull(input.vendedorId),
-        modelo: input.modelo,
-        validadeDias: input.validadeDias,
-        obsInternas: trimOrNull(input.obsInternas),
-        obsProposta: trimOrNull(input.obsProposta),
-        status: input.status,
-        // Datas de status: carimbadas apenas na 1ª transição (imutáveis).
-        ...(statusMudou && input.status === "EMITIDA" && !current.emitidaAt
-          ? { emitidaAt: now }
-          : {}),
-        ...(statusMudou && input.status === "APROVADA" && !current.aprovadaAt
-          ? { aprovadaAt: now }
-          : {}),
-        ...(statusMudou && input.status === "REPROVADA" && !current.reprovadaAt
-          ? { reprovadaAt: now }
-          : {}),
-      },
-    });
-
-    await tx.propostaAuditoria.create({
-      data: {
-        propostaId: id,
-        evento: statusMudou ? "MUDANCA_STATUS" : "ALTERACAO",
-        revisionNumber: current.currentRevision?.revisionNumber ?? null,
-        observacao: statusMudou ? `${current.status} → ${input.status}` : null,
-      },
-    });
-  });
+export interface EditableRevision {
+  revisaoId: string;
+  revisionNumber: number;
+  /** true quando a chamada criou automaticamente uma nova revisão (pós-emissão). */
+  forked: boolean;
+  /** Tradução id-antigo → id-novo quando houve fork (vazio caso contrário). */
+  idMap: IdMap;
 }
 
-/** Client transacional do Prisma. */
-type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
+const emptyIdMap = (): IdMap => ({ secoes: new Map(), itens: new Map() });
 
-/** Cópia profunda de seções + itens de uma revisão para outra (ADR-0208). */
-async function copiarConteudo(tx: Tx, origemId: string, destinoId: string) {
+/** Cópia profunda de seções + itens de uma revisão para outra; devolve o idMap. */
+async function copiarConteudo(
+  tx: Tx,
+  origemId: string,
+  destinoId: string,
+): Promise<IdMap> {
+  const idMap = emptyIdMap();
   const secoes = await tx.propostaSecao.findMany({
     where: { revisaoId: origemId },
     orderBy: { ordem: "asc" },
     select: {
+      id: true,
       nome: true,
       ordem: true,
       itens: {
         orderBy: { ordem: "asc" },
         select: {
+          id: true,
           tipo: true,
           produtoId: true,
           codigo: true,
@@ -315,43 +157,221 @@ async function copiarConteudo(tx: Tx, origemId: string, destinoId: string) {
       data: { revisaoId: destinoId, nome: s.nome, ordem: s.ordem },
       select: { id: true },
     });
-    if (s.itens.length) {
-      await tx.propostaItem.createMany({
-        data: s.itens.map((i) => ({ secaoId: nova.id, ...i })),
+    idMap.secoes.set(s.id, nova.id);
+    for (const item of s.itens) {
+      const { id: oldItemId, ...dados } = item;
+      const novo = await tx.propostaItem.create({
+        data: { secaoId: nova.id, ...dados },
+        select: { id: true },
       });
+      idMap.itens.set(oldItemId, novo.id);
     }
   }
+  return idMap;
 }
 
-export async function criarRevisao(id: string): Promise<void> {
+/**
+ * Garante uma revisão editável para a proposta. Ponto único do fork automático:
+ * - CANCELADA → erro.
+ * - RASCUNHO  → devolve a revisão atual (sem fork).
+ * - EMITIDA   → cria Rev.N+1 (copia conteúdo), torna-a atual, status → RASCUNHO,
+ *               audita NOVA_REVISAO (automática) + MUDANCA_STATUS, devolve idMap.
+ */
+export async function ensureEditableRevision(
+  tx: Tx,
+  propostaId: string,
+): Promise<EditableRevision> {
+  const p = await tx.proposta.findUniqueOrThrow({
+    where: { id: propostaId },
+    select: {
+      status: true,
+      currentRevisionId: true,
+      currentRevision: { select: { revisionNumber: true } },
+    },
+  });
+  if (p.status === "CANCELADA") {
+    throw new Error("Proposta cancelada não pode ser editada.");
+  }
+  if (!p.currentRevisionId) {
+    throw new Error("Revisão atual não encontrada.");
+  }
+
+  if (p.status !== "EMITIDA") {
+    return {
+      revisaoId: p.currentRevisionId,
+      revisionNumber: p.currentRevision?.revisionNumber ?? 0,
+      forked: false,
+      idMap: emptyIdMap(),
+    };
+  }
+
+  // EMITIDA → fork automático na 1ª edição.
+  const novoNumero = (p.currentRevision?.revisionNumber ?? 0) + 1;
+  const nova = await tx.propostaRevisao.create({
+    data: { propostaId, revisionNumber: novoNumero },
+    select: { id: true },
+  });
+  const idMap = await copiarConteudo(tx, p.currentRevisionId, nova.id);
+  await tx.proposta.update({
+    where: { id: propostaId },
+    data: { currentRevisionId: nova.id, status: "RASCUNHO" },
+  });
+  await tx.propostaAuditoria.create({
+    data: {
+      propostaId,
+      evento: "NOVA_REVISAO",
+      revisionNumber: novoNumero,
+      observacao: "Revisão criada automaticamente (edição de proposta emitida)",
+    },
+  });
+  await tx.propostaAuditoria.create({
+    data: {
+      propostaId,
+      evento: "MUDANCA_STATUS",
+      revisionNumber: novoNumero,
+      observacao: "EMITIDA → RASCUNHO",
+    },
+  });
+  return { revisaoId: nova.id, revisionNumber: novoNumero, forked: true, idMap };
+}
+
+// ---------------------------------------------------------------------------
+// Escrita (sempre com auditoria na mesma transação)
+// ---------------------------------------------------------------------------
+
+/** Cria a proposta completa já numerada (RASCUNHO, Rev.0, sem cliente ainda). */
+export async function criarProposta(): Promise<{
+  id: string;
+  proposalNumber: number;
+}> {
+  return prisma.$transaction(async (tx) => {
+    const proposta = await tx.proposta.create({
+      data: { status: "RASCUNHO" },
+      select: { id: true, proposalNumber: true },
+    });
+    const revisao = await tx.propostaRevisao.create({
+      data: { propostaId: proposta.id, revisionNumber: 0 },
+      select: { id: true },
+    });
+    await tx.proposta.update({
+      where: { id: proposta.id },
+      data: { currentRevisionId: revisao.id },
+    });
+    await tx.propostaAuditoria.create({
+      data: { propostaId: proposta.id, evento: "CRIACAO", revisionNumber: 0 },
+    });
+    return proposta;
+  });
+}
+
+/** Campos editáveis do cabeçalho (auto-save por campo/bloco). */
+export interface CabecalhoPatch {
+  clienteId?: string | null;
+  vendedorId?: string | null;
+  modelo?: ModeloProposta;
+  validadeDias?: number;
+  obsInternas?: string | null;
+  obsProposta?: string | null;
+}
+
+const CAMPO_LABEL: Record<keyof CabecalhoPatch, string> = {
+  clienteId: "cliente",
+  vendedorId: "vendedor",
+  modelo: "modelo",
+  validadeDias: "validade",
+  obsInternas: "observações internas",
+  obsProposta: "observações da proposta",
+};
+
+/** Auto-save do cabeçalho. Forka se a proposta estiver emitida. */
+export async function updateCabecalho(
+  id: string,
+  patch: CabecalhoPatch,
+): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    const ctx = await ensureEditableRevision(tx, id);
+    await tx.proposta.update({
+      where: { id },
+      data: {
+        ...("clienteId" in patch
+          ? { clienteId: patch.clienteId || null }
+          : {}),
+        ...("vendedorId" in patch
+          ? { vendedorId: trimOrNull(patch.vendedorId) }
+          : {}),
+        ...("modelo" in patch ? { modelo: patch.modelo } : {}),
+        ...("validadeDias" in patch ? { validadeDias: patch.validadeDias } : {}),
+        ...("obsInternas" in patch
+          ? { obsInternas: trimOrNull(patch.obsInternas) }
+          : {}),
+        ...("obsProposta" in patch
+          ? { obsProposta: trimOrNull(patch.obsProposta) }
+          : {}),
+        updatedAt: new Date(),
+      },
+    });
+    const campos = (Object.keys(patch) as (keyof CabecalhoPatch)[])
+      .map((k) => CAMPO_LABEL[k])
+      .join(", ");
+    await tx.propostaAuditoria.create({
+      data: {
+        propostaId: id,
+        evento: "ALTERACAO",
+        revisionNumber: ctx.revisionNumber,
+        observacao: `Cabeçalho atualizado: ${campos}`,
+      },
+    });
+  });
+}
+
+/** Emite a proposta ("Gerar PDF"): valida, congela a revisão e muda o status. */
+export async function emitirProposta(id: string): Promise<void> {
   await prisma.$transaction(async (tx) => {
     const p = await tx.proposta.findUniqueOrThrow({
       where: { id },
       select: {
         status: true,
+        clienteId: true,
+        emitidaAt: true,
         currentRevisionId: true,
         currentRevision: { select: { revisionNumber: true } },
       },
     });
     if (p.status === "CANCELADA") {
-      throw new Error("Proposta cancelada não permite nova revisão.");
+      throw new Error("Proposta cancelada não pode ser emitida.");
+    }
+    if (p.status === "EMITIDA") {
+      throw new Error("Proposta já está emitida.");
+    }
+    if (!p.clienteId) {
+      throw new Error("Informe o cliente antes de emitir a proposta.");
+    }
+    if (!p.currentRevisionId) {
+      throw new Error("Revisão atual não encontrada.");
+    }
+    const itens = await tx.propostaItem.count({
+      where: { secao: { revisaoId: p.currentRevisionId } },
+    });
+    if (itens === 0) {
+      throw new Error("Adicione ao menos um item antes de emitir a proposta.");
     }
 
-    const novo = (p.currentRevision?.revisionNumber ?? -1) + 1;
-    const rev = await tx.propostaRevisao.create({
-      data: { propostaId: id, revisionNumber: novo },
-      select: { id: true },
-    });
-    // Cópia profunda do conteúdo da revisão atual (ADR-0208).
-    if (p.currentRevisionId) {
-      await copiarConteudo(tx, p.currentRevisionId, rev.id);
-    }
+    const now = new Date();
     await tx.proposta.update({
       where: { id },
-      data: { currentRevisionId: rev.id },
+      data: { status: "EMITIDA", ...(p.emitidaAt ? {} : { emitidaAt: now }) },
+    });
+    await tx.propostaRevisao.update({
+      where: { id: p.currentRevisionId },
+      data: { emittedAt: now },
     });
     await tx.propostaAuditoria.create({
-      data: { propostaId: id, evento: "NOVA_REVISAO", revisionNumber: novo },
+      data: {
+        propostaId: id,
+        evento: "EMISSAO",
+        revisionNumber: p.currentRevision?.revisionNumber ?? null,
+        observacao: `Revisão ${p.currentRevision?.revisionNumber ?? 0} emitida`,
+      },
     });
   });
 }
@@ -389,7 +409,6 @@ export async function duplicarProposta(
       data: { propostaId: nova.id, revisionNumber: 0 },
       select: { id: true },
     });
-    // Copia o conteúdo da revisão atual da origem para a nova Rev.0 (ADR-0208).
     if (orig.currentRevisionId) {
       await copiarConteudo(tx, orig.currentRevisionId, rev.id);
     }

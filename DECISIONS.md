@@ -380,3 +380,37 @@ Formato: **ADR** enxuto (Architecture Decision Record).
 - **Consequência:** o formulário não pré-carrega mais a lista completa de
   clientes (`getPropostaFormOptions` retorna só vendedores), reduzindo o payload
   inicial e escalando melhor com muitos clientes.
+
+### ADR-0211 — Fluxo workspace-first, revisão automática e emissão (refino pré-2.3)
+
+- **Contexto:** o fluxo antigo tinha etapa de cabeçalho separada, botões manuais
+  de "Salvar" e "Nova Revisão", e cinco status. Objetivo: aproximar do comportamento
+  de ERP e simplificar a operação.
+- **Decisão (workspace único):** `/propostas/[id]` cria/edita/revisa. "Nova
+  proposta" cria imediatamente a proposta completa **já numerada** (autoincrement),
+  `RASCUNHO`, Rev.0, e abre o workspace. Rotas `/propostas/nova` e
+  `/propostas/[id]/editar` **removidas**.
+- **Decisão (auto-save):** em RASCUNHO tudo salva sozinho (cabeçalho no blur de
+  cada campo; conteúdo por operação). **Sem botão "Salvar"**; indicador "Última
+  alteração salva às HH:mm".
+- **Decisão (revisão automática):** `ensureEditableRevision` é o ponto único de
+  toda mutação. Se a proposta está **EMITIDA**, a 1ª alteração cria automaticamente
+  a **Rev.N+1** (cópia profunda do conteúdo), torna-a a revisão atual e volta o
+  status a **RASCUNHO** — sem confirmação nem botão "Nova Revisão". Quando o alvo é
+  uma seção/item **existente**, o `copiarConteudo` devolve um **`idMap`
+  (id-antigo → id-novo)** e a operação **retraduz o alvo** para o item correto da
+  nova revisão (trecho verificado por teste dedicado).
+- **Decisão (emissão / "Gerar PDF"):** `emitirProposta` valida cliente + ≥1 item,
+  define `EMITIDA` + `emitidaAt` e `PropostaRevisao.emittedAt` (congela a versão) e
+  audita `EMISSAO`. O PDF binário fica para Sprint futura; a semântica de
+  emissão/congelamento já opera. Congelamento é implícito: qualquer edição posterior
+  forka.
+- **Decisão (status):** reduzido a **RASCUNHO · EMITIDA · CANCELADA** (removidos
+  APROVADA/REPROVADA e as colunas `aprovadaAt`/`reprovadaAt`). Status é 100%
+  dirigido pelo sistema — não há seletor manual.
+- **Decisão (cliente temporário):** `Proposta.clienteId` passa a `String?` **apenas**
+  como estado de montagem do rascunho. A regra "proposta válida tem cliente"
+  permanece: workspace foca o campo Cliente e mostra aviso de "proposta incompleta"
+  enquanto ausente; a emissão é bloqueada. `null` nunca é conceito permanente.
+- **Consequência:** menos telas, menos cliques, auditoria granular preservada,
+  histórico por revisão (`emittedAt`) pronto para PDF/comparação futuras.

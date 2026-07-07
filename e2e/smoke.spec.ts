@@ -84,7 +84,7 @@ test("navegação principal entre os módulos", async ({ page }) => {
   }
 });
 
-test("Propostas: criar, abrir workspace, adicionar seção e produto", async ({
+test("Propostas: workspace, conteúdo, emitir e revisão automática", async ({
   page,
 }) => {
   // Garante um cliente pesquisável (nome único) para o autocomplete.
@@ -99,32 +99,42 @@ test("Propostas: criar, abrir workspace, adicionar seção e produto", async ({
     page.getByRole("heading", { level: 1, name: "Propostas" }),
   ).toBeVisible();
 
-  // Criar → o salvar leva ao workspace da nova proposta.
+  // "Nova proposta" cria e abre o workspace direto (sem etapa de cabeçalho).
   await page.getByRole("button", { name: "Nova proposta" }).click();
-  await expect(page).toHaveURL(/\/propostas\/nova$/);
-
-  // Cliente por autocomplete: digitar (>= 3 caracteres) e escolher a sugestão.
-  await page.getByLabel("Cliente", { exact: true }).fill(clienteNome);
-  await page.getByRole("option", { name: clienteNome }).click();
-  await page.getByRole("button", { name: "Salvar" }).click();
-
-  // Workspace da nova proposta.
   await expect(page).toHaveURL(/\/propostas\/(?!nova$)[^/]+$/);
   await expect(page.getByRole("heading", { name: /Conteúdo/ })).toBeVisible();
 
-  // Adicionar seção.
+  // Cliente por autocomplete (auto-save).
+  await page.getByLabel("Cliente", { exact: true }).fill(clienteNome);
+  await page.getByRole("option", { name: clienteNome }).click();
+
+  // Seção + produto.
   await page.getByPlaceholder("Nome da nova seção (ex.: Sala)").fill("Sala E2E");
   await page.getByRole("button", { name: "Adicionar seção" }).click();
   await expect(page.getByRole("heading", { name: "Sala E2E" })).toBeVisible();
 
-  // Adicionar produto na seção.
   await page.getByRole("button", { name: "Adicionar produto" }).click();
   await page.getByLabel("Produto", { exact: true }).click();
   await page.getByRole("option").first().click();
   await page.getByRole("button", { name: "Adicionar", exact: true }).click();
-
-  // A tabela de itens da seção aparece (coluna "Código").
   await expect(
     page.getByRole("columnheader", { name: "Código" }),
+  ).toBeVisible();
+
+  // "Gerar PDF" emite a proposta (RASCUNHO → EMITIDA).
+  await page.getByRole("button", { name: "Gerar PDF" }).click();
+  await expect(page.getByText("Emitida", { exact: true })).toBeVisible();
+
+  // 1ª alteração pós-emissão cria automaticamente a Rev.1 e volta a Rascunho.
+  await page
+    .getByPlaceholder("Nome da nova seção (ex.: Sala)")
+    .fill("Cozinha E2E");
+  await page.getByRole("button", { name: "Adicionar seção" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Cozinha E2E" }),
+  ).toBeVisible();
+  await expect(page.getByText("Rascunho", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Conteúdo — Rev.1" }),
   ).toBeVisible();
 });

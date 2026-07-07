@@ -8,16 +8,16 @@ import {
 } from "@/services/cliente.service";
 import {
   cancelarProposta,
-  criarRevisao,
-  createProposta,
+  criarProposta,
   duplicarProposta,
+  emitirProposta,
   listPropostas,
-  updateProposta,
+  updateCabecalho,
   type PropostaListItem,
 } from "@/services/proposta.service";
 import { fail, ok, type ActionResult } from "@/types";
 
-import { cancelarSchema, propostaSchema } from "./schema";
+import { cabecalhoPatchSchema, cancelarSchema } from "./schema";
 
 export async function listPropostasAction(): Promise<PropostaListItem[]> {
   return listPropostas();
@@ -30,32 +30,30 @@ export async function searchClientesAction(
   return searchClientes(query);
 }
 
-export async function createPropostaAction(
-  values: unknown,
-): Promise<ActionResult<{ id: string }>> {
-  const parsed = propostaSchema.safeParse(values);
-  if (!parsed.success) {
-    return fail("Dados inválidos. Verifique os campos destacados.");
-  }
+/** Cria a proposta completa já numerada (RASCUNHO, Rev.0) e devolve o id. */
+export async function criarPropostaAction(): Promise<
+  ActionResult<{ id: string }>
+> {
   try {
-    const { id } = await createProposta(parsed.data);
+    const { id } = await criarProposta();
     revalidatePath("/propostas");
     return ok({ id });
   } catch (error) {
-    return fail(error instanceof Error ? error.message : "Falha ao salvar.");
+    return fail(error instanceof Error ? error.message : "Falha ao criar.");
   }
 }
 
-export async function updatePropostaAction(
+/** Auto-save do cabeçalho (patch parcial por campo). */
+export async function salvarCabecalhoAction(
   id: string,
-  values: unknown,
+  patch: unknown,
 ): Promise<ActionResult> {
-  const parsed = propostaSchema.safeParse(values);
+  const parsed = cabecalhoPatchSchema.safeParse(patch);
   if (!parsed.success) {
     return fail("Dados inválidos. Verifique os campos destacados.");
   }
   try {
-    await updateProposta(id, parsed.data);
+    await updateCabecalho(id, parsed.data);
     revalidatePath("/propostas");
     return ok(undefined);
   } catch (error) {
@@ -63,14 +61,15 @@ export async function updatePropostaAction(
   }
 }
 
-export async function criarRevisaoAction(id: string): Promise<ActionResult> {
+/** "Gerar PDF": emite e congela a revisão atual. */
+export async function emitirPropostaAction(id: string): Promise<ActionResult> {
   try {
-    await criarRevisao(id);
+    await emitirProposta(id);
     revalidatePath("/propostas");
     return ok(undefined);
   } catch (error) {
     return fail(
-      error instanceof Error ? error.message : "Falha ao criar revisão.",
+      error instanceof Error ? error.message : "Falha ao gerar o PDF.",
     );
   }
 }

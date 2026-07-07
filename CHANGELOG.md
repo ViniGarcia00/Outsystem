@@ -4,6 +4,39 @@ Todas as mudanças relevantes deste projeto são documentadas aqui.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o
 projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [0.6.0] — 2026-07-07
+
+### Refino do fluxo de Propostas (workspace-first + revisão automática)
+
+Refatoração funcional do módulo antes de adicionar Serviços. Ver ADR-0211.
+
+#### Adicionado
+
+- **"Gerar PDF"** (`emitirProposta`): valida cliente + ≥1 item, emite
+  (`EMITIDA` + `emitidaAt`) e **congela** a revisão (`PropostaRevisao.emittedAt`);
+  auditoria `EMISSAO`. (O PDF binário fica para Sprint futura.)
+- **Revisão automática:** editar uma proposta **emitida** cria sozinha a
+  **Rev.N+1** (cópia profunda), volta a **RASCUNHO** e reaponta a revisão atual —
+  via `ensureEditableRevision`, com **`idMap`** para reapontar seções/itens
+  existentes. Sem botão "Nova Revisão".
+- **Indicador de auto-save** e **aviso de proposta incompleta** (sem cliente) no
+  workspace; foco automático no campo Cliente ao criar.
+
+#### Alterado
+
+- **Workspace único** (`/propostas/[id]`) para criar, editar e revisar. "Nova
+  proposta" cria a proposta **já numerada** e abre o workspace direto. Cabeçalho
+  editável inline com **auto-save por campo** (sem botão "Salvar").
+- **Status** reduzido a **RASCUNHO · EMITIDA · CANCELADA**.
+- `Proposta.clienteId` opcional (estado temporário de montagem; exigido na
+  emissão).
+
+#### Removido
+
+- Rotas `/propostas/nova` e `/propostas/[id]/editar`; formulário isolado de
+  cabeçalho; botões "Salvar" e "Nova Revisão"; status `APROVADA`/`REPROVADA` e
+  colunas `aprovadaAt`/`reprovadaAt`.
+
 ## [0.5.1] — 2026-07-07
 
 ### Ajustes de UX + correção de perda de dados (pré-Sprint 2.3)
