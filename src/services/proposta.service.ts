@@ -166,6 +166,7 @@ export interface NovaPropostaPayload {
   obsProposta: string | null;
   descontoTipo?: TipoDesconto;
   descontoValor?: number;
+  frete?: number;
   secoes: NovaPropostaSecao[];
 }
 
@@ -189,6 +190,7 @@ export async function criarPropostaCompleta(
         obsProposta: trimOrNull(payload.obsProposta),
         tipoDesconto: payload.descontoTipo ?? "VALOR",
         valorDesconto: payload.descontoValor ?? 0,
+        frete: payload.frete ?? 0,
         status: "RASCUNHO",
       },
       select: { id: true, proposalNumber: true },
@@ -329,6 +331,7 @@ export async function salvarProposta(
         obsProposta: trimOrNull(payload.obsProposta),
         tipoDesconto: payload.descontoTipo ?? "VALOR",
         valorDesconto: payload.descontoValor ?? 0,
+        frete: payload.frete ?? 0,
         updatedAt: new Date(),
       },
     });

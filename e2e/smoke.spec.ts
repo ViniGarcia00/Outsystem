@@ -142,6 +142,14 @@ test("Propostas: criação diferida, emitir e revisão automática", async ({
   await desconto.blur();
   await expect(desconto).toHaveValue("10%");
 
+  // Frete: padrão R$ 0,00; ao alterar, o Total da Proposta (derivado) recalcula.
+  // (o formatador BRL usa espaço não-quebrável — regex tolerante ao espaço)
+  await expect(page.getByText("Frete", { exact: true })).toBeVisible();
+  const frete = page.getByLabel("Frete");
+  await expect(frete).toHaveValue(/R\$\s*0,00/);
+  await frete.fill("10000");
+  await expect(frete).toHaveValue(/R\$\s*100,00/);
+
   // "Criar Proposta" persiste tudo e abre o workspace definitivo.
   await page.getByRole("button", { name: "Criar Proposta" }).click();
   await expect(page).toHaveURL(/\/propostas\/(?!nova$)[^/]+$/);
@@ -213,6 +221,8 @@ test("Propostas: modelo Simplificada (produtos sem seções)", async ({
   await expect(
     page.getByRole("columnheader", { name: "Valor Serviço" }),
   ).toHaveCount(0);
+  // Frete presente também na Simplificada (padrão R$ 0,00).
+  await expect(page.getByLabel("Frete")).toHaveValue(/R\$\s*0,00/);
 
   // Cria e abre o workspace definitivo.
   await page.getByRole("button", { name: "Criar Proposta" }).click();

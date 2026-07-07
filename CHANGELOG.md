@@ -4,6 +4,25 @@ Todas as mudanças relevantes deste projeto são documentadas aqui.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o
 projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [0.10.0] — 2026-07-07
+
+### Sprint 2.6 — Frete da Proposta. Ver ADR-0221.
+
+#### Adicionado
+
+- **Frete** no rodapé financeiro (entre Desconto e Total da Proposta), com
+  máscara BRL (`CurrencyInput`; valor inicial **R$ 0,00**). Vale para Completa e
+  Simplificada.
+- **Total da Proposta = Subtotal − Desconto + Frete** (nunca negativo),
+  recalculado em tempo real ao alterar itens, quantidades, valores, desconto ou
+  frete — sem botão de recalcular.
+- **Persistência:** `Proposta.frete` (Decimal, default 0). Migration aditiva
+  `20260707050000_frete`. Subtotal e demais totais seguem derivados.
+- **Regras:** frete ≥ 0 (sem limite máximo); a regra do desconto (≤ Subtotal)
+  permanece.
+- **Helper `totais.ts`** estendido (`calcularTotais` recebe `frete`) — mesma
+  lógica financeira centralizada, sem duplicação.
+
 ## [0.9.0] — 2026-07-07
 
 ### Sprint 2.5 — Desconto da Proposta. Ver ADR-0220.

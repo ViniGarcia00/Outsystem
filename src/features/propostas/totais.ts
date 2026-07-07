@@ -57,19 +57,24 @@ export interface TotaisProposta {
   subtotal: number;
   /** Desconto efetivamente aplicado (após clamps). */
   descontoAplicado: number;
-  /** Total da Proposta = Subtotal − Desconto (nunca negativo). */
+  /** Frete aplicado (≥ 0). */
+  frete: number;
+  /** Total da Proposta = Subtotal − Desconto + Frete (nunca negativo). */
   totalProposta: number;
 }
 
 /**
- * Consolida os totais a partir dos itens + desconto (tempo real).
- * No modelo Simplificada, o subtotal considera apenas os produtos (os valores de
- * serviço seguem existindo internamente — só a apresentação muda).
+ * Consolida os totais a partir dos itens + desconto + frete (tempo real).
+ * Fluxo: (Total Produtos + Total Serviços) = Subtotal → aplica Desconto →
+ * adiciona Frete → Total da Proposta (nunca negativo). No modelo Simplificada, o
+ * subtotal considera apenas os produtos (os valores de serviço seguem existindo
+ * internamente — só a apresentação muda).
  */
 export function calcularTotais(
   itens: ReadonlyArray<ItemCalculavel>,
   simplificada: boolean,
   desconto: Desconto,
+  frete: number,
 ): TotaisProposta {
   let totalProdutos = 0;
   let totalServicos = 0;
@@ -79,11 +84,13 @@ export function calcularTotais(
   }
   const subtotal = simplificada ? totalProdutos : totalProdutos + totalServicos;
   const descontoAplicado = aplicarDesconto(subtotal, desconto);
+  const freteAplicado = Math.max(frete, 0);
   return {
     totalProdutos,
     totalServicos,
     subtotal,
     descontoAplicado,
-    totalProposta: Math.max(0, subtotal - descontoAplicado),
+    frete: freteAplicado,
+    totalProposta: Math.max(0, subtotal - descontoAplicado + freteAplicado),
   };
 }

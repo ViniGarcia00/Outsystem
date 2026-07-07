@@ -40,6 +40,7 @@ export const novaPropostaSchema = z.object({
   obsProposta: z.string().max(5000).nullable(),
   descontoTipo: tipoDescontoEnum.optional(),
   descontoValor: z.number().nonnegative().optional(),
+  frete: z.number().nonnegative().optional(),
   secoes: z.array(
     z.object({
       nome: z.string().trim().min(1, "Informe o nome da seção."),

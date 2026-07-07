@@ -55,6 +55,8 @@ export interface WorkspaceDTO {
   // Desconto (modelagem separada tipo/valor; total é derivado)
   descontoTipo: TipoDesconto;
   descontoValor: number;
+  /** Frete (≥ 0); compõe o total (derivado). */
+  frete: number;
   // Datas
   emitidaAt: Date | null; // 1ª emissão da proposta (referência)
   revisaoEmitidaAt: Date | null; // emissão da revisão exibida
@@ -84,6 +86,7 @@ export async function getWorkspace(
       obsProposta: true,
       tipoDesconto: true,
       valorDesconto: true,
+      frete: true,
       emitidaAt: true,
       updatedAt: true,
       clienteId: true,
@@ -139,6 +142,7 @@ export async function getWorkspace(
     obsProposta: p.obsProposta ?? "",
     descontoTipo: p.tipoDesconto,
     descontoValor: toNumber(p.valorDesconto),
+    frete: toNumber(p.frete),
     emitidaAt: p.emitidaAt,
     revisaoEmitidaAt: p.currentRevision?.emittedAt ?? null,
     updatedAt: p.updatedAt,

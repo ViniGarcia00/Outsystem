@@ -598,3 +598,25 @@ Formato: **ADR** enxuto (Architecture Decision Record).
 - **Consequência:** rodapé passa a exibir Subtotal · Desconto · **Total da
   Proposta**. Componente `DescontoInput` (reutilizável) + tipo `Desconto` no
   helper. Fora de escopo: frete, total final, impostos, PDF (próximas Sprints).
+
+---
+
+## Sprint 2.6 — Frete da proposta
+
+### ADR-0221 — Frete: valor manual na Proposta, somado ao Total (derivado)
+
+- **Decisão:** o frete é um valor monetário informado manualmente pelo usuário,
+  pertencente à **Proposta** (não aos itens). Persiste-se **`Proposta.frete`**
+  (Decimal, default 0). Migration aditiva `20260707050000_frete`.
+- **Cálculo (helper central, ADR-0219/0220):** `calcularTotais` passa a receber o
+  `frete` e compor **Total da Proposta = Subtotal − Desconto + Frete** (nunca
+  negativo; `frete` clampado a ≥ 0). Sem limite máximo. A regra de desconto (≤
+  Subtotal) permanece. Recalcula em tempo real; sem botão.
+- **UI:** nova linha **Frete** no rodapé (entre Desconto e Total da Proposta),
+  máscara BRL via `CurrencyInput` (valor inicial R$ 0,00). Vale para Completa e
+  Simplificada.
+- **Persistência:** apenas o `frete`. Subtotal, Total Produtos/Serviços e Total
+  da Proposta seguem **derivados** (nunca persistidos).
+- **Consequência:** toda a lógica financeira segue concentrada em `totais.ts`
+  (sem duplicação). Fora de escopo: total final/condições/impostos/custos/margem/
+  lucro/PDF/Som/Wi-Fi.

@@ -1,3 +1,4 @@
+import { CurrencyInput } from "@/components/forms";
 import { Separator } from "@/components/ui/separator";
 import { formatCurrency } from "@/utils";
 
@@ -17,15 +18,19 @@ export function RodapeTotais({
   simplificada,
   desconto,
   onDescontoChange,
+  frete,
+  onFreteChange,
   readOnly,
 }: {
   itens: ReadonlyArray<ItemCalculavel>;
   simplificada: boolean;
   desconto: Desconto;
   onDescontoChange: (desconto: Desconto) => void;
+  frete: number;
+  onFreteChange: (frete: number) => void;
   readOnly: boolean;
 }) {
-  const t = calcularTotais(itens, simplificada, desconto);
+  const t = calcularTotais(itens, simplificada, desconto, frete);
 
   return (
     <div className="ml-auto w-full max-w-sm rounded-md border bg-card p-4 text-sm">
@@ -52,6 +57,19 @@ export function RodapeTotais({
             − {formatCurrency(t.descontoAplicado)}
           </div>
         )}
+
+        <div className="flex items-center justify-between gap-6">
+          <dt className="text-muted-foreground">Frete</dt>
+          <dd>
+            <CurrencyInput
+              value={frete}
+              onChange={onFreteChange}
+              disabled={readOnly}
+              aria-label="Frete"
+              className="h-8 w-32 text-right"
+            />
+          </dd>
+        </div>
 
         <Separator />
 

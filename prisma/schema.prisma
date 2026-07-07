@@ -183,6 +183,10 @@ model Proposta {
   tipoDesconto  TipoDesconto @default(VALOR)
   valorDesconto Decimal      @default(0) @db.Decimal(12, 2)
 
+  /// Frete da proposta (ADR-0221). Valor informado manualmente (≥ 0); compõe o
+  /// Total da Proposta (derivado, nunca persistido).
+  frete Decimal @default(0) @db.Decimal(12, 2)
+
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   /// Datas de status — carimbadas apenas na 1ª transição; nunca sobrescritas.

@@ -46,6 +46,7 @@ export function NovaPropostaWorkspace({
   const router = useRouter();
   const [header, setHeader] = useState<CabecalhoValores>(CABECALHO_INICIAL);
   const [desconto, setDesconto] = useState<Desconto>(DESCONTO_ZERO);
+  const [frete, setFrete] = useState(0);
   const [criando, setCriando] = useState(false);
 
   const semMutacao = useCallback(() => {}, []);
@@ -84,6 +85,7 @@ export function NovaPropostaWorkspace({
       obsProposta: header.obsProposta || null,
       descontoTipo: desconto.tipo,
       descontoValor: desconto.valor,
+      frete,
       secoes: secoes.map((s) => ({
         nome: s.nome,
         itens: s.itens.map((it) => ({
@@ -171,6 +173,8 @@ export function NovaPropostaWorkspace({
         simplificada={header.modelo === "SIMPLIFICADA"}
         desconto={desconto}
         onDescontoChange={setDesconto}
+        frete={frete}
+        onFreteChange={setFrete}
       />
     </AppPage>
   );

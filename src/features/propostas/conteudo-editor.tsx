@@ -30,6 +30,8 @@ export function ConteudoEditor({
   simplificada,
   desconto,
   onDescontoChange,
+  frete,
+  onFreteChange,
 }: {
   secoes: SecaoDTO[];
   actions: ConteudoActions;
@@ -38,6 +40,8 @@ export function ConteudoEditor({
   simplificada: boolean;
   desconto: Desconto;
   onDescontoChange: (desconto: Desconto) => void;
+  frete: number;
+  onFreteChange: (frete: number) => void;
 }) {
   // Todos os itens da proposta (todas as seções) — base dos totais em tempo real.
   const itens = secoes.flatMap((s) => s.itens);
@@ -67,6 +71,8 @@ export function ConteudoEditor({
           simplificada={simplificada}
           desconto={desconto}
           onDescontoChange={onDescontoChange}
+          frete={frete}
+          onFreteChange={onFreteChange}
           readOnly={readOnly}
         />
       )}

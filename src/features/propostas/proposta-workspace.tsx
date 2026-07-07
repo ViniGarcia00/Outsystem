@@ -57,6 +57,7 @@ export function PropostaWorkspace({
     tipo: data.descontoTipo,
     valor: data.descontoValor,
   });
+  const [frete, setFrete] = useState<number>(data.frete);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
@@ -67,6 +68,11 @@ export function PropostaWorkspace({
   const onDesconto = (d: Desconto) => {
     setDirty(true);
     setDesconto(d);
+  };
+
+  const onFrete = (f: number) => {
+    setDirty(true);
+    setFrete(f);
   };
 
   const onCampo = (patch: CabecalhoPatchValues) => {
@@ -102,6 +108,7 @@ export function PropostaWorkspace({
       obsProposta: header.obsProposta || null,
       descontoTipo: desconto.tipo,
       descontoValor: desconto.valor,
+      frete,
       secoes: secoes.map((s) => ({
         nome: s.nome,
         itens: s.itens.map((it) => ({
@@ -271,6 +278,8 @@ export function PropostaWorkspace({
         simplificada={header.modelo === "SIMPLIFICADA"}
         desconto={desconto}
         onDescontoChange={onDesconto}
+        frete={frete}
+        onFreteChange={onFrete}
       />
 
       <CancelarDialog

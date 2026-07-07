@@ -428,5 +428,28 @@ ADRs, problemas, soluções, lições e o hash do commit.
 
 ---
 
+## Sprint 2.6 — Frete da Proposta
+
+- **Versão:** 0.10.0
+- **Data:** 2026-07-07
+- **Objetivo:** adicionar o frete ao rodapé financeiro, compondo o Total da
+  Proposta.
+- **Principais entregas:**
+  - Campo **Frete** no rodapé (máscara BRL, `CurrencyInput`, inicial R$ 0,00),
+    entre Desconto e Total da Proposta; Completa e Simplificada.
+  - **Total da Proposta = Subtotal − Desconto + Frete** (≥ 0), em tempo real.
+  - **Persistência:** `Proposta.frete` (Decimal, default 0). Migration aditiva
+    `20260707050000_frete`. Demais totais seguem derivados.
+  - Helper `totais.ts` estendido (`calcularTotais` recebe `frete`) — sem
+    duplicação de lógica.
+- **ADRs criadas:** ADR-0221.
+- **Gate:** lint 0, typecheck 0, build 0, smoke **7/7** (frete padrão + alteração,
+  Completa e Simplificada), `/api/health` 200 (db up). Verificado por script
+  (soma/clamps + round-trip da persistência).
+- **Hash do commit:** `PENDENTE`
+- **Próxima:** **2.7 PDF**.
+
+---
+
 > Próximas Sprints: adicionar uma nova seção ao final, seguindo este mesmo
 > formato, ao concluir cada Sprint.
