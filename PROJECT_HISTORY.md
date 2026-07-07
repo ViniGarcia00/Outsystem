@@ -134,7 +134,7 @@ ADRs, problemas, soluções, lições e o hash do commit.
 - **Lições aprendidas:** manter o cabeçalho na Proposta (não versionar) evita
   remodelagem; registrar transições e imutabilidade de datas explicitamente no
   service evita estados inconsistentes.
-- **Hash do commit:** `__HASH_SPRINT_2_1__`
+- **Hash do commit:** `78c3681`
 
 ---
 
