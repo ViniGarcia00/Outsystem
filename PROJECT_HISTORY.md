@@ -256,7 +256,7 @@ ADRs, problemas, soluções, lições e o hash do commit.
   servidor.
 - **Gate:** lint 0, typecheck 0, build 0, smoke 6/6, `/api/health` 200 (db up),
   criação diferida verificada (abrir `/nova` não cria proposta).
-- **Hash do commit:** `PENDENTE`
+- **Hash do commit:** `0804188`
 
 ---
 
