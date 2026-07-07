@@ -226,7 +226,7 @@ ADRs, problemas, soluções, lições e o hash do commit.
   dedicado além do smoke.
 - **Gate:** lint 0, typecheck 0, build 0, smoke 6/6, `/api/health` 200 (db up),
   `/dev/diagnostics` 200. Ciclo emitir→fork→idMap verificado por script.
-- **Hash do commit:** `PENDENTE`
+- **Hash do commit:** `a10fad0`
 
 ---
 
