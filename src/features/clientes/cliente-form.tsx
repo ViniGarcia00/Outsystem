@@ -15,6 +15,7 @@ import {
   TextField,
   TextareaField,
 } from "@/components/forms";
+import { UF_OPTIONS } from "@/lib/ufs";
 import { formatCpfCnpj, formatPhone } from "@/utils";
 
 import { createClienteAction, updateClienteAction } from "./actions";
@@ -84,6 +85,16 @@ export function ClienteForm({ clienteId, defaultValues }: ClienteFormProps) {
           format={formatCpfCnpj}
           placeholder="Opcional"
         />
+        {/* Documento secundário opcional: RG (PF) ou Inscrição Estadual (PJ). */}
+        {tipoPessoa === "PJ" ? (
+          <TextField
+            name="inscricaoEstadual"
+            label="Inscrição Estadual"
+            placeholder="Opcional"
+          />
+        ) : (
+          <TextField name="rg" label="RG" placeholder="Opcional" />
+        )}
         <SwitchField
           name="ativo"
           label="Ativo"
@@ -98,7 +109,12 @@ export function ClienteForm({ clienteId, defaultValues }: ClienteFormProps) {
         <TextField name="complemento" label="Complemento" />
         <TextField name="bairro" label="Bairro" />
         <TextField name="cidade" label="Cidade" />
-        <TextField name="estado" label="Estado" />
+        <SelectField
+          name="estado"
+          label="UF"
+          options={UF_OPTIONS}
+          placeholder="UF"
+        />
       </FormSection>
 
       <FormSection title="Contato">

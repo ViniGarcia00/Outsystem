@@ -29,7 +29,7 @@ const numeroBR = (v: number, agrupar = false) =>
   v.toLocaleString("pt-BR", { maximumFractionDigits: 2, useGrouping: agrupar });
 
 /** Exibição ao sair do foco: "R$ 500,00" ou "10%" (vazio quando não há desconto). */
-function formatDesconto(d: Desconto): string {
+export function formatDesconto(d: Desconto): string {
   if (!d.valor) return "";
   return d.tipo === "PERCENTUAL"
     ? `${numeroBR(d.valor)}%`

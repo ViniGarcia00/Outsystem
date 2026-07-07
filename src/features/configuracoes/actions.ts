@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { saveConfiguracao } from "@/services/configuracao.service";
+import { saveLogoFile } from "@/services/logo.service";
 import { fail, ok, type ActionResult } from "@/types";
 
 import { configuracaoSchema } from "./schema";
@@ -28,6 +29,28 @@ export async function saveConfiguracaoAction(
       error instanceof Error
         ? `Não foi possível salvar a configuração: ${error.message}`
         : "Não foi possível salvar a configuração.",
+    );
+  }
+}
+
+/**
+ * Server Action: recebe o logotipo por upload, grava no armazenamento e
+ * persiste o nome do arquivo em `Config.logo`. Retorna o nome gravado.
+ */
+export async function uploadLogoAction(
+  formData: FormData,
+): Promise<ActionResult<{ logo: string }>> {
+  const file = formData.get("file");
+  if (!(file instanceof File)) {
+    return fail("Selecione um arquivo de imagem.");
+  }
+  try {
+    const logo = await saveLogoFile(file);
+    revalidatePath("/configuracoes");
+    return ok({ logo });
+  } catch (error) {
+    return fail(
+      error instanceof Error ? error.message : "Falha ao enviar o logotipo.",
     );
   }
 }

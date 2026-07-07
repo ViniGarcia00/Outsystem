@@ -691,3 +691,41 @@ Formato: **ADR** enxuto (Architecture Decision Record).
   novos templates entram como **blocos** plugados na mesma composição, sem
   reescrever o documento. Fora de escopo: armazenar o binário, garantia,
   assinatura digital/aceite/QR, workflow de aprovação, anexos, cronograma.
+
+---
+
+## Sprint 2.7.5 — Ajustes pós-PDF
+
+### ADR-0224 — Ajustes de UX/apresentação; RG/IE e logo por upload
+
+Sprint de refinamento (sem novas funcionalidades de negócio). Decisões que
+tocam modelagem/arquitetura:
+
+- **Cliente — RG/IE:** documento secundário **opcional**. Colunas aditivas
+  `Cliente.rg` (PF) e `Cliente.inscricaoEstadual` (PJ) (migration
+  `20260707070000_cliente_rg_ie`). Exibido conforme o tipo de pessoa (mesmo
+  padrão de nome/empresa); persistência só do campo relevante ao tipo. **UF**
+  vira lista (`@/lib/ufs`).
+- **Logo por upload (sem links externos):** o campo de URL é removido. O
+  logotipo é **enviado por upload** (PNG/JPG ≤ 2 MB), gravado no armazenamento
+  de uploads (`storagePaths.upload`, fora do repositório) e `Config.logo` passa
+  a guardar apenas o **nome do arquivo**. Serviço `logo.service.ts`
+  (`saveLogoFile`/`getLogoAbsolutePath`/`readLogoFile`), Server Action
+  `uploadLogoAction`, rota `GET /configuracoes/logo` (preview/web) e uso
+  **automático no PDF** (o cabeçalho embute o arquivo do disco). O `.env` de
+  storage já era configurável; a criação da pasta ocorre no primeiro upload.
+- **Máscara de telefone** em Configurações (Telefone/WhatsApp) reutilizando
+  `MaskedField` + `formatPhone`.
+- **Proposta (UX):** autocomplete de produto exibe só **código + descrição**
+  (descrição no estilo antes usado para o valor; valor omitido); **quantidade
+  recalcula os totais em tempo real** (campo controlado + atualização da
+  memória, sem `blur` e sem perder o foco — a linha deixou de remontar por
+  chave); **larguras reduzidas** e descrição em até 2 linhas para caber sem
+  rolagem horizontal; **desconto numa única linha** (campo + interpretação);
+  **valores padrão** Forma de Pagamento = "PIX" e Previsão de Instalação =
+  "3 dias" (editáveis).
+- **PDF:** mais espaço antes das assinaturas; alinhamento do valor no destaque
+  do TOTAL; "Validade" → "Validade da proposta"; logo automático da Config.
+- **Consequência operacional:** o seed continua **global-idempotente** (ADR-0209)
+  — se um cadastro específico faltar no dev, ele não é repovoado sozinho;
+  repopular pontualmente é um passo manual de ambiente.

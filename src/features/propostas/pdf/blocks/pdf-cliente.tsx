@@ -95,7 +95,7 @@ export function PdfCliente({
         <PdfCampo tema={tema} rotulo="Data" valor={dataLabel} />
         <PdfCampo
           tema={tema}
-          rotulo="Validade"
+          rotulo="Validade da proposta"
           valor={`${validadeDias} ${validadeDias === 1 ? "dia" : "dias"}`}
         />
         {consultor && (

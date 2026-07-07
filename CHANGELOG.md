@@ -4,6 +4,41 @@ Todas as mudanças relevantes deste projeto são documentadas aqui.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o
 projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [0.12.1] — 2026-07-07
+
+### Sprint 2.7.5 — Ajustes pós-PDF. Ver ADR-0224.
+
+#### Configurações
+
+- Máscara brasileira em **Telefone** e **WhatsApp**.
+- **Logotipo por upload** (PNG/JPG, até 2 MB) no lugar do campo de URL — sem
+  links externos. Preview no formulário; usado automaticamente no PDF.
+
+#### Clientes
+
+- **UF** vira lista com todas as unidades da federação.
+- **RG** (PF) / **Inscrição Estadual** (PJ) — campo opcional (`CPF/CNPJ | RG/IE`,
+  depois `Ativo`).
+
+#### Proposta
+
+- Autocomplete de produto mostra só **código + descrição** (sem o valor; lista
+  mais limpa).
+- **Quantidade** atualiza Total Produto/Serviço/Linha e o rodapé **em tempo
+  real**, sem sair do campo.
+- Larguras de Quantidade/Valor Produto/Valor Serviço reduzidas; **descrição em
+  até 2 linhas** para caber sem rolagem horizontal.
+- Campo de **Desconto** e sua interpretação em **uma única linha**.
+- Valores padrão: **Forma de Pagamento = PIX**, **Previsão de Instalação =
+  3 dias** (editáveis).
+
+#### PDF
+
+- Mais espaço entre as informações e a **área de assinaturas**.
+- Alinhamento do valor no destaque do **TOTAL DA PROPOSTA**.
+- "Validade" → **"Validade da proposta"**.
+- Usa automaticamente o **logotipo** enviado nas Configurações.
+
 ## [0.12.0] — 2026-07-07
 
 ### Sprint 2.7 — Documento comercial (PDF). Ver ADR-0223.

@@ -32,6 +32,8 @@ export interface ClienteFormDTO {
   nome: string;
   empresa: string;
   cpfCnpj: string;
+  rg: string;
+  inscricaoEstadual: string;
   cep: string;
   endereco: string;
   numero: string;
@@ -51,6 +53,8 @@ export interface ClienteInput {
   nome?: string;
   empresa?: string;
   cpfCnpj?: string;
+  rg?: string;
+  inscricaoEstadual?: string;
   cep?: string;
   endereco?: string;
   numero?: string;
@@ -74,6 +78,10 @@ function toData(input: ClienteInput) {
     nome: input.tipoPessoa === "PF" ? trimOrNull(input.nome) : null,
     empresa: input.tipoPessoa === "PJ" ? trimOrNull(input.empresa) : null,
     cpfCnpj: trimOrNull(input.cpfCnpj),
+    // RG só para PF; Inscrição Estadual só para PJ (evita campo órfão).
+    rg: input.tipoPessoa === "PF" ? trimOrNull(input.rg) : null,
+    inscricaoEstadual:
+      input.tipoPessoa === "PJ" ? trimOrNull(input.inscricaoEstadual) : null,
     cep: trimOrNull(input.cep),
     endereco: trimOrNull(input.endereco),
     numero: trimOrNull(input.numero),
@@ -215,6 +223,8 @@ export async function getClienteForEdit(
     nome: c.nome ?? "",
     empresa: c.empresa ?? "",
     cpfCnpj: c.cpfCnpj ?? "",
+    rg: c.rg ?? "",
+    inscricaoEstadual: c.inscricaoEstadual ?? "",
     cep: c.cep ?? "",
     endereco: c.endereco ?? "",
     numero: c.numero ?? "",

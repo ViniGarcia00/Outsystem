@@ -136,6 +136,7 @@ export function PdfRodapeFinanceiro({
               color: tema.cores.branco,
               textTransform: "uppercase",
               letterSpacing: 0.6,
+              lineHeight: 1,
             }}
           >
             Total da Proposta
@@ -146,6 +147,8 @@ export function PdfRodapeFinanceiro({
               fontSize: tema.tamanho.xl,
               fontWeight: tema.pesos.bold,
               color: tema.cores.branco,
+              lineHeight: 1,
+              textAlign: "right",
             }}
           >
             {formatCurrency(totais.totalProposta)}

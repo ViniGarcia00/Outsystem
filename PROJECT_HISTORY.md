@@ -508,5 +508,35 @@ ADRs, problemas, soluções, lições e o hash do commit.
 
 ---
 
+## Sprint 2.7.5 — Ajustes pós-PDF
+
+- **Versão:** 0.12.1
+- **Data:** 2026-07-07
+- **Objetivo:** aplicar ajustes de UX/layout/apresentação identificados na
+  validação do PDF, sem novas funcionalidades de negócio.
+- **Principais entregas:**
+  - **Configurações:** máscara de Telefone/WhatsApp; **logo por upload** (PNG/JPG,
+    ≤ 2 MB; `logo.service.ts` + `uploadLogoAction` + rota `GET /configuracoes/logo`),
+    sem links externos, usado no PDF.
+  - **Clientes:** **UF** em lista; **RG (PF)/IE (PJ)** opcional (migration aditiva
+    `20260707070000_cliente_rg_ie`).
+  - **Proposta:** autocomplete de produto só com código+descrição; **quantidade
+    recalcula totais em tempo real**; larguras reduzidas + descrição em 2 linhas
+    (sem rolagem horizontal); desconto em uma linha; padrões PIX / 3 dias.
+  - **PDF:** espaço antes das assinaturas; alinhamento do TOTAL; "Validade da
+    proposta"; logo automático.
+- **ADRs criadas:** ADR-0224.
+- **Gate:** lint 0, typecheck 0, build 0, **unit 17/17**, smoke **7/7**
+  (upload de logo, UF/RG, PDF), `/api/health` 200 (db up). Renderização do PDF
+  revalidada (1 a 5+ páginas).
+- **Nota de ambiente:** um dev server **órfão** na 3000 fazia o Playwright reusar
+  o Prisma client antigo (falha no cliente com RG/IE) — resolvido matando o
+  processo. A tabela de produtos do dev estava vazia (seed é global-idempotente,
+  ADR-0209) e foi repovoada pontualmente para o smoke.
+- **Hash do commit:** `PENDENTE`
+- **Próxima:** **2.8 homologação geral**.
+
+---
+
 > Próximas Sprints: adicionar uma nova seção ao final, seguindo este mesmo
 > formato, ao concluir cada Sprint.

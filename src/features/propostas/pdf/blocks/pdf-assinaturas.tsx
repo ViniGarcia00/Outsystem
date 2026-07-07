@@ -63,7 +63,7 @@ export function PdfAssinaturas({
   consultorNome: string | null;
 }) {
   return (
-    <View wrap={false} style={{ marginTop: tema.espaco(6) }}>
+    <View wrap={false} style={{ marginTop: tema.espaco(12) }}>
       <View style={{ flexDirection: "row", gap: tema.espaco(12) }}>
         <Campo tema={tema} papel="Cliente" nome={clienteNome} />
         <Campo tema={tema} papel="Consultor Responsável" nome={consultorNome} />

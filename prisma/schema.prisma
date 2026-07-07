@@ -95,6 +95,11 @@ model Cliente {
   /// Opcional; ÚNICO quando informado (nulos não conflitam no PostgreSQL).
   cpfCnpj String? @unique
 
+  /// Documento secundário opcional (ADR-0224): RG (PF) ou Inscrição Estadual
+  /// (PJ). Exibido conforme o tipo de pessoa; sem unicidade.
+  rg                String?
+  inscricaoEstadual String?
+
   cep         String?
   endereco    String?
   numero      String?

@@ -2,7 +2,7 @@ import { CurrencyInput } from "@/components/forms";
 import { Separator } from "@/components/ui/separator";
 import { formatCurrency } from "@/utils";
 
-import { DescontoInput } from "./desconto-input";
+import { DescontoInput, formatDesconto } from "./desconto-input";
 import { calcularTotais, type Desconto, type ItemCalculavel } from "./totais";
 
 /**
@@ -42,21 +42,20 @@ export function RodapeTotais({
 
         <Linha label="Subtotal" valor={t.subtotal} />
 
-        <div className="flex items-center justify-between gap-6">
+        <div className="flex items-center justify-between gap-4">
           <dt className="text-muted-foreground">Desconto</dt>
-          <dd>
+          <dd className="flex items-center gap-2">
             <DescontoInput
               value={desconto}
               onChange={onDescontoChange}
               disabled={readOnly}
             />
+            {/* Interpretação na MESMA linha: "R$ 500,00" ou "10%". */}
+            <span className="w-16 text-right text-xs tabular-nums text-muted-foreground">
+              {t.descontoAplicado > 0 ? formatDesconto(desconto) : ""}
+            </span>
           </dd>
         </div>
-        {t.descontoAplicado > 0 && (
-          <div className="flex justify-end text-xs tabular-nums text-muted-foreground">
-            − {formatCurrency(t.descontoAplicado)}
-          </div>
-        )}
 
         <div className="flex items-center justify-between gap-6">
           <dt className="text-muted-foreground">Frete</dt>

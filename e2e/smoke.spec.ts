@@ -28,6 +28,8 @@ test("abre a Configuração do Sistema", async ({ page }) => {
   ).toBeVisible();
   // O campo "Nome da empresa" deve estar presente e associado ao label.
   await expect(page.getByLabel("Nome da empresa")).toBeVisible();
+  // Logotipo agora é por upload (sem campo de URL).
+  await expect(page.getByLabel("Enviar logotipo")).toBeVisible();
 });
 
 test("abre Produtos e Vendedores", async ({ page }) => {
@@ -51,6 +53,9 @@ test("Clientes: criar e editar (CRUD básico)", async ({ page }) => {
   // Criar.
   await page.getByRole("button", { name: "Novo" }).click();
   await expect(page).toHaveURL(/\/clientes\/novo$/);
+  // UF virou lista; PF exibe RG (documento secundário opcional).
+  await expect(page.getByLabel("UF")).toBeVisible();
+  await expect(page.getByLabel("RG")).toBeVisible();
   await page.getByLabel("Nome", { exact: true }).fill(nome);
   await page.getByRole("button", { name: "Salvar" }).click();
 

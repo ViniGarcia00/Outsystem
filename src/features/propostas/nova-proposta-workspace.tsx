@@ -32,8 +32,9 @@ const CABECALHO_INICIAL: CabecalhoValores = {
   validadeDias: 5,
   obsInternas: "",
   obsProposta: "",
-  formaPagamento: "",
-  previsaoInstalacao: "",
+  // Valores padrão (o usuário pode alterar normalmente) — ADR-0224.
+  formaPagamento: "PIX",
+  previsaoInstalacao: "3 dias",
   obsComerciais: "",
   obsTecnicas: "",
 };

@@ -1,6 +1,7 @@
 import { prisma } from "@/infrastructure/database";
 
 import { getConfiguracao } from "./configuracao.service";
+import { getLogoAbsolutePath } from "./logo.service";
 import { montarPropostaPdfDTO, type PropostaPdfDTO } from "./proposta-pdf.mapper";
 
 /**
@@ -17,7 +18,7 @@ export * from "./proposta-pdf.mapper";
 export async function getPropostaPdfData(
   propostaId: string,
 ): Promise<PropostaPdfDTO | null> {
-  const [p, config] = await Promise.all([
+  const [p, config, logoPath] = await Promise.all([
     prisma.proposta.findUnique({
       where: { id: propostaId },
       select: {
@@ -77,8 +78,13 @@ export async function getPropostaPdfData(
       },
     }),
     getConfiguracao(),
+    getLogoAbsolutePath(),
   ]);
   if (!p) return null;
 
-  return montarPropostaPdfDTO(p, config);
+  const dto = montarPropostaPdfDTO(p, config);
+  // O PDF (Node) embute o arquivo do logo diretamente do disco; usa o caminho
+  // absoluto quando o arquivo existe, senão cai no fallback textual.
+  dto.empresa.logo = logoPath;
+  return dto;
 }

@@ -73,7 +73,7 @@ export function ItensTable({
         <TableBody>
           {itens.map((item, index) => (
             <ItemRow
-              key={`${item.id}:${item.quantidade}:${item.valorProduto}:${item.valorServico}`}
+              key={item.id}
               item={item}
               actions={actions}
               readOnly={readOnly}
@@ -107,7 +107,7 @@ function EditableMoney({
       onBlur={() => {
         if (v !== valor) onCommit(v);
       }}
-      className="h-8 w-32"
+      className="h-8 w-24"
       aria-label={ariaLabel}
     />
   );
@@ -130,17 +130,28 @@ function ItemRow({
   isLast: boolean;
   refresh: () => void;
 }) {
-  const totalProduto = totalProdutoLinha(item);
-  const totalServico = totalServicoLinha(item);
+  // Quantidade controlada localmente → totais recalculam a cada tecla, sem
+  // precisar sair do campo (a memória é atualizada em paralelo).
+  const [qtdStr, setQtdStr] = useState(String(item.quantidade));
+  const qtdNum = Number(qtdStr);
+  const qtdValida = Number.isFinite(qtdNum) && qtdNum > 0;
+  const itemLive = {
+    quantidade: qtdValida ? qtdNum : item.quantidade,
+    valorProduto: item.valorProduto,
+    valorServico: item.valorServico,
+  };
+  const totalProduto = totalProdutoLinha(itemLive);
+  const totalServico = totalServicoLinha(itemLive);
   // No modelo Simplificada, o Total é apenas o do produto (serviço oculto).
   const totalLinha = simplificada ? totalProduto : totalProduto + totalServico;
 
-  const salvarQtd = async (valor: string) => {
+  const onQtd = (valor: string) => {
+    setQtdStr(valor);
     const q = Number(valor);
-    if (!Number.isFinite(q) || q <= 0 || q === item.quantidade) return;
-    const result = await actions.atualizarQuantidade(item.id, q);
-    if (result.success) refresh();
-    else toast.error(result.error);
+    if (Number.isFinite(q) && q > 0 && q !== item.quantidade) {
+      // Atualiza a memória (rodapé/totais) sem remontar a linha nem perder o foco.
+      void actions.atualizarQuantidade(item.id, q);
+    }
   };
 
   const salvarValorProduto = async (v: number) => {
@@ -169,8 +180,10 @@ function ItemRow({
 
   return (
     <TableRow>
-      <TableCell className="font-medium">{item.codigo}</TableCell>
-      <TableCell>{item.descricao}</TableCell>
+      <TableCell className="font-medium whitespace-nowrap">{item.codigo}</TableCell>
+      <TableCell>
+        <span className="line-clamp-2 max-w-[220px]">{item.descricao}</span>
+      </TableCell>
       <TableCell>
         {readOnly ? (
           item.quantidade
@@ -180,9 +193,9 @@ function ItemRow({
             inputMode="decimal"
             step="any"
             min={0.001}
-            defaultValue={item.quantidade}
-            onBlur={(e) => salvarQtd(e.target.value)}
-            className="h-8 w-20"
+            value={qtdStr}
+            onChange={(e) => onQtd(e.target.value)}
+            className="h-8 w-16"
             aria-label="Quantidade"
           />
         )}

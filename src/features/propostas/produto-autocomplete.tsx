@@ -3,7 +3,6 @@
 import { Autocomplete } from "@/components/forms";
 // Type-only: NÃO importar valores do service (server) neste client component.
 import type { ProdutoSuggestion } from "@/services/produto.service";
-import { formatCurrency } from "@/utils";
 
 import { searchProdutosAction } from "./actions";
 
@@ -26,8 +25,10 @@ export function ProdutoAutocomplete({
     <Autocomplete<ProdutoSuggestion>
       value={null}
       search={searchProdutosAction}
-      getLabel={(p) => `${p.codigo} — ${p.descricao}`}
-      getSublabel={(p) => `${p.unidade} · ${formatCurrency(p.valorProduto)}`}
+      // Lista mais limpa: código em destaque e descrição no estilo antes usado
+      // para o valor (sublabel). O valor não é exibido no autocomplete.
+      getLabel={(p) => p.codigo}
+      getSublabel={(p) => p.descricao}
       onSelect={onSelect}
       label={label}
       placeholder="Digite código ou descrição..."

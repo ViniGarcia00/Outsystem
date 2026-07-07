@@ -1,3 +1,5 @@
+import path from "node:path";
+
 import { Image, Text, View } from "@react-pdf/renderer";
 
 import type { PdfEmpresa } from "@/services/proposta-pdf.mapper";
@@ -10,9 +12,16 @@ import type { Tema } from "../theme";
  * ao rodapé). Completo na página 1; compacto nas seguintes.
  */
 
-/** Só embutimos logo por URL http(s) ou data URI (robustez em produção). */
+/**
+ * Aceita o logo enviado nas Configurações. A IO já resolve `empresa.logo` para
+ * um caminho absoluto de arquivo existente (ou null); http/data também é aceito
+ * por robustez. Extensões PNG/JPG (compatíveis com o @react-pdf/renderer).
+ */
 function logoValido(logo: string | null): logo is string {
-  return !!logo && (/^https?:\/\//.test(logo) || logo.startsWith("data:"));
+  if (!logo) return false;
+  return (
+    /^https?:\/\//.test(logo) || logo.startsWith("data:") || path.isAbsolute(logo)
+  );
 }
 
 function Marca({ tema, empresa }: { tema: Tema; empresa: PdfEmpresa }) {
