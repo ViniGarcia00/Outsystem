@@ -12,6 +12,7 @@ import type { SecaoDTO } from "@/services/proposta-conteudo.service";
 import { AdicionarItemDialog } from "./adicionar-item-dialog";
 import type { ConteudoActions } from "./conteudo-handlers";
 import { ItensTable } from "./itens-table";
+import { RodapeTotais } from "./rodape-totais";
 import { SecaoCard } from "./secao-card";
 
 /**
@@ -33,6 +34,9 @@ export function ConteudoEditor({
   refresh: () => void;
   simplificada: boolean;
 }) {
+  // Todos os itens da proposta (todas as seções) — base dos totais em tempo real.
+  const itens = secoes.flatMap((s) => s.itens);
+
   return (
     <section className="space-y-4">
       <h2 className="text-lg font-semibold tracking-tight">Conteúdo</h2>
@@ -50,6 +54,10 @@ export function ConteudoEditor({
           readOnly={readOnly}
           refresh={refresh}
         />
+      )}
+
+      {itens.length > 0 && (
+        <RodapeTotais itens={itens} simplificada={simplificada} />
       )}
     </section>
   );

@@ -19,6 +19,7 @@ import type { ItemDTO } from "@/services/proposta-conteudo.service";
 import { formatCurrency } from "@/utils";
 
 import type { ConteudoActions } from "./conteudo-handlers";
+import { totalProdutoLinha, totalServicoLinha } from "./totais";
 
 /**
  * Grade de produtos. No modelo **Completo** (Comercial): Código · Descrição ·
@@ -129,8 +130,8 @@ function ItemRow({
   isLast: boolean;
   refresh: () => void;
 }) {
-  const totalProduto = item.quantidade * item.valorProduto;
-  const totalServico = item.quantidade * item.valorServico;
+  const totalProduto = totalProdutoLinha(item);
+  const totalServico = totalServicoLinha(item);
   // No modelo Simplificada, o Total é apenas o do produto (serviço oculto).
   const totalLinha = simplificada ? totalProduto : totalProduto + totalServico;
 

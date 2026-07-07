@@ -372,8 +372,32 @@ ADRs, problemas, soluções, lições e o hash do commit.
 - **ADRs criadas:** ADR-0218.
 - **Gate:** lint 0, typecheck 0, build 0, smoke 7/7, `/api/health` 200.
 - **Hash do commit:** `2e0567e`
-- **Observação:** os **Totais da proposta** (subtotal/total geral) completam a
-  Sprint 2.4 numa etapa seguinte.
+- **Observação:** os **Totais da proposta** completam a Sprint 2.4 na parte 2.
+
+---
+
+## Sprint 2.4 (parte 2) — Totais da Proposta
+
+- **Versão:** 0.8.0
+- **Data:** 2026-07-07
+- **Objetivo:** rodapé financeiro da proposta (Total Produtos, Total Serviços,
+  Subtotal) derivado dos itens em tempo real.
+- **Principais entregas:**
+  - Utilitário **`totais.ts`** (fonte única: `totalProdutoLinha`,
+    `totalServicoLinha`, `totalLinha`, `calcularTotais`), reutilizado pela grade
+    e pelo rodapé.
+  - Componente **`RodapeTotais`** abaixo da grade (valores à direita, máscara
+    BRL); recalcula a cada mutação (React re-render; sem botão).
+  - **Simplificada:** oculta Total Serviços; Subtotal = Total Produtos (serviços
+    preservados internamente).
+  - **Nada persistido** — totais são derivados; sem tabela/entidade/migração/
+    snapshot.
+- **ADRs criadas:** ADR-0219.
+- **Gate:** lint 0, typecheck 0, build 0, smoke **7/7** (com asserts do rodapé),
+  `/api/health` 200 (db up). Helper verificado por script.
+- **Hash do commit:** `PENDENTE`
+- **Sprint 2.4 concluída** (parte 1 `2e0567e` + parte 2). Próxima: **2.5
+  Descontos**.
 
 ---
 

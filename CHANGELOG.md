@@ -4,6 +4,31 @@ Todas as mudanças relevantes deste projeto são documentadas aqui.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o
 projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [0.8.0] — 2026-07-07
+
+### Sprint 2.4 (parte 2) — Totais da Proposta. Ver ADR-0219.
+
+Rodapé financeiro derivado dos itens em **tempo real**; **nada persistido** no
+banco. Sem tabela/entidade/migração.
+
+#### Adicionado
+
+- **Rodapé de totais** abaixo da grade: **Total Produtos** (Σ Total Produto),
+  **Total Serviços** (Σ Total Serviço) e **Subtotal** (Total Produtos + Total
+  Serviços). Atualiza automaticamente a cada inclusão/remoção de item ou
+  alteração de quantidade/valores (sem botão de recalcular). Valores à direita,
+  máscara BRL.
+- **Simplificada:** o rodapé oculta **Total Serviços** e o **Subtotal = Total
+  Produtos** (valores de serviço seguem existindo internamente).
+- **Utilitário `totais.ts`** (fonte única dos cálculos: `totalProdutoLinha`,
+  `totalServicoLinha`, `totalLinha`, `calcularTotais`) reutilizado pela grade e
+  pelo rodapé — preparado para Desconto/Frete/PDF.
+
+#### Fora de escopo (próximas Sprints)
+
+- Desconto, frete, total final, condições comerciais, PDF, impostos, custos,
+  margem, lucro.
+
 ## [0.7.1] — 2026-07-07
 
 ### Sprint 2.4 (parte 1) — ajustes funcionais. Ver ADR-0218.

@@ -553,3 +553,21 @@ Formato: **ADR** enxuto (Architecture Decision Record).
   (`validadeDias`).
 - **Consequência:** sem nova tabela/entidade/migração; apresentação condicionada
   ao tipo da proposta, com dados sempre completos no banco.
+
+### ADR-0219 — Totais da proposta: derivados em tempo real, não persistidos
+
+- **Decisão:** o rodapé financeiro (**Total Produtos**, **Total Serviços**,
+  **Subtotal**) é **calculado em tempo real** a partir dos itens — **nada é
+  gravado** no banco nem faz parte do snapshot. Sem botão de recalcular: o React
+  recompõe a cada mutação (inclusão/remoção de item, alteração de quantidade ou
+  de valor).
+- **Centralização (anti-duplicação):** um único utilitário `totais.ts`
+  (`totalProdutoLinha`/`totalServicoLinha`/`totalLinha` + `calcularTotais`) é a
+  fonte da lógica, reutilizado pela grade (`ItensTable`) e pelo rodapé
+  (`RodapeTotais`), e preparado para estender nas próximas Sprints (Desconto,
+  Frete, PDF) sem reescrever os cálculos de base.
+- **Simplificada (apresentação, ADR-0218):** o rodapé oculta **Total Serviços** e
+  o **Subtotal = Total Produtos**; os valores de serviço seguem existindo
+  internamente — só a exibição muda. Valores à direita, máscara BRL.
+- **Fora de escopo (próximas Sprints):** desconto, frete, total final, impostos,
+  custos, margem, lucro, condições comerciais, PDF.
