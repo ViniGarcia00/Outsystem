@@ -395,7 +395,7 @@ ADRs, problemas, soluções, lições e o hash do commit.
 - **ADRs criadas:** ADR-0219.
 - **Gate:** lint 0, typecheck 0, build 0, smoke **7/7** (com asserts do rodapé),
   `/api/health` 200 (db up). Helper verificado por script.
-- **Hash do commit:** `PENDENTE`
+- **Hash do commit:** `235ac97`
 - **Sprint 2.4 concluída** (parte 1 `2e0567e` + parte 2). Próxima: **2.5
   Descontos**.
 
