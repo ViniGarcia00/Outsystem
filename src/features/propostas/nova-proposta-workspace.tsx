@@ -16,6 +16,7 @@ import type {
 import { criarPropostaAction } from "./actions";
 import { ConteudoEditor } from "./conteudo-editor";
 import { useConteudoMemoria } from "./conteudo-memoria";
+import { FinalizacaoProposta } from "./finalizacao-proposta";
 import {
   PropostaCabecalho,
   type CabecalhoValores,
@@ -31,6 +32,10 @@ const CABECALHO_INICIAL: CabecalhoValores = {
   validadeDias: 5,
   obsInternas: "",
   obsProposta: "",
+  formaPagamento: "",
+  previsaoInstalacao: "",
+  obsComerciais: "",
+  obsTecnicas: "",
 };
 
 /**
@@ -69,6 +74,18 @@ export function NovaPropostaWorkspace({
       ...(patch.obsProposta !== undefined
         ? { obsProposta: patch.obsProposta ?? "" }
         : {}),
+      ...(patch.formaPagamento !== undefined
+        ? { formaPagamento: patch.formaPagamento ?? "" }
+        : {}),
+      ...(patch.previsaoInstalacao !== undefined
+        ? { previsaoInstalacao: patch.previsaoInstalacao ?? "" }
+        : {}),
+      ...(patch.obsComerciais !== undefined
+        ? { obsComerciais: patch.obsComerciais ?? "" }
+        : {}),
+      ...(patch.obsTecnicas !== undefined
+        ? { obsTecnicas: patch.obsTecnicas ?? "" }
+        : {}),
     }));
 
   const semCliente = !header.clienteId;
@@ -83,6 +100,10 @@ export function NovaPropostaWorkspace({
       validadeDias: header.validadeDias,
       obsInternas: header.obsInternas || null,
       obsProposta: header.obsProposta || null,
+      formaPagamento: header.formaPagamento || null,
+      previsaoInstalacao: header.previsaoInstalacao || null,
+      obsComerciais: header.obsComerciais || null,
+      obsTecnicas: header.obsTecnicas || null,
       descontoTipo: desconto.tipo,
       descontoValor: desconto.valor,
       frete,
@@ -175,6 +196,14 @@ export function NovaPropostaWorkspace({
         onDescontoChange={setDesconto}
         frete={frete}
         onFreteChange={setFrete}
+      />
+
+      {/* Finalização — informações comerciais finais (ADR-0222) */}
+      <FinalizacaoProposta
+        valores={header}
+        simplificada={header.modelo === "SIMPLIFICADA"}
+        readOnly={false}
+        onCampo={onCampo}
       />
     </AppPage>
   );

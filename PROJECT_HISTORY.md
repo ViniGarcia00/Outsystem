@@ -451,5 +451,30 @@ ADRs, problemas, soluções, lições e o hash do commit.
 
 ---
 
+## Sprint 2.6.5 — Finalização da Proposta
+
+- **Versão:** 0.11.0
+- **Data:** 2026-07-07
+- **Objetivo:** finalizar o conteúdo comercial da proposta (antes do PDF) com as
+  informações comerciais finais no cabeçalho.
+- **Principais entregas:**
+  - Componente **`FinalizacaoProposta`** abaixo da área de conteúdo, com dois
+    grupos: **Informações Comerciais** (Forma de pagamento; Previsão de
+    instalação) e **Observações** (Comerciais; Técnicas). Texto livre.
+  - **Previsão de instalação** exibida apenas no modelo **Completa** (oculta na
+    Simplificada; informação continua armazenada — regra só de apresentação).
+  - **Persistência aditiva:** `formaPagamento`, `previsaoInstalacao`,
+    `obsComerciais`, `obsTecnicas` na Proposta (migration
+    `20260707060000_finalizacao`, `TEXT`). Sem novas tabelas/entidades; não
+    interferem em cálculo/total/desconto/frete.
+- **ADRs criadas:** ADR-0222.
+- **Gate:** lint 0, typecheck 0, build 0, smoke **7/7** (preenchimento +
+  persistência dos 4 campos na Completa; Previsão oculta na Simplificada),
+  `/api/health` 200 (db up).
+- **Hash do commit:** `PENDENTE`
+- **Próxima:** **2.7 PDF**.
+
+---
+
 > Próximas Sprints: adicionar uma nova seção ao final, seguindo este mesmo
 > formato, ao concluir cada Sprint.

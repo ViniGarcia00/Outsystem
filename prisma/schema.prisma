@@ -187,6 +187,15 @@ model Proposta {
   /// Total da Proposta (derivado, nunca persistido).
   frete Decimal @default(0) @db.Decimal(12, 2)
 
+  /// Informações comerciais finais da proposta (ADR-0222). Texto livre; não
+  /// entram em cálculo/total. Serão usadas no PDF (Sprint 2.7).
+  /// `previsaoInstalacao` só é exibido no modelo Completa (apresentação).
+  formaPagamento     String? @db.Text
+  previsaoInstalacao String? @db.Text
+  /// Observações comerciais e técnicas (multilinha; futuro PDF).
+  obsComerciais String? @db.Text
+  obsTecnicas   String? @db.Text
+
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   /// Datas de status — carimbadas apenas na 1ª transição; nunca sobrescritas.

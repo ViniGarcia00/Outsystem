@@ -4,6 +4,28 @@ Todas as mudanças relevantes deste projeto são documentadas aqui.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o
 projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [0.11.0] — 2026-07-07
+
+### Sprint 2.6.5 — Finalização da Proposta. Ver ADR-0222.
+
+#### Adicionado
+
+- **Finalização** abaixo da área de conteúdo (novo componente
+  `FinalizacaoProposta`), com dois grupos: **Informações Comerciais** e
+  **Observações**. Campos de **texto livre** pertencentes ao cabeçalho da
+  Proposta — não interferem em cálculo/total/desconto/frete:
+  - **Forma de pagamento** (linha).
+  - **Previsão de instalação** (linha) — exibida **apenas no modelo Completa**;
+    oculta na Simplificada (a informação continua armazenada).
+  - **Observações comerciais** (multilinha).
+  - **Observações técnicas** (multilinha).
+- **Persistência aditiva:** colunas `formaPagamento`, `previsaoInstalacao`,
+  `obsComerciais`, `obsTecnicas` na Proposta (migration
+  `20260707060000_finalizacao`, `TEXT` nulo). Sem novas tabelas/entidades.
+- **Smoke:** preenchimento + persistência (round-trip) dos quatro campos no
+  modelo Completa; verificação de que a Previsão de instalação fica oculta na
+  Simplificada.
+
 ## [0.10.0] — 2026-07-07
 
 ### Sprint 2.6 — Frete da Proposta. Ver ADR-0221.

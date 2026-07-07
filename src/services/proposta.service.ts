@@ -164,6 +164,11 @@ export interface NovaPropostaPayload {
   validadeDias: number;
   obsInternas: string | null;
   obsProposta: string | null;
+  /** Finalização (ADR-0222) — texto livre; não entra em cálculo. */
+  formaPagamento?: string | null;
+  previsaoInstalacao?: string | null;
+  obsComerciais?: string | null;
+  obsTecnicas?: string | null;
   descontoTipo?: TipoDesconto;
   descontoValor?: number;
   frete?: number;
@@ -188,6 +193,10 @@ export async function criarPropostaCompleta(
         validadeDias: payload.validadeDias,
         obsInternas: trimOrNull(payload.obsInternas),
         obsProposta: trimOrNull(payload.obsProposta),
+        formaPagamento: trimOrNull(payload.formaPagamento),
+        previsaoInstalacao: trimOrNull(payload.previsaoInstalacao),
+        obsComerciais: trimOrNull(payload.obsComerciais),
+        obsTecnicas: trimOrNull(payload.obsTecnicas),
         tipoDesconto: payload.descontoTipo ?? "VALOR",
         valorDesconto: payload.descontoValor ?? 0,
         frete: payload.frete ?? 0,
@@ -329,6 +338,10 @@ export async function salvarProposta(
         validadeDias: payload.validadeDias,
         obsInternas: trimOrNull(payload.obsInternas),
         obsProposta: trimOrNull(payload.obsProposta),
+        formaPagamento: trimOrNull(payload.formaPagamento),
+        previsaoInstalacao: trimOrNull(payload.previsaoInstalacao),
+        obsComerciais: trimOrNull(payload.obsComerciais),
+        obsTecnicas: trimOrNull(payload.obsTecnicas),
         tipoDesconto: payload.descontoTipo ?? "VALOR",
         valorDesconto: payload.descontoValor ?? 0,
         frete: payload.frete ?? 0,

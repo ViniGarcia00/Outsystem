@@ -21,6 +21,7 @@ import {
 import { CancelarDialog } from "./cancelar-dialog";
 import { ConteudoEditor } from "./conteudo-editor";
 import { useConteudoMemoria } from "./conteudo-memoria";
+import { FinalizacaoProposta } from "./finalizacao-proposta";
 import { STATUS_BADGE_VARIANT, STATUS_LABEL } from "./labels";
 import {
   PropostaCabecalho,
@@ -52,6 +53,10 @@ export function PropostaWorkspace({
     validadeDias: data.validadeDias,
     obsInternas: data.obsInternas,
     obsProposta: data.obsProposta,
+    formaPagamento: data.formaPagamento,
+    previsaoInstalacao: data.previsaoInstalacao,
+    obsComerciais: data.obsComerciais,
+    obsTecnicas: data.obsTecnicas,
   });
   const [desconto, setDesconto] = useState<Desconto>({
     tipo: data.descontoTipo,
@@ -93,6 +98,18 @@ export function PropostaWorkspace({
       ...(patch.obsProposta !== undefined
         ? { obsProposta: patch.obsProposta ?? "" }
         : {}),
+      ...(patch.formaPagamento !== undefined
+        ? { formaPagamento: patch.formaPagamento ?? "" }
+        : {}),
+      ...(patch.previsaoInstalacao !== undefined
+        ? { previsaoInstalacao: patch.previsaoInstalacao ?? "" }
+        : {}),
+      ...(patch.obsComerciais !== undefined
+        ? { obsComerciais: patch.obsComerciais ?? "" }
+        : {}),
+      ...(patch.obsTecnicas !== undefined
+        ? { obsTecnicas: patch.obsTecnicas ?? "" }
+        : {}),
     }));
   };
 
@@ -106,6 +123,10 @@ export function PropostaWorkspace({
       validadeDias: header.validadeDias,
       obsInternas: header.obsInternas || null,
       obsProposta: header.obsProposta || null,
+      formaPagamento: header.formaPagamento || null,
+      previsaoInstalacao: header.previsaoInstalacao || null,
+      obsComerciais: header.obsComerciais || null,
+      obsTecnicas: header.obsTecnicas || null,
       descontoTipo: desconto.tipo,
       descontoValor: desconto.valor,
       frete,
@@ -280,6 +301,14 @@ export function PropostaWorkspace({
         onDescontoChange={onDesconto}
         frete={frete}
         onFreteChange={onFrete}
+      />
+
+      {/* Finalização — informações comerciais finais (ADR-0222) */}
+      <FinalizacaoProposta
+        valores={valores}
+        simplificada={header.modelo === "SIMPLIFICADA"}
+        readOnly={readOnly}
+        onCampo={onCampo}
       />
 
       <CancelarDialog

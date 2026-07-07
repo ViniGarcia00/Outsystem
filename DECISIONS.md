@@ -620,3 +620,31 @@ Formato: **ADR** enxuto (Architecture Decision Record).
 - **Consequência:** toda a lógica financeira segue concentrada em `totais.ts`
   (sem duplicação). Fora de escopo: total final/condições/impostos/custos/margem/
   lucro/PDF/Som/Wi-Fi.
+
+---
+
+## Sprint 2.6.5 — Finalização da Proposta
+
+### ADR-0222 — Informações comerciais finais: texto livre no cabeçalho
+
+- **Decisão:** finalizar o conteúdo comercial da proposta antes do PDF (2.7) com
+  **quatro campos de texto livre**, pertencentes à **Proposta** (cabeçalho), NÃO
+  aos itens e SEM qualquer efeito em cálculo/total/desconto/frete:
+  - `formaPagamento` (linha) — ex.: PIX, à vista, entrada + saldo na instalação.
+  - `previsaoInstalacao` (linha) — ex.: 2 dias úteis, conforme cronograma.
+  - `obsComerciais` (multilinha) — ex.: validade, responsabilidades do cliente.
+  - `obsTecnicas` (multilinha) — ex.: requisitos de Wi-Fi/energia/compatibilidade.
+- **Sem cadastro/tabela auxiliar:** são apenas campos-texto da Proposta.
+  Persistência **aditiva** (migration `20260707060000_finalizacao`, colunas
+  `TEXT` nulas). Nenhuma nova tabela/entidade; snapshots inalterados.
+- **Apresentação:** `previsaoInstalacao` é exibido **apenas no modelo Completa**;
+  na Simplificada o campo fica oculto, mas a informação continua armazenada
+  normalmente (regra somente de apresentação). Os demais valem para os dois.
+- **UI:** novo componente `FinalizacaoProposta`, **abaixo** da área de conteúdo,
+  reutilizando o padrão self-contained do cabeçalho (commit no blur via
+  `onCampo`/patch). Dois grupos claros: **Informações Comerciais** e
+  **Observações**.
+- **Consequência:** payload/`WorkspaceDTO`/`criar`/`salvar`/schema Zod carregam
+  os quatro campos; persistência normal (`trimOrNull`). Fora de escopo (2.6.5):
+  PDF, garantia, prazo de entrega, assinatura/aceite/QR, workflow de aprovação,
+  anexos, cronograma, cadastro de formas de pagamento.

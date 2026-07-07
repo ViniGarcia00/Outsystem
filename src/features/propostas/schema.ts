@@ -20,6 +20,11 @@ export const cabecalhoPatchSchema = z
       .max(3650, "Máximo de 3650 dias."),
     obsInternas: z.string().max(5000).nullable(),
     obsProposta: z.string().max(5000).nullable(),
+    // Finalização da proposta (ADR-0222) — texto livre; não entra em cálculo.
+    formaPagamento: z.string().max(2000).nullable(),
+    previsaoInstalacao: z.string().max(2000).nullable(),
+    obsComerciais: z.string().max(5000).nullable(),
+    obsTecnicas: z.string().max(5000).nullable(),
   })
   .partial();
 
@@ -38,6 +43,11 @@ export const novaPropostaSchema = z.object({
     .max(3650, "Máximo de 3650 dias."),
   obsInternas: z.string().max(5000).nullable(),
   obsProposta: z.string().max(5000).nullable(),
+  // Finalização da proposta (ADR-0222) — texto livre; não entra em cálculo.
+  formaPagamento: z.string().max(2000).nullable(),
+  previsaoInstalacao: z.string().max(2000).nullable(),
+  obsComerciais: z.string().max(5000).nullable(),
+  obsTecnicas: z.string().max(5000).nullable(),
   descontoTipo: tipoDescontoEnum.optional(),
   descontoValor: z.number().nonnegative().optional(),
   frete: z.number().nonnegative().optional(),

@@ -52,6 +52,11 @@ export interface WorkspaceDTO {
   validadeDias: number;
   obsInternas: string;
   obsProposta: string;
+  // Finalização (ADR-0222) — texto livre; não entra em cálculo/total.
+  formaPagamento: string;
+  previsaoInstalacao: string;
+  obsComerciais: string;
+  obsTecnicas: string;
   // Desconto (modelagem separada tipo/valor; total é derivado)
   descontoTipo: TipoDesconto;
   descontoValor: number;
@@ -84,6 +89,10 @@ export async function getWorkspace(
       validadeDias: true,
       obsInternas: true,
       obsProposta: true,
+      formaPagamento: true,
+      previsaoInstalacao: true,
+      obsComerciais: true,
+      obsTecnicas: true,
       tipoDesconto: true,
       valorDesconto: true,
       frete: true,
@@ -140,6 +149,10 @@ export async function getWorkspace(
     validadeDias: p.validadeDias,
     obsInternas: p.obsInternas ?? "",
     obsProposta: p.obsProposta ?? "",
+    formaPagamento: p.formaPagamento ?? "",
+    previsaoInstalacao: p.previsaoInstalacao ?? "",
+    obsComerciais: p.obsComerciais ?? "",
+    obsTecnicas: p.obsTecnicas ?? "",
     descontoTipo: p.tipoDesconto,
     descontoValor: toNumber(p.valorDesconto),
     frete: toNumber(p.frete),

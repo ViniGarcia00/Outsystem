@@ -32,6 +32,11 @@ export interface CabecalhoValores {
   validadeDias: number;
   obsInternas: string;
   obsProposta: string;
+  // Finalização da proposta (ADR-0222).
+  formaPagamento: string;
+  previsaoInstalacao: string;
+  obsComerciais: string;
+  obsTecnicas: string;
 }
 
 /** Sentinela para "sem vendedor" (o Select do shadcn não aceita value vazio). */

@@ -150,10 +150,38 @@ test("Propostas: criação diferida, emitir e revisão automática", async ({
   await frete.fill("10000");
   await expect(frete).toHaveValue(/R\$\s*100,00/);
 
+  // Finalização (ADR-0222): informações comerciais finais (texto livre).
+  // No modelo Completa a "Previsão de instalação" é exibida.
+  await expect(
+    page.getByText("Informações Comerciais", { exact: true }),
+  ).toBeVisible();
+  await page.getByLabel("Forma de pagamento").fill("PIX à vista");
+  await page.getByLabel("Previsão de instalação").fill("2 dias úteis");
+  await page
+    .getByLabel("Observações comerciais")
+    .fill("Valores válidos conforme a validade da proposta.");
+  await page
+    .getByLabel("Observações técnicas")
+    .fill("Necessário Wi-Fi 2.4 GHz.");
+
   // "Criar Proposta" persiste tudo e abre o workspace definitivo.
   await page.getByRole("button", { name: "Criar Proposta" }).click();
   await expect(page).toHaveURL(/\/propostas\/(?!nova$)[^/]+$/);
   await expect(page.getByRole("heading", { name: "Conteúdo" })).toBeVisible();
+
+  // Persistência da finalização (round-trip pós-criação).
+  await expect(page.getByLabel("Forma de pagamento")).toHaveValue(
+    "PIX à vista",
+  );
+  await expect(page.getByLabel("Previsão de instalação")).toHaveValue(
+    "2 dias úteis",
+  );
+  await expect(page.getByLabel("Observações comerciais")).toHaveValue(
+    "Valores válidos conforme a validade da proposta.",
+  );
+  await expect(page.getByLabel("Observações técnicas")).toHaveValue(
+    "Necessário Wi-Fi 2.4 GHz.",
+  );
 
   // Proposta existente: edição fica pendente até "Salvar Alterações".
   await page
@@ -223,6 +251,11 @@ test("Propostas: modelo Simplificada (produtos sem seções)", async ({
   ).toHaveCount(0);
   // Frete presente também na Simplificada (padrão R$ 0,00).
   await expect(page.getByLabel("Frete")).toHaveValue(/R\$\s*0,00/);
+
+  // Finalização: "Forma de pagamento" presente; "Previsão de instalação"
+  // fica OCULTA no modelo Simplificada (regra apenas de apresentação).
+  await expect(page.getByLabel("Forma de pagamento")).toBeVisible();
+  await expect(page.getByLabel("Previsão de instalação")).toHaveCount(0);
 
   // Cria e abre o workspace definitivo.
   await page.getByRole("button", { name: "Criar Proposta" }).click();
