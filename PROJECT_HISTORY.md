@@ -446,7 +446,7 @@ ADRs, problemas, soluções, lições e o hash do commit.
 - **Gate:** lint 0, typecheck 0, build 0, smoke **7/7** (frete padrão + alteração,
   Completa e Simplificada), `/api/health` 200 (db up). Verificado por script
   (soma/clamps + round-trip da persistência).
-- **Hash do commit:** `PENDENTE`
+- **Hash do commit:** `3fdc49e`
 - **Próxima:** **2.7 PDF**.
 
 ---
