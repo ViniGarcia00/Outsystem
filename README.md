@@ -20,10 +20,12 @@ autenticação na v1. Versão atual em [`VERSION`](./VERSION).
 - **Cadastros:** Configuração do Sistema, Clientes, Produtos, Vendedores (CRUD
   completo).
 - **Propostas (workspace):** tela única para criar/editar/revisar; cabeçalho +
-  seções + produtos com **auto-save**; **"Gerar PDF"** emite e congela a revisão;
-  **revisão automática** na 1ª edição pós-emissão; duplicação, cancelamento e
-  auditoria granular. Status: Rascunho/Emitida/Cancelada. **Sem** serviços/PDF
-  binário ainda (próximas Sprints).
+  seções + produtos, editados em memória e persistidos em **"Salvar Alterações"**/
+  **"Criar Proposta"**; cada produto carrega **valor de produto + valor de
+  serviço** (editáveis na proposta) com **totais por linha**; **"Gerar PDF"** emite
+  e congela a revisão; **revisão automática** no salvamento após emitida;
+  duplicação, cancelamento e auditoria. Status: Rascunho/Emitida/Cancelada.
+  **Sem** totais/descontos/frete/PDF binário ainda (próximas Sprints).
 - **Dev:** `/api/health` e `/dev/diagnostics` (somente desenvolvimento).
 
 ---

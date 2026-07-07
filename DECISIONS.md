@@ -493,3 +493,40 @@ Formato: **ADR** enxuto (Architecture Decision Record).
   `serverConteudoActions`) — código morto. O `idMap` deixou de ser necessário
   (não há mais fork por-operação). Sem migração. "Nada de revisão durante a
   digitação" é garantido por construção (nada persiste até salvar).
+
+---
+
+## Sprint 2.3 — Serviços (Projeto de Automação)
+
+### ADR-0215 — Serviço faz parte do cadastro do Produto (não é entidade independente)
+
+- **Contexto:** chegou-se a esboçar um cadastro **separado** de Serviços
+  (tabela/CRUD/autocomplete/`servicoId`); a regra de negócio correta é outra.
+- **Decisão:** **não** existe entidade Serviço independente. O **valor de serviço
+  faz parte do cadastro do Produto** (`Produto.valorProduto` + `valorServico`).
+  Ao adicionar um produto na proposta, **ambos** os valores são copiados para o
+  item (snapshot `PropostaItem.valorProduto` + `valorServico`) e ficam
+  **editáveis apenas naquela proposta** — sem alterar o cadastro.
+- **Cálculos por linha (apenas visuais):** Total Produto = Qtd × Valor Produto;
+  Total Serviço = Qtd × Valor Serviço; Total da Linha = Total Produto + Total
+  Serviço.
+- **Modelagem:** **sem migração** — o schema já tinha `valorProduto` +
+  `valorServico` em `Produto` e `PropostaItem`. O esboço de "Serviço separado"
+  foi revertido e o banco de dev **resetado** (autorização explícita do usuário)
+  ao estado das 4 migrations legítimas.
+- **Consequência:** uma única arquitetura de item; o diálogo e a grade passam a
+  tratar os dois valores; auditoria consolidada (ADR-0214) cobre tudo sem exceção.
+  Não foram criados: tabela `servicos`, CRUD, autocomplete de serviço, `servicoId`
+  ou módulo de Serviço.
+
+### ADR-0217 — Enquadramento "Projeto de Automação" e forward-compatibility (documental)
+
+- **Decisão (conceitual, sem código):** o conteúdo atual da proposta (Revisão →
+  Seções → Itens) **é** o **Projeto de Automação**. **Projeto de Som** e **Projeto
+  de Wi-Fi** são módulos **futuros** e **NÃO** são modelados agora — sem tabela
+  `Projeto`, módulo, soluções, templates ou pacotes.
+- **Forward-compatibility:** a arquitetura de item é genérica; no futuro, uma
+  camada **"Projeto"** pode ser inserida de forma **aditiva** (Revisão → Projetos
+  → Seções → Itens) sem reescrever a arquitetura de itens. Nenhuma nomenclatura
+  "automação" foi gravada em schema/código (o módulo continua "Propostas"); o
+  enquadramento é apenas conceitual.

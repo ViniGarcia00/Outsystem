@@ -4,6 +4,31 @@ Todas as mudanças relevantes deste projeto são documentadas aqui.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o
 projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [0.7.0] — 2026-07-07
+
+### Sprint 2.3 — Serviços (Projeto de Automação) + Total da linha. Ver ADR-0215/0217.
+
+Serviço **não** é entidade separada: o valor de serviço faz parte do cadastro do
+**Produto**. **Sem migração** (o modelo já tinha os dois valores).
+
+#### Adicionado
+
+- Item da proposta passa a expor **Valor Produto** e **Valor Serviço**, ambos
+  copiados do cadastro e **editáveis apenas na proposta** (snapshot; não altera o
+  cadastro do Produto).
+- **Totais por linha** (visuais): Total Produto (Qtd × Valor Produto), Total
+  Serviço (Qtd × Valor Serviço) e Total da Linha (soma).
+- Grade: **Código · Descrição · Qtd · UN · Valor Produto · Valor Serviço · Total
+  Produto · Total Serviço · Total · Ações**; o diálogo de adicionar produto ganha
+  os dois campos de valor.
+
+#### Notas
+
+- Um esboço inicial de "cadastro de Serviços separado" foi **revertido**; o banco
+  de dev foi resetado (com autorização) ao estado das 4 migrations legítimas.
+- **Não** foram criados: tabela `servicos`, CRUD/autocomplete/módulo de serviço,
+  ou relação `servicoId`.
+
 ## [0.6.4] — 2026-07-07
 
 ### Edição por "Salvar Alterações" (pré-2.3). Ver ADR-0214.

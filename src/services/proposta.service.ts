@@ -147,7 +147,13 @@ async function copiarConteudo(tx: Tx, origemId: string, destinoId: string) {
 /** Item/seção montados no cliente antes da confirmação da criação. */
 export interface NovaPropostaSecao {
   nome: string;
-  itens: { produtoId: string; quantidade: number; valorUnitario?: number }[];
+  itens: {
+    produtoId: string;
+    quantidade: number;
+    /** Editáveis na proposta; default vem do cadastro do produto. */
+    valorProduto?: number;
+    valorServico?: number;
+  }[];
 }
 
 export interface NovaPropostaPayload {
@@ -218,8 +224,8 @@ export async function criarPropostaCompleta(
             descricao: prod.descricao,
             unidade: prod.unidade,
             // Snapshot com o valor usado na proposta (editável na montagem).
-            valorProduto: linha.valorUnitario ?? prod.valorProduto,
-            valorServico: prod.valorServico,
+            valorProduto: linha.valorProduto ?? prod.valorProduto,
+            valorServico: linha.valorServico ?? prod.valorServico,
             quantidade: linha.quantidade,
             ordem: ii,
           },
@@ -349,8 +355,8 @@ export async function salvarProposta(
             codigo: prod.codigo,
             descricao: prod.descricao,
             unidade: prod.unidade,
-            valorProduto: linha.valorUnitario ?? prod.valorProduto,
-            valorServico: prod.valorServico,
+            valorProduto: linha.valorProduto ?? prod.valorProduto,
+            valorServico: linha.valorServico ?? prod.valorServico,
             quantidade: linha.quantidade,
             ordem: ii,
           },

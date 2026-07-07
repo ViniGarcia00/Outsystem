@@ -1,6 +1,6 @@
 {
   "name": "9-proposta-outmat",
-  "version": "0.6.4",
+  "version": "0.7.0",
   "private": true,
   "scripts": {
     "dev": "next dev",

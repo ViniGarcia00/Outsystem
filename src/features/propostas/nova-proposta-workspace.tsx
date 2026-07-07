@@ -85,7 +85,8 @@ export function NovaPropostaWorkspace({
         itens: s.itens.map((it) => ({
           produtoId: it.produtoId as string,
           quantidade: it.quantidade,
-          valorUnitario: it.valorProduto,
+          valorProduto: it.valorProduto,
+          valorServico: it.valorServico,
         })),
       })),
     });

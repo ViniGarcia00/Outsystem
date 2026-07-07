@@ -21,19 +21,22 @@ export interface ConteudoActions {
     secaoId: string,
     produto: ProdutoRef,
     quantidade: number,
-    valorUnitario: number,
+    valorProduto: number,
+    valorServico: number,
   ): Promise<ActionResult>;
   /** Simplificada: adiciona direto na proposta (seção implícita). */
   adicionarItemAvulso(
     produto: ProdutoRef,
     quantidade: number,
-    valorUnitario: number,
+    valorProduto: number,
+    valorServico: number,
   ): Promise<ActionResult>;
   atualizarQuantidade(
     itemId: string,
     quantidade: number,
   ): Promise<ActionResult>;
-  atualizarValorUnitario(itemId: string, valor: number): Promise<ActionResult>;
+  atualizarValorProduto(itemId: string, valor: number): Promise<ActionResult>;
+  atualizarValorServico(itemId: string, valor: number): Promise<ActionResult>;
   removerItem(itemId: string): Promise<ActionResult>;
   moverItem(itemId: string, direcao: Direcao): Promise<ActionResult>;
 }

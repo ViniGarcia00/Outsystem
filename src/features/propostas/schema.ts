@@ -44,7 +44,9 @@ export const novaPropostaSchema = z.object({
         z.object({
           produtoId: z.string().min(1),
           quantidade: z.number().positive(),
-          valorUnitario: z.number().nonnegative().optional(),
+          // Ambos os valores são editáveis na proposta (default vem do cadastro).
+          valorProduto: z.number().nonnegative().optional(),
+          valorServico: z.number().nonnegative().optional(),
         }),
       ),
     }),

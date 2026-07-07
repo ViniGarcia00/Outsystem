@@ -25,11 +25,12 @@ function moverNaLista<T extends { id: string; ordem: number }>(
   return novo.map((x, i) => ({ ...x, ordem: i }));
 }
 
-/** Monta um item em memória (snapshot do produto; valor = valor unitário usado). */
+/** Monta um item em memória (snapshot do produto; valores usados na proposta). */
 function criarItem(
   produto: ProdutoRef,
   quantidade: number,
-  valorUnitario: number,
+  valorProduto: number,
+  valorServico: number,
   ordem: number,
 ): ItemDTO {
   return {
@@ -39,8 +40,8 @@ function criarItem(
     codigo: produto.codigo,
     descricao: produto.descricao,
     unidade: produto.unidade,
-    valorProduto: valorUnitario,
-    valorServico: produto.valorServico,
+    valorProduto,
+    valorServico,
     quantidade,
     ordem,
   };
@@ -88,7 +89,13 @@ export function useConteudoMemoria(
         mut((prev) => moverNaLista(prev, secaoId, direcao));
         return ok(undefined);
       },
-      adicionarItem: async (secaoId, produto, quantidade, valorUnitario) => {
+      adicionarItem: async (
+        secaoId,
+        produto,
+        quantidade,
+        valorProduto,
+        valorServico,
+      ) => {
         mut((prev) =>
           prev.map((s) =>
             s.id === secaoId
@@ -96,7 +103,13 @@ export function useConteudoMemoria(
                   ...s,
                   itens: [
                     ...s.itens,
-                    criarItem(produto, quantidade, valorUnitario, s.itens.length),
+                    criarItem(
+                      produto,
+                      quantidade,
+                      valorProduto,
+                      valorServico,
+                      s.itens.length,
+                    ),
                   ],
                 }
               : s,
@@ -104,7 +117,12 @@ export function useConteudoMemoria(
         );
         return ok(undefined);
       },
-      adicionarItemAvulso: async (produto, quantidade, valorUnitario) => {
+      adicionarItemAvulso: async (
+        produto,
+        quantidade,
+        valorProduto,
+        valorServico,
+      ) => {
         mut((prev) => {
           const base: SecaoDTO[] =
             prev.length > 0
@@ -116,7 +134,13 @@ export function useConteudoMemoria(
                   ...s,
                   itens: [
                     ...s.itens,
-                    criarItem(produto, quantidade, valorUnitario, s.itens.length),
+                    criarItem(
+                      produto,
+                      quantidade,
+                      valorProduto,
+                      valorServico,
+                      s.itens.length,
+                    ),
                   ],
                 }
               : s,
@@ -135,12 +159,23 @@ export function useConteudoMemoria(
         );
         return ok(undefined);
       },
-      atualizarValorUnitario: async (itemId, valor) => {
+      atualizarValorProduto: async (itemId, valor) => {
         mut((prev) =>
           prev.map((s) => ({
             ...s,
             itens: s.itens.map((it) =>
               it.id === itemId ? { ...it, valorProduto: valor } : it,
+            ),
+          })),
+        );
+        return ok(undefined);
+      },
+      atualizarValorServico: async (itemId, valor) => {
+        mut((prev) =>
+          prev.map((s) => ({
+            ...s,
+            itens: s.itens.map((it) =>
+              it.id === itemId ? { ...it, valorServico: valor } : it,
             ),
           })),
         );

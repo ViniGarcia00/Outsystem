@@ -19,10 +19,13 @@ import { formatCurrency } from "@/utils";
 import type { ConteudoActions } from "./conteudo-handlers";
 
 /**
- * Grade de produtos: Código · Descrição · Qtd · UN · Valor Unitário · Total.
- * Qtd e Valor Unitário são editáveis (auto-save); o Total (Qtd × Valor Unitário)
- * é apenas visual. Reutilizada por Comercial (dentro do SecaoCard) e Simplificada
- * (lista plana). O valor editado grava no snapshot do item, não no cadastro.
+ * Grade de produtos: Código · Descrição · Qtd · UN · Valor Produto · Valor
+ * Serviço · Total Produto · Total Serviço · Total · Ações.
+ * Qtd, Valor Produto e Valor Serviço são editáveis (gravam no snapshot do item,
+ * não no cadastro). Totais (apenas visuais):
+ *  - Total Produto = Qtd × Valor Produto
+ *  - Total Serviço = Qtd × Valor Serviço
+ *  - Total (da linha) = Total Produto + Total Serviço
  */
 export function ItensTable({
   itens,
@@ -52,7 +55,10 @@ export function ItensTable({
             <TableHead>Descrição</TableHead>
             <TableHead>Qtd.</TableHead>
             <TableHead>UN</TableHead>
-            <TableHead>Valor Unitário</TableHead>
+            <TableHead>Valor Produto</TableHead>
+            <TableHead>Valor Serviço</TableHead>
+            <TableHead>Total Produto</TableHead>
+            <TableHead>Total Serviço</TableHead>
             <TableHead>Total</TableHead>
             {!readOnly && <TableHead className="sr-only">Ações</TableHead>}
           </TableRow>
@@ -60,7 +66,7 @@ export function ItensTable({
         <TableBody>
           {itens.map((item, index) => (
             <ItemRow
-              key={`${item.id}:${item.quantidade}:${item.valorProduto}`}
+              key={`${item.id}:${item.quantidade}:${item.valorProduto}:${item.valorServico}`}
               item={item}
               actions={actions}
               readOnly={readOnly}
@@ -90,7 +96,9 @@ function ItemRow({
   isLast: boolean;
   refresh: () => void;
 }) {
-  const total = item.quantidade * item.valorProduto;
+  const totalProduto = item.quantidade * item.valorProduto;
+  const totalServico = item.quantidade * item.valorServico;
+  const totalLinha = totalProduto + totalServico;
 
   const salvarQtd = async (valor: string) => {
     const q = Number(valor);
@@ -100,10 +108,18 @@ function ItemRow({
     else toast.error(result.error);
   };
 
-  const salvarValor = async (valor: string) => {
+  const salvarValorProduto = async (valor: string) => {
     const v = Number(valor);
     if (!Number.isFinite(v) || v < 0 || v === item.valorProduto) return;
-    const result = await actions.atualizarValorUnitario(item.id, v);
+    const result = await actions.atualizarValorProduto(item.id, v);
+    if (result.success) refresh();
+    else toast.error(result.error);
+  };
+
+  const salvarValorServico = async (valor: string) => {
+    const v = Number(valor);
+    if (!Number.isFinite(v) || v < 0 || v === item.valorServico) return;
+    const result = await actions.atualizarValorServico(item.id, v);
     if (result.success) refresh();
     else toast.error(result.error);
   };
@@ -151,14 +167,36 @@ function ItemRow({
             step="any"
             min={0}
             defaultValue={item.valorProduto}
-            onBlur={(e) => salvarValor(e.target.value)}
+            onBlur={(e) => salvarValorProduto(e.target.value)}
             className="h-8 w-28"
-            aria-label="Valor unitário"
+            aria-label="Valor produto"
           />
         )}
       </TableCell>
+      <TableCell>
+        {readOnly ? (
+          formatCurrency(item.valorServico)
+        ) : (
+          <Input
+            type="number"
+            inputMode="decimal"
+            step="any"
+            min={0}
+            defaultValue={item.valorServico}
+            onBlur={(e) => salvarValorServico(e.target.value)}
+            className="h-8 w-28"
+            aria-label="Valor serviço"
+          />
+        )}
+      </TableCell>
+      <TableCell className="tabular-nums">
+        {formatCurrency(totalProduto)}
+      </TableCell>
+      <TableCell className="tabular-nums">
+        {formatCurrency(totalServico)}
+      </TableCell>
       <TableCell className="font-medium tabular-nums">
-        {formatCurrency(total)}
+        {formatCurrency(totalLinha)}
       </TableCell>
       {!readOnly && (
         <TableCell>

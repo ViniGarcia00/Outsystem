@@ -321,5 +321,39 @@ ADRs, problemas, soluções, lições e o hash do commit.
 
 ---
 
+## Sprint 2.3 — Serviços (Projeto de Automação) + Total da linha
+
+- **Versão:** 0.7.0
+- **Data:** 2026-07-07
+- **Objetivo:** suportar o valor de serviço e os cálculos por linha no item da
+  proposta, evoluindo o modelo atual de Produtos.
+- **Correção de rumo:** serviço **não** é entidade separada — o valor de serviço
+  faz parte do cadastro do **Produto**. O esboço inicial de "cadastro de Serviços"
+  foi revertido e o banco de dev **resetado** (autorização explícita) ao estado
+  das 4 migrations legítimas. **Sem migração** (o modelo já tinha os dois valores).
+- **Principais entregas:**
+  - Item expõe **Valor Produto** + **Valor Serviço**, ambos do cadastro e
+    **editáveis na proposta** (snapshot; cadastro intacto).
+  - **Totais por linha** (visuais): Total Produto, Total Serviço, Total da Linha.
+  - Grade com as novas colunas; diálogo com os dois campos de valor.
+  - Enquadramento "Projeto de Automação" + forward-compat para Som/Wi-Fi
+    (documental; nada modelado).
+- **ADRs criadas:** ADR-0215 (serviço = valor do Produto), ADR-0217 (Projeto de
+  Automação / forward-compat).
+- **Problemas encontrados:** migration/entidade de Serviço aplicada por engano no
+  banco de dev antes da correção.
+- **Como foram resolvidos:** reversão dos arquivos + `prisma migrate reset` no
+  banco de dev (com consentimento explícito exigido pelo guard do Prisma) +
+  reseed.
+- **Lições aprendidas:** confirmar a regra de negócio (serviço no Produto vs
+  entidade separada) antes de modelar; o guard de reset do Prisma 7 exige
+  consentimento textual explícito do usuário.
+- **Gate:** lint 0, typecheck 0, build 0, smoke **7/7**, `/api/health` 200 (db
+  up). Verificado por script: snapshot dos dois valores editados (cadastro
+  intacto) e os 3 totais por linha.
+- **Hash do commit:** `PENDENTE`
+
+---
+
 > Próximas Sprints: adicionar uma nova seção ao final, seguindo este mesmo
 > formato, ao concluir cada Sprint.

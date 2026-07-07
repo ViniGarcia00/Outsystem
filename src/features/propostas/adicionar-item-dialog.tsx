@@ -22,11 +22,12 @@ interface AdicionarItemDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   titulo: string;
-  /** Adiciona o item ao rascunho em memória. */
+  /** Adiciona o item ao rascunho em memória (valores editáveis na proposta). */
   onAdd: (
     produto: ProdutoSuggestion,
     quantidade: number,
-    valorUnitario: number,
+    valorProduto: number,
+    valorServico: number,
   ) => Promise<ActionResult>;
   onAdded: () => void;
 }
@@ -64,29 +65,34 @@ function ItemForm({
   onAdd: (
     produto: ProdutoSuggestion,
     quantidade: number,
-    valorUnitario: number,
+    valorProduto: number,
+    valorServico: number,
   ) => Promise<ActionResult>;
   onAdded: () => void;
   onClose: () => void;
 }) {
   const [produto, setProduto] = useState<ProdutoSuggestion | null>(null);
   const [quantidade, setQuantidade] = useState("1");
-  const [valor, setValor] = useState("");
+  const [valorProduto, setValorProduto] = useState("");
+  const [valorServico, setValorServico] = useState("");
   const [saving, setSaving] = useState(false);
 
   const q = Number(quantidade);
-  const v = Number(valor);
+  const vp = Number(valorProduto);
+  const vs = Number(valorServico);
   const valido =
     Boolean(produto) &&
     Number.isFinite(q) &&
     q > 0 &&
-    Number.isFinite(v) &&
-    v >= 0;
+    Number.isFinite(vp) &&
+    vp >= 0 &&
+    Number.isFinite(vs) &&
+    vs >= 0;
 
   const adicionar = async () => {
     if (!produto || !valido) return;
     setSaving(true);
-    const result = await onAdd(produto, q, v);
+    const result = await onAdd(produto, q, vp, vs);
     if (result.success) {
       toast.success("Produto adicionado.");
       onClose();
@@ -104,12 +110,15 @@ function ItemForm({
           autoFocus
           onSelect={(p) => {
             setProduto(p);
-            // Valor unitário pré-preenchido com o preço do cadastro (editável).
-            if (p) setValor(String(p.valorProduto));
+            // Valores pré-preenchidos com o cadastro (editáveis na proposta).
+            if (p) {
+              setValorProduto(String(p.valorProduto));
+              setValorServico(String(p.valorServico));
+            }
           }}
         />
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-3 gap-4">
           <div className="space-y-2">
             <Label htmlFor="add-qtd">Quantidade</Label>
             <Input
@@ -123,21 +132,33 @@ function ItemForm({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="add-valor">Valor unitário</Label>
+            <Label htmlFor="add-valor-produto">Valor produto</Label>
             <Input
-              id="add-valor"
+              id="add-valor-produto"
               type="number"
               inputMode="decimal"
               step="any"
               min={0}
-              value={valor}
-              onChange={(e) => setValor(e.target.value)}
+              value={valorProduto}
+              onChange={(e) => setValorProduto(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="add-valor-servico">Valor serviço</Label>
+            <Input
+              id="add-valor-servico"
+              type="number"
+              inputMode="decimal"
+              step="any"
+              min={0}
+              value={valorServico}
+              onChange={(e) => setValorServico(e.target.value)}
             />
           </div>
         </div>
         <p className="text-xs text-muted-foreground">
-          O valor vale apenas para este item da proposta — não altera o cadastro
-          do produto.
+          Os valores valem apenas para este item da proposta — não alteram o
+          cadastro do produto.
         </p>
       </div>
 

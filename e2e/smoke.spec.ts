@@ -121,7 +121,11 @@ test("Propostas: criação diferida, emitir e revisão automática", async ({
   await page.getByRole("option").first().click();
   await page.getByRole("button", { name: "Adicionar", exact: true }).click();
   await expect(
-    page.getByRole("columnheader", { name: "Total" }),
+    page.getByRole("columnheader", { name: "Total", exact: true }),
+  ).toBeVisible();
+  // Valor Serviço agora é uma coluna própria (item carrega produto + serviço).
+  await expect(
+    page.getByRole("columnheader", { name: "Valor Serviço" }),
   ).toBeVisible();
 
   // "Criar Proposta" persiste tudo e abre o workspace definitivo.
@@ -181,7 +185,9 @@ test("Propostas: modelo Simplificada (produtos sem seções)", async ({
   await page.getByLabel("Produto", { exact: true }).fill("RTR");
   await page.getByRole("option").first().click();
   await page.getByRole("button", { name: "Adicionar", exact: true }).click();
-  await expect(page.getByRole("columnheader", { name: "Total" })).toBeVisible();
+  await expect(
+    page.getByRole("columnheader", { name: "Total", exact: true }),
+  ).toBeVisible();
 
   // Cria e abre o workspace definitivo.
   await page.getByRole("button", { name: "Criar Proposta" }).click();
