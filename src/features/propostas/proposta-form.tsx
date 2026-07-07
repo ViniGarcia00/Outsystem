@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import type { StatusProposta } from "@/services/proposta.service";
 
 import { createPropostaAction, updatePropostaAction } from "./actions";
+import { ClienteAutocompleteField } from "./cliente-autocomplete";
 import {
   MODELO_OPTIONS,
   STATUS_BADGE_VARIANT,
@@ -33,7 +34,6 @@ interface Option {
 interface PropostaFormProps {
   propostaId?: string;
   defaultValues: PropostaFormValues;
-  clientes: Option[];
   vendedores: Option[];
   proposalNumber?: number;
   revisaoAtual?: number | null;
@@ -47,7 +47,6 @@ interface PropostaFormProps {
 export function PropostaForm({
   propostaId,
   defaultValues,
-  clientes,
   vendedores,
   proposalNumber,
   revisaoAtual,
@@ -121,22 +120,28 @@ export function PropostaForm({
       readOnly={readOnly}
       headerActions={headerActions}
     >
-      <FormSection title="Dados da proposta">
+      <FormSection title="Dados da proposta" cols={1}>
+        {/* Modelo da proposta — primeiro campo, ocupando a linha inteira. */}
         <SelectField
-          name="clienteId"
-          label="Cliente"
-          options={clientes}
-          placeholder="Selecione o cliente"
+          name="modelo"
+          label="Modelo da proposta"
+          options={MODELO_OPTIONS}
         />
-        <SelectField
-          name="vendedorId"
-          label="Vendedor"
-          options={vendedores}
-          placeholder="Opcional"
-        />
-        <SelectField name="modelo" label="Modelo" options={MODELO_OPTIONS} />
-        <NumberField name="validadeDias" label="Validade (dias)" min={1} />
-        <SelectField name="status" label="Status" options={statusOpts} />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <ClienteAutocompleteField
+            name="clienteId"
+            label="Cliente"
+            initialLabel={clienteNome}
+          />
+          <SelectField
+            name="vendedorId"
+            label="Vendedor"
+            options={vendedores}
+            placeholder="Opcional"
+          />
+          <NumberField name="validadeDias" label="Validade (dias)" min={1} />
+          <SelectField name="status" label="Status" options={statusOpts} />
+        </div>
       </FormSection>
 
       <FormSection title="Observações" cols={1}>

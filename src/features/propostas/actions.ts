@@ -3,6 +3,10 @@
 import { revalidatePath } from "next/cache";
 
 import {
+  searchClientes,
+  type ClienteSuggestion,
+} from "@/services/cliente.service";
+import {
   cancelarProposta,
   criarRevisao,
   createProposta,
@@ -17,6 +21,13 @@ import { cancelarSchema, propostaSchema } from "./schema";
 
 export async function listPropostasAction(): Promise<PropostaListItem[]> {
   return listPropostas();
+}
+
+/** Autocomplete de clientes na proposta (Nome/Razão Social/CPF/CNPJ). */
+export async function searchClientesAction(
+  query: string,
+): Promise<ClienteSuggestion[]> {
+  return searchClientes(query);
 }
 
 export async function createPropostaAction(

@@ -8,12 +8,8 @@ export const metadata: Metadata = { title: "Nova proposta" };
 export const dynamic = "force-dynamic";
 
 export default async function NovaPropostaPage() {
-  const { clientes, vendedores } = await getPropostaFormOptions();
+  const { vendedores } = await getPropostaFormOptions();
   return (
-    <PropostaForm
-      defaultValues={propostaDefaults}
-      clientes={clientes}
-      vendedores={vendedores}
-    />
+    <PropostaForm defaultValues={propostaDefaults} vendedores={vendedores} />
   );
 }

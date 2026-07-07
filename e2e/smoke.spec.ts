@@ -87,6 +87,13 @@ test("navegação principal entre os módulos", async ({ page }) => {
 test("Propostas: criar, abrir workspace, adicionar seção e produto", async ({
   page,
 }) => {
+  // Garante um cliente pesquisável (nome único) para o autocomplete.
+  const clienteNome = `E2E Proposta Cliente ${Date.now()}`;
+  await page.goto("/clientes/novo");
+  await page.getByLabel("Nome", { exact: true }).fill(clienteNome);
+  await page.getByRole("button", { name: "Salvar" }).click();
+  await expect(page).toHaveURL(/\/clientes$/);
+
   await page.goto("/propostas");
   await expect(
     page.getByRole("heading", { level: 1, name: "Propostas" }),
@@ -95,8 +102,10 @@ test("Propostas: criar, abrir workspace, adicionar seção e produto", async ({
   // Criar → o salvar leva ao workspace da nova proposta.
   await page.getByRole("button", { name: "Nova proposta" }).click();
   await expect(page).toHaveURL(/\/propostas\/nova$/);
-  await page.getByLabel("Cliente").click();
-  await page.getByRole("option").first().click();
+
+  // Cliente por autocomplete: digitar (>= 3 caracteres) e escolher a sugestão.
+  await page.getByLabel("Cliente", { exact: true }).fill(clienteNome);
+  await page.getByRole("option", { name: clienteNome }).click();
   await page.getByRole("button", { name: "Salvar" }).click();
 
   // Workspace da nova proposta.

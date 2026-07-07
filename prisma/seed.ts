@@ -5,11 +5,16 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
 
 /**
- * Seed de dados de exemplo para desenvolvimento/testes (Sprint 1).
+ * Seed de dados de exemplo para desenvolvimento/testes.
+ *
+ * IMPORTANTE — o seed é NÃO-DESTRUTIVO e idempotente (ADR-0209):
+ *  - garante o singleton de Configuração do Sistema (sem sobrescrever edições);
+ *  - só popula os cadastros/propostas de exemplo quando o banco está VAZIO;
+ *  - NUNCA executa deleteMany/truncate/reset. Rodar o seed em um banco com dados
+ *    reais não apaga nem altera nenhum registro cadastrado manualmente.
  *
  * Requer um PostgreSQL acessível via DATABASE_URL e a migration aplicada
- * (`npm run db:migrate:deploy`). Popula os cadastros base (Clientes, Produtos,
- * Vendedores) e garante o singleton de Configuração do Sistema.
+ * (`npm run db:migrate:deploy`).
  *
  * Executar: `npm run db:seed`
  */
@@ -85,17 +90,9 @@ const PRODUTOS = [
 ];
 
 async function main() {
-  // Ordem segura de limpeza (propostas primeiro — FK para cliente/vendedor).
-  await prisma.proposta.deleteMany(); // cascata: revisões + auditorias
-  await prisma.produto.deleteMany();
-  await prisma.vendedor.deleteMany();
-  await prisma.cliente.deleteMany();
-
-  await prisma.cliente.createMany({ data: CLIENTES });
-  await prisma.vendedor.createMany({ data: VENDEDORES });
-  await prisma.produto.createMany({ data: PRODUTOS });
-
-  // Configuração do sistema (singleton) com dados de exemplo.
+  // Configuração do sistema (singleton). Idempotente: `update: {}` garante que
+  // uma configuração já existente (inclusive editada manualmente) NUNCA é
+  // sobrescrita — só cria o singleton quando ele ainda não existe.
   await prisma.configuracaoSistema.upsert({
     where: { id: "singleton" },
     update: {},
@@ -118,6 +115,28 @@ async function main() {
         "Agradecemos a oportunidade. Esta proposta é válida por 15 dias.",
     },
   });
+
+  // Seed NÃO-DESTRUTIVO (ADR-0209): os exemplos de cadastros e propostas só são
+  // criados quando o banco está VAZIO. Se já existir qualquer cadastro, o seed
+  // não popula nem apaga nada — dados inseridos manualmente são preservados.
+  // Isto torna `npm run db:seed` seguro para rodar a qualquer momento.
+  const registrosExistentes =
+    (await prisma.cliente.count()) +
+    (await prisma.vendedor.count()) +
+    (await prisma.produto.count()) +
+    (await prisma.proposta.count());
+
+  if (registrosExistentes > 0) {
+    console.log(
+      `Seed: banco já contém dados (${registrosExistentes} registros de cadastro) — ` +
+        `nada a popular. Nenhum registro foi apagado (seed não-destrutivo).`,
+    );
+    return;
+  }
+
+  await prisma.cliente.createMany({ data: CLIENTES });
+  await prisma.vendedor.createMany({ data: VENDEDORES });
+  await prisma.produto.createMany({ data: PRODUTOS });
 
   // Propostas de exemplo (fundação — sem produtos/serviços). Cada uma nasce com
   // Rev.0 + auditoria de criação.

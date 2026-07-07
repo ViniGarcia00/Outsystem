@@ -126,24 +126,17 @@ export interface SelectOption {
 
 /** Opções (clientes/vendedores ativos) para os selects do formulário. */
 export async function getPropostaFormOptions(): Promise<{
-  clientes: SelectOption[];
   vendedores: SelectOption[];
 }> {
-  const [clientes, vendedores] = await Promise.all([
-    prisma.cliente.findMany({
-      where: { ativo: true },
-      select: { id: true, tipoPessoa: true, nome: true, empresa: true },
-      orderBy: { createdAt: "desc" },
-    }),
-    prisma.vendedor.findMany({
-      where: { ativo: true },
-      select: { id: true, nome: true },
-      orderBy: { nome: "asc" },
-    }),
-  ]);
+  // O cliente usa autocomplete com busca sob demanda (searchClientes); aqui só
+  // carregamos os vendedores para o Select.
+  const vendedores = await prisma.vendedor.findMany({
+    where: { ativo: true },
+    select: { id: true, nome: true },
+    orderBy: { nome: "asc" },
+  });
 
   return {
-    clientes: clientes.map((c) => ({ value: c.id, label: clienteDisplay(c) })),
     vendedores: vendedores.map((v) => ({ value: v.id, label: v.nome })),
   };
 }

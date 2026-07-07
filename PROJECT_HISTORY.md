@@ -162,5 +162,38 @@ ADRs, problemas, soluções, lições e o hash do commit.
 
 ---
 
+## Ajustes pré-Sprint 2.3 — UX de Propostas + correção de perda de dados
+
+- **Versão:** 0.5.1
+- **Data:** 2026-07-07
+- **Objetivo:** aplicar ajustes de UX solicitados e **investigar/corrigir a perda
+  dos cadastros manuais** relatada antes de iniciar a Sprint 2.3.
+- **Investigação (perda de dados):** causa raiz = **seed destrutivo**. O
+  `prisma/seed.ts` executava `deleteMany()` em proposta/produto/vendedor/cliente
+  e recriava só os exemplos; cada `npm run db:seed` (rodado nas Sprints 2.1 e
+  2.2) apagou os cadastros manuais da Sprint 1.5. Verificado: `DATABASE_URL`
+  sempre a mesma (`outmat@localhost:5432/outmat_propostas`, nativo); **nenhum**
+  `migrate reset`; banco atual contém exatamente a baseline do seed + artefatos
+  de teste. Config (singleton) preservada pelo `upsert(update:{})`.
+- **Principais entregas:**
+  - Seed **não-destrutivo e idempotente** (ADR-0209): nunca apaga; só popula
+    banco vazio; Configuração garantida sem sobrescrever.
+  - Listagem de Propostas sem as colunas Validade e Modelo (ADR-0210).
+  - Formulário: Modelo da proposta como primeiro campo em linha inteira
+    (ADR-0210).
+  - Cliente por **autocomplete** (Nome/Razão Social/CPF/CNPJ, 3+ chars) —
+    `ClienteAutocompleteField` + `searchClientes`/`searchClientesAction`
+    (ADR-0210).
+- **ADRs criadas:** ADR-0209 (seed não-destrutivo), ADR-0210 (UX de Propostas).
+- **Riscos sinalizados:** o `docker-compose.yml` sobe um PostgreSQL alternativo
+  com usuário `postgres/postgres` (≠ `outmat` da app) e volume próprio; se usado,
+  a app não conecta ou vê um banco vazio — recomendado alinhar credenciais/DB
+  antes de adotá-lo. Não é o banco ativo (dev usa o nativo).
+- **Gate:** lint 0, typecheck 0, build 0, smoke 6/6, `/api/health` 200 (db up),
+  `/dev/diagnostics` 200.
+- **Hash do commit:** `PENDENTE`
+
+---
+
 > Próximas Sprints: adicionar uma nova seção ao final, seguindo este mesmo
 > formato, ao concluir cada Sprint.

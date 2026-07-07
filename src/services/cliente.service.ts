@@ -121,6 +121,89 @@ export async function listClientes(
   });
 }
 
+/** Sugestão do autocomplete de clientes (proposta). */
+export interface ClienteSuggestion {
+  id: string;
+  /** Nome (PF) ou razão social (PJ). */
+  label: string;
+  /** CPF/CNPJ, ou o tipo de pessoa quando não houver documento. */
+  sublabel: string;
+}
+
+const SUGGESTION_SELECT = {
+  id: true,
+  tipoPessoa: true,
+  nome: true,
+  empresa: true,
+  cpfCnpj: true,
+} as const;
+
+/** Menor quantidade de caracteres para disparar a busca do autocomplete. */
+export const CLIENTE_SEARCH_MIN_CHARS = 3;
+
+function toSuggestion(c: {
+  id: string;
+  tipoPessoa: TipoPessoa;
+  nome: string | null;
+  empresa: string | null;
+  cpfCnpj: string | null;
+}): ClienteSuggestion {
+  const label =
+    (c.tipoPessoa === "PJ" ? c.empresa || c.nome : c.nome || c.empresa) || "—";
+  const sublabel =
+    c.cpfCnpj ?? (c.tipoPessoa === "PJ" ? "Pessoa jurídica" : "Pessoa física");
+  return { id: c.id, label, sublabel };
+}
+
+/**
+ * Busca clientes ativos por Nome, Razão Social, CPF ou CNPJ para o autocomplete
+ * da proposta. Só pesquisa a partir de {@link CLIENTE_SEARCH_MIN_CHARS} caracteres.
+ * O documento é comparado ignorando a máscara (dígitos), então "52998224725"
+ * casa com "529.982.247-25".
+ */
+export async function searchClientes(
+  query: string,
+): Promise<ClienteSuggestion[]> {
+  const q = query.trim();
+  if (q.length < CLIENTE_SEARCH_MIN_CHARS) return [];
+  const digits = q.replace(/\D/g, "");
+
+  // Busca textual no banco (nome, razão social e documento como digitado).
+  const porTexto = await prisma.cliente.findMany({
+    where: {
+      ativo: true,
+      OR: [
+        { nome: { contains: q, mode: "insensitive" } },
+        { empresa: { contains: q, mode: "insensitive" } },
+        { cpfCnpj: { contains: q, mode: "insensitive" } },
+      ],
+    },
+    select: SUGGESTION_SELECT,
+    orderBy: { createdAt: "desc" },
+    take: 10,
+  });
+
+  // Busca por documento sem máscara: compara apenas os dígitos armazenados.
+  // Limitada a 200 registros para não varrer toda a tabela por tecla digitada.
+  let porDigitos: (typeof porTexto)[number][] = [];
+  if (digits.length >= CLIENTE_SEARCH_MIN_CHARS) {
+    const comDocumento = await prisma.cliente.findMany({
+      where: { ativo: true, cpfCnpj: { not: null } },
+      select: SUGGESTION_SELECT,
+      orderBy: { createdAt: "desc" },
+      take: 200,
+    });
+    porDigitos = comDocumento.filter((c) =>
+      (c.cpfCnpj ?? "").replace(/\D/g, "").includes(digits),
+    );
+  }
+
+  // Une os dois conjuntos, deduplica por id e limita a 10 sugestões.
+  const porId = new Map<string, (typeof porTexto)[number]>();
+  for (const c of [...porTexto, ...porDigitos]) porId.set(c.id, c);
+  return [...porId.values()].slice(0, 10).map(toSuggestion);
+}
+
 export async function getClienteForEdit(
   id: string,
 ): Promise<ClienteFormDTO | null> {

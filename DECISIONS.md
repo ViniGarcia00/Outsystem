@@ -340,3 +340,43 @@ Formato: **ADR** enxuto (Architecture Decision Record).
   carrega a informação para as próximas Sprints usarem.
 - **Consequência:** evolução futura sem migração de dados; sem lógica específica
   prematura.
+
+### ADR-0209 — Seed NÃO-destrutivo e idempotente (proteção de dados)
+
+- **Contexto (post-mortem):** o `prisma/seed.ts` executava `deleteMany()` em
+  `proposta`, `produto`, `vendedor` e `cliente` e recriava apenas os dados de
+  exemplo. Como `npm run db:seed` faz parte de `db:setup` e foi rodado nas
+  Sprints 2.1 e 2.2, **todo cadastro inserido manualmente foi apagado** a cada
+  execução. Causa raiz única da perda de dados relatada (o banco e a
+  `DATABASE_URL` nunca mudaram; nenhum `migrate reset` foi executado).
+- **Decisão:** o seed passa a ser **não-destrutivo e idempotente**:
+  - **nunca** executa `deleteMany`/`truncate`/`reset`;
+  - a Configuração (singleton) é garantida via `upsert` com `update: {}` — nunca
+    sobrescreve valores existentes;
+  - os cadastros/propostas de exemplo só são criados quando o banco está
+    **vazio** (soma das contagens de cliente/vendedor/produto/proposta = 0). Com
+    qualquer dado presente, o seed não popula nem apaga nada.
+- **Consequência:** `db:seed`/`db:setup` são seguros para rodar a qualquer
+  momento; dados manuais são preservados. Scripts de teste (`db:validate`,
+  smoke) usam `deleteMany` **apenas com `where` restrito aos próprios registros
+  de teste** — permitido por serem escopados.
+
+### ADR-0210 — UX de Propostas: listagem enxuta, Modelo em destaque, Cliente por autocomplete
+
+- **Decisão (listagem):** remover as colunas **Validade** e **Modelo da
+  proposta** — a listagem foca em Número, Revisão, Cliente, Vendedor, Status,
+  Última alteração e Ações. Filtros e paginação inalterados.
+- **Decisão (formulário):** **Modelo da proposta** passa a ser o **primeiro
+  campo, em linha inteira** (decisão que condiciona o restante do formulário);
+  Cliente, Vendedor, Validade e Status seguem em grade de duas colunas.
+- **Decisão (Cliente):** o Select tradicional é substituído por um
+  **autocomplete** (`ClienteAutocompleteField`) com busca sob demanda no servidor
+  (`searchClientes`) por **Nome, Razão Social, CPF e CNPJ**, a partir de 3
+  caracteres; o documento é comparado ignorando a máscara. Não havia componente
+  de autocomplete no projeto — este é o primeiro, reutilizável para buscas
+  futuras. O componente é *client* e importa o service **apenas como tipo**
+  (`import type`) para não arrastar o Prisma ao bundle; os dados chegam pela
+  Server Action.
+- **Consequência:** o formulário não pré-carrega mais a lista completa de
+  clientes (`getPropostaFormOptions` retorna só vendedores), reduzindo o payload
+  inicial e escalando melhor com muitos clientes.

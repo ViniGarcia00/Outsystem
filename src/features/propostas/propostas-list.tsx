@@ -178,11 +178,6 @@ export function PropostasList({
         cell: ({ row }) => row.original.vendedorNome ?? "—",
       },
       {
-        id: "modelo",
-        header: () => sortHeader("modelo", "Modelo"),
-        cell: ({ row }) => MODELO_LABEL[row.original.modelo],
-      },
-      {
         id: "status",
         header: () => sortHeader("status", "Status"),
         cell: ({ row }) => (
@@ -190,12 +185,6 @@ export function PropostasList({
             {STATUS_LABEL[row.original.status]}
           </Badge>
         ),
-      },
-      {
-        id: "validadeDias",
-        header: () => sortHeader("validadeDias", "Validade"),
-        cell: ({ row }) =>
-          `${row.original.validadeDias} dia${row.original.validadeDias === 1 ? "" : "s"}`,
       },
       {
         id: "updatedAt",

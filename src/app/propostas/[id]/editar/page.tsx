@@ -43,7 +43,6 @@ export default async function EditarPropostaPage({
         obsProposta: dto.obsProposta,
         status: dto.status,
       }}
-      clientes={options.clientes}
       vendedores={options.vendedores}
       proposalNumber={dto.proposalNumber}
       revisaoAtual={dto.revisaoAtual}

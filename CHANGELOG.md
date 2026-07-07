@@ -4,6 +4,34 @@ Todas as mudanças relevantes deste projeto são documentadas aqui.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o
 projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [0.5.1] — 2026-07-07
+
+### Ajustes de UX + correção de perda de dados (pré-Sprint 2.3)
+
+#### Corrigido
+
+- **Perda de dados (crítico):** o seed executava `deleteMany()` nos cadastros e
+  recriava só os exemplos, apagando registros manuais a cada `db:seed`. O seed
+  passa a ser **não-destrutivo e idempotente**: nunca apaga; só popula em banco
+  vazio; a Configuração é garantida sem sobrescrever (ADR-0209).
+
+#### Alterado
+
+- **Listagem de Propostas:** removidas as colunas **Validade** e **Modelo da
+  proposta** (mantidas Número, Revisão, Cliente, Vendedor, Status, Última
+  alteração, Ações). Filtros e paginação inalterados (ADR-0210).
+- **Formulário de Proposta:** **Modelo da proposta** vira o **primeiro campo, em
+  linha inteira**; ordem passa a Modelo → Cliente → Vendedor → Validade →
+  Observações (ADR-0210).
+- **Campo Cliente:** Select substituído por **autocomplete** com busca por Nome,
+  Razão Social, CPF e CNPJ a partir de 3 caracteres (documento comparado sem
+  máscara). O formulário não pré-carrega mais toda a lista de clientes (ADR-0210).
+
+#### Adicionado
+
+- `ClienteAutocompleteField` (primeiro componente de autocomplete do projeto) e
+  `searchClientes` / `searchClientesAction`.
+
 ## [0.5.0] — 2026-07-07
 
 ### Sprint 2.2 — Seções + Produtos na Revisão (workspace)
