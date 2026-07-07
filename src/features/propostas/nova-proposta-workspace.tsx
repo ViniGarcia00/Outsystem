@@ -242,13 +242,22 @@ export function NovaPropostaWorkspace({
         }
       />
 
-      <div className="flex items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
-        <AlertTriangle className="h-4 w-4 shrink-0" />
-        <span>
-          Nada é gravado ainda. A proposta passa a existir apenas ao clicar em
-          “Criar Proposta”.
-        </span>
-      </div>
+      {/* Banner (painel Card) — só durante a criação, logo abaixo do cabeçalho. */}
+      <Card className="border-amber-300 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/10">
+        <CardContent className="flex items-start gap-3 py-4">
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-amber-900 dark:text-amber-200">
+              Esta proposta ainda não foi criada. Clique em &ldquo;Criar
+              Proposta&rdquo; para salvá-la.
+            </p>
+            <p className="text-xs text-amber-800/80 dark:text-amber-300/80">
+              Enquanto a proposta não for criada, nenhuma informação será gravada
+              no banco de dados e nenhum número será reservado.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardContent>

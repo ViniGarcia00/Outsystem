@@ -4,6 +4,16 @@ Todas as mudanças relevantes deste projeto são documentadas aqui.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o
 projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [0.6.2] — 2026-07-07
+
+### Alterado
+
+- **Workspace de criação:** o aviso "em memória" passa a usar o painel `Card`
+  (componente existente), logo abaixo do cabeçalho, com título *"Esta proposta
+  ainda não foi criada. Clique em 'Criar Proposta' para salvá-la."* e a descrição
+  sobre não gravar/reservar número. Aparece apenas durante a criação; após
+  "Criar Proposta" resta só o indicador de auto-save. Apenas UX.
+
 ## [0.6.1] — 2026-07-07
 
 ### Homologação do módulo de Propostas (ajustes pré-2.3). Ver ADR-0212.
