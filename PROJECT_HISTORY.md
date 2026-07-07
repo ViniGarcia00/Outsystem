@@ -561,7 +561,7 @@ ADRs, problemas, soluções, lições e o hash do commit.
 - **Gate:** lint 0, typecheck 0, build 0, **unit 17/17**, smoke **7/7** (IE/UF,
   coluna Valor + legenda, não-duplicidade de produto), `/api/health` 200 (db up).
   Logo do PDF validado (embute ~200 KB).
-- **Hash do commit:** `PENDENTE`
+- **Hash do commit:** `61d7d26`
 - **Próxima:** **2.8 homologação geral**.
 
 ---
