@@ -423,7 +423,7 @@ ADRs, problemas, soluções, lições e o hash do commit.
 - **Gate:** lint 0, typecheck 0, build 0, smoke **7/7** (com desconto e Total da
   Proposta), `/api/health` 200 (db up). Verificado por script (clamps + round-trip
   da persistência).
-- **Hash do commit:** `PENDENTE`
+- **Hash do commit:** `9f91836`
 - **Próxima:** **2.6 Frete**.
 
 ---
