@@ -14,6 +14,15 @@ const badgeVariants = cva(
           "bg-secondary text-secondary-foreground [a]:hover:bg-secondary/80",
         destructive:
           "bg-destructive/10 text-destructive focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:focus-visible:ring-destructive/40 [a]:hover:bg-destructive/20",
+        // Padrão semântico oficial do sistema (ver DECISIONS.md ADR-0159):
+        // success = verde, danger = vermelho, warning = amarelo, info = azul.
+        success:
+          "bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-400",
+        danger:
+          "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-400",
+        warning:
+          "bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-400",
+        info: "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-400",
         outline:
           "border-border text-foreground [a]:hover:bg-muted [a]:hover:text-muted-foreground",
         ghost:

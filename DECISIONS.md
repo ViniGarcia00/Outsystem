@@ -151,6 +151,20 @@ Formato: **ADR** enxuto (Architecture Decision Record).
   horizontal quando necessário. Nenhuma quebra de layout permitida.
 - **Consequência:** o mesmo sistema atende às resoluções-alvo sem quebras.
 
+### ADR-0159 — Padrão oficial de cores dos badges/estados
+
+- **Contexto:** os selos de estado precisavam de um padrão único em todo o sistema.
+- **Decisão:** cores semânticas oficiais, aplicadas em todo o projeto:
+  - **Verde (`success`):** Ativo, Habilitado, Concluído, Sucesso.
+  - **Vermelho (`danger`):** Inativo, Desabilitado, Erro.
+  - **Amarelo (`warning`):** Pendente, Atenção.
+  - **Azul (`info`):** Informação, Em andamento.
+  - Implementadas como variantes do `Badge` (`@/components/ui/badge`),
+    theme-aware (claro/escuro). `StatusBadge` usa `success` (Ativo) e `danger`
+    (Inativo).
+- **Consequência:** consistência visual de estados em todas as telas; novas telas
+  devem reutilizar essas variantes.
+
 ### ADR-0158 — Processo de release: checklist, histórico e commit por Sprint
 
 - **Contexto:** garantir que toda Sprint termine em estado verificável e

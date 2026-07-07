@@ -70,8 +70,9 @@ function toData(input: ClienteInput) {
   return {
     ativo: input.ativo,
     tipoPessoa: input.tipoPessoa,
-    nome: trimOrNull(input.nome),
-    empresa: trimOrNull(input.empresa),
+    // Persiste apenas o campo relevante ao tipo (evita "nome" órfão em PJ).
+    nome: input.tipoPessoa === "PF" ? trimOrNull(input.nome) : null,
+    empresa: input.tipoPessoa === "PJ" ? trimOrNull(input.empresa) : null,
     cpfCnpj: trimOrNull(input.cpfCnpj),
     cep: trimOrNull(input.cep),
     endereco: trimOrNull(input.endereco),

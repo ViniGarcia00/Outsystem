@@ -4,6 +4,34 @@ Todas as mudanças relevantes deste projeto são documentadas aqui.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o
 projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [0.3.1] — 2026-07-07
+
+### Sprint 1.5.1 — Ajustes finais
+
+Ajustes de validação manual (sem novas funcionalidades).
+
+#### Alterado
+
+- **Configuração:** removidos da interface os campos **Cor Primária**, **Cor
+  Secundária** e **Textos Institucionais** (não usados no projeto). A estrutura
+  (colunas/DTO) permanece internamente para o futuro.
+- **Badges — padrão oficial de cores (ADR-0159):** verde = Ativo/Sucesso,
+  vermelho = Inativo/Erro, amarelo = Pendente/Atenção, azul = Informação/Em
+  andamento. `StatusBadge`: **Ativo = verde**, **Inativo = vermelho** (aplicado
+  em Clientes, Produtos e Vendedores).
+- **Produtos — layout:** o helper "Pode ser zero" saiu da descrição (que
+  desalinhava o grid) e foi para o rótulo do campo ("Valor do serviço (pode ser
+  zero)"), mantendo todos os campos alinhados.
+
+#### Corrigido
+
+- **Clientes (listagem):** Pessoa Jurídica mostrava só a primeira letra. Agora a
+  listagem escolhe o campo por `tipoPessoa` (**PJ → Empresa**, **PF → Nome**) e o
+  service não grava o campo irrelevante (PJ não guarda `nome` órfão).
+- **Produtos (código):** normalizado para **MAIÚSCULO** ao digitar e ao salvar;
+  unicidade **case-insensitive** (`ABC001` = `abc001` = `AbC001`). Busca continua
+  case-insensitive.
+
 ## [0.3.0] — 2026-07-06
 
 ### Sprint 1.5 — Polimento, UX e Preparação

@@ -10,9 +10,13 @@ import { CrudFormShell } from "@/components/app";
 import {
   CurrencyField,
   FormSection,
+  MaskedField,
   SwitchField,
   TextField,
 } from "@/components/forms";
+
+/** Código sempre em MAIÚSCULO (unicidade case-insensitive). */
+const upper = (value: string) => value.toUpperCase();
 
 import { createProdutoAction, updateProdutoAction } from "./actions";
 import { produtoSchema, type ProdutoFormValues } from "./schema";
@@ -58,13 +62,17 @@ export function ProdutoForm({ produtoId, defaultValues }: ProdutoFormProps) {
       submitting={saving}
     >
       <FormSection title="Dados do produto">
-        <TextField name="codigo" label="Código" autoFocus />
+        <MaskedField
+          name="codigo"
+          label="Código"
+          format={upper}
+          autoFocus
+        />
         <TextField name="descricao" label="Descrição" />
         <CurrencyField name="valorProduto" label="Valor do produto" />
         <CurrencyField
           name="valorServico"
-          label="Valor do serviço"
-          description="Pode ser zero."
+          label="Valor do serviço (pode ser zero)"
         />
         <SwitchField
           name="ativo"

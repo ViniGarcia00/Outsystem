@@ -12,7 +12,12 @@ import {
   toggleClienteAtivoAction,
 } from "./actions";
 
-const displayName = (c: ClienteListItem) => c.nome || c.empresa || "—";
+/**
+ * Nome exibido conforme o tipo de pessoa:
+ * PJ → Empresa (fallback Nome); PF → Nome (fallback Empresa).
+ */
+const displayName = (c: ClienteListItem) =>
+  (c.tipoPessoa === "PJ" ? c.empresa || c.nome : c.nome || c.empresa) || "—";
 
 const columns: CrudColumn<ClienteListItem>[] = [
   {

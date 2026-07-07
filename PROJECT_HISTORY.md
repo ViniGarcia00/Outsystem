@@ -86,5 +86,31 @@ ADRs, problemas, soluções, lições e o hash do commit.
 
 ---
 
+## Sprint 1.5.1 — Ajustes finais
+
+- **Versão:** 0.3.1
+- **Data:** 2026-07-07
+- **Objetivo:** aplicar ajustes da validação manual, sem novas funcionalidades.
+- **Principais entregas:**
+  - Configuração: removidos da UI Cor Primária, Cor Secundária e Textos
+    Institucionais (estrutura mantida internamente).
+  - Padrão oficial de badges (ADR-0159): Ativo = verde, Inativo = vermelho
+    (Clientes, Produtos, Vendedores).
+  - Clientes (listagem): exibição por `tipoPessoa` (PJ → Empresa, PF → Nome);
+    service não grava campo irrelevante.
+  - Produtos: código sempre em MAIÚSCULO (unicidade case-insensitive); helper
+    "pode ser zero" movido para o rótulo (alinhamento corrigido).
+- **ADRs criadas:** ADR-0159 (padrão de badges).
+- **Problemas encontrados:** PJ exibia só a primeira letra do nome; código
+  aceitava variações de caixa como distintos; helper desalinhava o formulário.
+- **Como foram resolvidos:** `displayName` por `tipoPessoa` + normalização no
+  service; `codigo.toUpperCase()` no form e no service; helper movido para o
+  rótulo.
+- **Lições aprendidas:** ao alternar campos condicionais em formulários, evitar
+  persistir o campo não usado; normalizar chaves únicas antes de validar.
+- **Hash do commit:** `__HASH_SPRINT_1_5_1__`
+
+---
+
 > Próximas Sprints: adicionar uma nova seção ao final, seguindo este mesmo
 > formato, ao concluir cada Sprint.

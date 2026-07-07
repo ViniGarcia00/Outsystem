@@ -6,7 +6,7 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import { CrudFormShell } from "@/components/app";
-import { FormSection, TextField, TextareaField } from "@/components/forms";
+import { FormSection, TextField } from "@/components/forms";
 import type { ConfiguracaoValues } from "@/services/configuracao.service";
 
 import { saveConfiguracaoAction } from "./actions";
@@ -65,31 +65,12 @@ export function ConfiguracaoForm({ initial }: { initial: ConfiguracaoValues }) {
         <TextField name="site" label="Site" />
       </FormSection>
 
-      <FormSection title="Identidade visual">
+      <FormSection title="Identidade visual" cols={1}>
         <TextField
           name="logo"
           label="Logo (URL)"
           placeholder="https://..."
           description="Nesta versão, informe a URL/caminho do logo (upload virá depois)."
-        />
-        <TextField name="corPrimaria" label="Cor primária" placeholder="#0F172A" />
-        <TextField
-          name="corSecundaria"
-          label="Cor secundária"
-          placeholder="#2563EB"
-        />
-      </FormSection>
-
-      <FormSection title="Textos institucionais" cols={1}>
-        <TextareaField
-          name="textoQuemSomos"
-          label="Texto “Quem Somos”"
-          rows={4}
-        />
-        <TextareaField
-          name="textoFinalProposta"
-          label="Texto final da proposta"
-          rows={4}
         />
       </FormSection>
     </CrudFormShell>

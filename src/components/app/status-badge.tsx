@@ -4,14 +4,15 @@ import { memo } from "react";
 
 import { Badge } from "@/components/ui/badge";
 
-/** Selo de status padrão dos cadastros (Ativo / Inativo). */
+/**
+ * Selo de status padrão dos cadastros (Ativo / Inativo).
+ * Padrão de cores oficial: Ativo = verde, Inativo = vermelho (ADR-0159).
+ */
 function StatusBadgeBase({ ativo }: { ativo: boolean }) {
   return ativo ? (
-    <Badge variant="secondary">Ativo</Badge>
+    <Badge variant="success">Ativo</Badge>
   ) : (
-    <Badge variant="outline" className="text-muted-foreground">
-      Inativo
-    </Badge>
+    <Badge variant="danger">Inativo</Badge>
   );
 }
 

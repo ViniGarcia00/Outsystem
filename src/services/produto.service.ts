@@ -39,7 +39,8 @@ export interface ProdutoInput {
 function toData(input: ProdutoInput) {
   return {
     ativo: input.ativo,
-    codigo: input.codigo.trim(),
+    // Sempre em MAIÚSCULO → unicidade case-insensitive (ABC001 == abc001).
+    codigo: input.codigo.trim().toUpperCase(),
     descricao: input.descricao.trim(),
     valorProduto: input.valorProduto,
     valorServico: input.valorServico,
