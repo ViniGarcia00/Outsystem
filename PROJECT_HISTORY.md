@@ -371,7 +371,7 @@ ADRs, problemas, soluções, lições e o hash do commit.
     por script).
 - **ADRs criadas:** ADR-0218.
 - **Gate:** lint 0, typecheck 0, build 0, smoke 7/7, `/api/health` 200.
-- **Hash do commit:** `PENDENTE`
+- **Hash do commit:** `2e0567e`
 - **Observação:** os **Totais da proposta** (subtotal/total geral) completam a
   Sprint 2.4 numa etapa seguinte.
 
