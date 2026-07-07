@@ -470,3 +470,26 @@ Formato: **ADR** enxuto (Architecture Decision Record).
   · Total · Ações**; Total = Qtd × Valor Unitário (apenas visual). Sem
   total/subtotal/descontos/impostos/frete. Grade extraída em `ItensTable`,
   reutilizada por Comercial (dentro do `SecaoCard`) e Simplificada (lista plana).
+
+### ADR-0214 — Edição por "Salvar Alterações" (fim do auto-save para propostas existentes)
+
+- **Contexto:** o auto-save por operação em propostas existentes gerava revisões
+  automáticas durante a digitação e uma experiência ruim.
+- **Decisão:** a proposta existente passa a editar **em memória** (como a
+  criação) e persistir tudo de uma vez em **"Salvar Alterações"**. `Nova Proposta`
+  permanece inalterada. Unifica os dois workspaces no mesmo modelo (hook
+  `useConteudoMemoria`).
+- **`salvarProposta(id, payload)`** (transação única): se a proposta estava
+  **EMITIDA**, cria a **Rev.N+1** e volta a **RASCUNHO** (a **revisão automática
+  passa a acontecer só no salvamento**); grava o cabeçalho e **substitui** o
+  conteúdo da revisão editável pelo estado enviado (delete escopado à revisão +
+  recria; cascade). **Auditoria consolidada** na mesma transação.
+- **Aviso ao sair:** reutiliza o `FormDirtyGuard`/`NavigationBlocker` existentes —
+  confirmação em navegação por links e `beforeunload` (fechar/atualizar); os
+  botões próprios (Voltar/Cancelar) confirmam quando há pendências. **"Gerar
+  PDF"** fica desabilitado enquanto houver alterações não salvas.
+- **Consequência (limpeza):** removidos o auto-save de conteúdo/cabeçalho
+  (`ensureEditableRevision`, `updateCabecalho`, as Server Actions de conteúdo e o
+  `serverConteudoActions`) — código morto. O `idMap` deixou de ser necessário
+  (não há mais fork por-operação). Sem migração. "Nada de revisão durante a
+  digitação" é garantido por construção (nada persiste até salvar).

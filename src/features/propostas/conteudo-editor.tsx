@@ -92,8 +92,8 @@ function ConteudoSimplificado({
         open={addOpen}
         onOpenChange={setAddOpen}
         titulo="Adicionar produto"
-        onAdd={(produtoId, quantidade, valorUnitario) =>
-          actions.adicionarItemAvulso(produtoId, quantidade, valorUnitario)
+        onAdd={(produto, quantidade, valorUnitario) =>
+          actions.adicionarItemAvulso(produto, quantidade, valorUnitario)
         }
         onAdded={refresh}
       />

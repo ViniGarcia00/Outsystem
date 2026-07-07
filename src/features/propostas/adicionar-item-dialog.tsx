@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import type { ProdutoSuggestion } from "@/services/produto.service";
 import type { ActionResult } from "@/types";
 
 import { ProdutoAutocomplete } from "./produto-autocomplete";
@@ -21,9 +22,9 @@ interface AdicionarItemDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   titulo: string;
-  /** Persiste o item (em seção específica ou avulso). Retorna o resultado. */
+  /** Adiciona o item ao rascunho em memória. */
   onAdd: (
-    produtoId: string,
+    produto: ProdutoSuggestion,
     quantidade: number,
     valorUnitario: number,
   ) => Promise<ActionResult>;
@@ -61,14 +62,14 @@ function ItemForm({
   onClose,
 }: {
   onAdd: (
-    produtoId: string,
+    produto: ProdutoSuggestion,
     quantidade: number,
     valorUnitario: number,
   ) => Promise<ActionResult>;
   onAdded: () => void;
   onClose: () => void;
 }) {
-  const [produtoId, setProdutoId] = useState<string | null>(null);
+  const [produto, setProduto] = useState<ProdutoSuggestion | null>(null);
   const [quantidade, setQuantidade] = useState("1");
   const [valor, setValor] = useState("");
   const [saving, setSaving] = useState(false);
@@ -76,16 +77,16 @@ function ItemForm({
   const q = Number(quantidade);
   const v = Number(valor);
   const valido =
-    Boolean(produtoId) &&
+    Boolean(produto) &&
     Number.isFinite(q) &&
     q > 0 &&
     Number.isFinite(v) &&
     v >= 0;
 
   const adicionar = async () => {
-    if (!produtoId || !valido) return;
+    if (!produto || !valido) return;
     setSaving(true);
-    const result = await onAdd(produtoId, q, v);
+    const result = await onAdd(produto, q, v);
     if (result.success) {
       toast.success("Produto adicionado.");
       onClose();
@@ -102,7 +103,7 @@ function ItemForm({
         <ProdutoAutocomplete
           autoFocus
           onSelect={(p) => {
-            setProdutoId(p?.id ?? null);
+            setProduto(p);
             // Valor unitário pré-preenchido com o preço do cadastro (editável).
             if (p) setValor(String(p.valorProduto));
           }}

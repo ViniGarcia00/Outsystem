@@ -1,11 +1,12 @@
 "use client";
 
-import { AlertTriangle, Ban, FileDown } from "lucide-react";
+import { AlertTriangle, Ban, FileDown, Save } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
 import { AppPage, PageHeader } from "@/components/app";
+import { confirmDiscardChanges, FormDirtyGuard } from "@/components/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,13 +16,16 @@ import { formatDate } from "@/utils";
 import {
   cancelarPropostaAction,
   emitirPropostaAction,
-  salvarCabecalhoAction,
+  salvarPropostaAction,
 } from "./actions";
 import { CancelarDialog } from "./cancelar-dialog";
 import { ConteudoEditor } from "./conteudo-editor";
-import { serverConteudoActions } from "./conteudo-handlers";
+import { useConteudoMemoria } from "./conteudo-memoria";
 import { STATUS_BADGE_VARIANT, STATUS_LABEL } from "./labels";
-import { PropostaCabecalho } from "./proposta-cabecalho";
+import {
+  PropostaCabecalho,
+  type CabecalhoValores,
+} from "./proposta-cabecalho";
 import type { CabecalhoPatchValues, CancelarFormValues } from "./schema";
 
 interface Option {
@@ -37,63 +41,9 @@ export function PropostaWorkspace({
   vendedores: Option[];
 }) {
   const router = useRouter();
-  const [cancelOpen, setCancelOpen] = useState(false);
-  const [busy, setBusy] = useState(false);
   const readOnly = data.readOnly;
 
-  const refresh = () => router.refresh();
-  const actions = useMemo(() => serverConteudoActions(data.id), [data.id]);
-
-  // Toast quando o sistema cria automaticamente uma nova revisão (fork pós-emissão).
-  const prevRev = useRef<number | null>(null);
-  useEffect(() => {
-    const atual = data.revisaoAtual;
-    if (prevRev.current !== null && atual !== null && atual > prevRev.current) {
-      toast.info(
-        `Revisão ${atual} criada automaticamente — você está editando um novo rascunho.`,
-      );
-    }
-    prevRev.current = atual;
-  }, [data.revisaoAtual]);
-
-  const salvarCabecalho = async (patch: CabecalhoPatchValues) => {
-    const result = await salvarCabecalhoAction(data.id, patch);
-    if (result.success) refresh();
-    else toast.error(result.error);
-  };
-
-  const gerarPdf = async () => {
-    setBusy(true);
-    const result = await emitirPropostaAction(data.id);
-    setBusy(false);
-    if (result.success) {
-      toast.success(`Proposta ${data.proposalNumber} emitida.`);
-      refresh();
-    } else {
-      toast.error(result.error);
-    }
-  };
-
-  const confirmCancelar = async (values: CancelarFormValues) => {
-    const result = await cancelarPropostaAction(data.id, values);
-    if (result.success) {
-      toast.success(`Proposta ${data.proposalNumber} cancelada.`);
-      setCancelOpen(false);
-      refresh();
-    } else {
-      toast.error(result.error);
-    }
-  };
-
-  const semCliente = !data.clienteId;
-  const temItens = data.secoes.some((s) => s.itens.length > 0);
-  const podeEmitir = data.status === "RASCUNHO" && !semCliente && temItens;
-  const horaSalvo = formatDate(data.updatedAt, {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-
-  const valores = {
+  const [header, setHeader] = useState<CabecalhoValores>({
     clienteId: data.clienteId,
     clienteNome: data.clienteNome,
     vendedorId: data.vendedorId,
@@ -101,30 +51,150 @@ export function PropostaWorkspace({
     validadeDias: data.validadeDias,
     obsInternas: data.obsInternas,
     obsProposta: data.obsProposta,
+  });
+  const [dirty, setDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+
+  const marcarSujo = useCallback(() => setDirty(true), []);
+  const { secoes, actions } = useConteudoMemoria(data.secoes, marcarSujo);
+
+  const onCampo = (patch: CabecalhoPatchValues) => {
+    setDirty(true);
+    setHeader((h) => ({
+      ...h,
+      ...(patch.clienteId !== undefined ? { clienteId: patch.clienteId } : {}),
+      ...(patch.vendedorId !== undefined
+        ? { vendedorId: patch.vendedorId }
+        : {}),
+      ...(patch.modelo !== undefined ? { modelo: patch.modelo } : {}),
+      ...(patch.validadeDias !== undefined
+        ? { validadeDias: patch.validadeDias }
+        : {}),
+      ...(patch.obsInternas !== undefined
+        ? { obsInternas: patch.obsInternas ?? "" }
+        : {}),
+      ...(patch.obsProposta !== undefined
+        ? { obsProposta: patch.obsProposta ?? "" }
+        : {}),
+    }));
   };
+
+  const salvar = async () => {
+    if (!dirty || saving) return;
+    setSaving(true);
+    const result = await salvarPropostaAction(data.id, {
+      clienteId: header.clienteId,
+      vendedorId: header.vendedorId,
+      modelo: header.modelo,
+      validadeDias: header.validadeDias,
+      obsInternas: header.obsInternas || null,
+      obsProposta: header.obsProposta || null,
+      secoes: secoes.map((s) => ({
+        nome: s.nome,
+        itens: s.itens.map((it) => ({
+          produtoId: it.produtoId as string,
+          quantidade: it.quantidade,
+          valorUnitario: it.valorProduto,
+        })),
+      })),
+    });
+    if (result.success) {
+      setDirty(false); // libera o guard antes do refresh/remontagem
+      if (result.data.forked) {
+        toast.info(
+          `Revisão ${result.data.revisaoAtual} criada automaticamente ao salvar.`,
+        );
+      } else {
+        toast.success("Alterações salvas.");
+      }
+      router.refresh();
+    } else {
+      setSaving(false);
+      toast.error(result.error);
+    }
+  };
+
+  const gerarPdf = async () => {
+    setSaving(true);
+    const result = await emitirPropostaAction(data.id);
+    setSaving(false);
+    if (result.success) {
+      toast.success(`Proposta ${data.proposalNumber} emitida.`);
+      router.refresh();
+    } else {
+      toast.error(result.error);
+    }
+  };
+
+  const cancelarProposta = () => {
+    if (dirty && !confirmDiscardChanges()) return;
+    setDirty(false);
+    setCancelOpen(true);
+  };
+
+  const confirmCancelar = async (values: CancelarFormValues) => {
+    const result = await cancelarPropostaAction(data.id, values);
+    if (result.success) {
+      toast.success(`Proposta ${data.proposalNumber} cancelada.`);
+      setCancelOpen(false);
+      router.refresh();
+    } else {
+      toast.error(result.error);
+    }
+  };
+
+  const voltar = () => {
+    if (dirty && !confirmDiscardChanges()) return;
+    setDirty(false);
+    router.push("/propostas");
+  };
+
+  const semCliente = !header.clienteId;
+  const temItens = secoes.some((s) => s.itens.length > 0);
+  const podeEmitir =
+    data.status === "RASCUNHO" && !dirty && !semCliente && temItens;
+  const horaSalvo = formatDate(data.updatedAt, {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  const valores: CabecalhoValores = header;
 
   return (
     <AppPage>
+      {/* Aviso ao sair (links de navegação + fechar/atualizar aba). */}
+      <FormDirtyGuard when={dirty && !readOnly} />
+
       <PageHeader
         title={`Proposta ${data.proposalNumber} · Rev.${data.revisaoAtual ?? 0}`}
         description={
           readOnly
             ? "Proposta cancelada — somente leitura."
-            : "Workspace da proposta — monte tudo aqui; as alterações salvam automaticamente."
+            : "Workspace da proposta — as alterações são gravadas ao clicar em Salvar Alterações."
         }
         actions={
           <>
             <Badge variant={STATUS_BADGE_VARIANT[data.status]}>
               {STATUS_LABEL[data.status]}
             </Badge>
+            {!readOnly && (
+              <Button onClick={salvar} disabled={!dirty || saving}>
+                <Save className="h-4 w-4" />
+                Salvar Alterações
+              </Button>
+            )}
             {data.status === "RASCUNHO" && (
               <Button
+                variant="outline"
                 onClick={gerarPdf}
-                disabled={!podeEmitir || busy}
+                disabled={!podeEmitir || saving}
                 title={
-                  podeEmitir
-                    ? undefined
-                    : "Informe o cliente e adicione ao menos um item para emitir."
+                  dirty
+                    ? "Salve as alterações antes de gerar o PDF."
+                    : podeEmitir
+                      ? undefined
+                      : "Informe o cliente e adicione ao menos um item para emitir."
                 }
               >
                 <FileDown className="h-4 w-4" />
@@ -132,21 +202,30 @@ export function PropostaWorkspace({
               </Button>
             )}
             {!readOnly && (
-              <Button variant="outline" onClick={() => setCancelOpen(true)}>
+              <Button variant="outline" onClick={cancelarProposta}>
                 <Ban className="h-4 w-4" />
                 Cancelar
               </Button>
             )}
+            <Button variant="ghost" onClick={voltar}>
+              Voltar
+            </Button>
           </>
         }
       />
 
-      {/* Indicador de auto-save / estado */}
+      {/* Indicador de alterações pendentes / estado */}
       {!readOnly && (
         <p className="text-xs text-muted-foreground">
-          {data.status === "EMITIDA"
-            ? `Emitida em ${data.revisaoEmitidaAt ? formatDate(data.revisaoEmitidaAt) : "—"}. Ao editar, o sistema cria automaticamente uma nova revisão.`
-            : `Todas as alterações são salvas automaticamente. Última alteração salva às ${horaSalvo}.`}
+          {dirty ? (
+            <span className="text-amber-700 dark:text-amber-400">
+              Há alterações não salvas. Clique em “Salvar Alterações”.
+            </span>
+          ) : data.status === "EMITIDA" ? (
+            `Emitida em ${data.revisaoEmitidaAt ? formatDate(data.revisaoEmitidaAt) : "—"}. Ao salvar qualquer alteração, o sistema cria automaticamente uma nova revisão.`
+          ) : (
+            `Sem alterações pendentes. Última gravação às ${horaSalvo}.`
+          )}
         </p>
       )}
 
@@ -165,25 +244,25 @@ export function PropostaWorkspace({
             valores={valores}
             vendedores={vendedores}
             readOnly={readOnly}
-            onCampo={salvarCabecalho}
+            onCampo={onCampo}
           />
         </CardContent>
       </Card>
 
       {/* Conteúdo da revisão atual */}
       <ConteudoEditor
-        secoes={data.secoes}
+        secoes={secoes}
         actions={actions}
         readOnly={readOnly}
-        refresh={refresh}
-        simplificada={data.modelo === "SIMPLIFICADA"}
+        refresh={() => {}}
+        simplificada={header.modelo === "SIMPLIFICADA"}
       />
 
       <CancelarDialog
         open={cancelOpen}
         onOpenChange={setCancelOpen}
         propostaLabel={`Proposta ${data.proposalNumber}`}
-        submitting={busy}
+        submitting={saving}
         onConfirm={confirmCancelar}
       />
     </AppPage>

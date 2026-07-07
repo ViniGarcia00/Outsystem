@@ -7,13 +7,13 @@ import { prisma } from "@/infrastructure/database";
  * - Numeração sequencial imediata (autoincrement, inicia em 1001).
  * - Cabeçalho (cliente/vendedor/modelo/validade/obs) NÃO é versionado; o conteúdo
  *   vive na revisão atual (ADR-0206). Rev.0 criada com a proposta.
- * - Ciclo: RASCUNHO --Gerar PDF--> EMITIDA --1ª edição--> (fork) RASCUNHO …
- *   A criação de revisão é 100% automática (nunca manual).
- * - `ensureEditableRevision` é o ponto ÚNICO que garante uma revisão editável:
- *   se a proposta está EMITIDA, cria automaticamente a Rev.N+1 (copiando o
- *   conteúdo), volta o status para RASCUNHO e devolve o `idMap` (id antigo → novo).
+ * - Edição em memória + persistência única: `criarPropostaCompleta` (nova) e
+ *   `salvarProposta` (existente). Nada é gravado durante a digitação.
+ * - Ciclo: RASCUNHO --Gerar PDF--> EMITIDA --Salvar Alterações--> (fork) RASCUNHO.
+ *   A revisão automática acontece dentro de `salvarProposta`: se a proposta
+ *   estava EMITIDA, cria a Rev.N+1 e volta o status a RASCUNHO.
  * - Cliente é opcional apenas enquanto o rascunho é montado; a emissão exige.
- * - Toda mutação grava PropostaAuditoria na MESMA transação.
+ * - Cada operação de escrita grava PropostaAuditoria na MESMA transação.
  */
 
 export type StatusProposta = "RASCUNHO" | "EMITIDA" | "CANCELADA";
@@ -102,43 +102,20 @@ export async function getPropostaFormOptions(): Promise<{
 }
 
 // ---------------------------------------------------------------------------
-// Revisão editável (fork automático) + cópia profunda com mapa de ids
+// Cópia profunda de conteúdo (usada na duplicação)
 // ---------------------------------------------------------------------------
 
-export interface IdMap {
-  secoes: Map<string, string>;
-  itens: Map<string, string>;
-}
-
-export interface EditableRevision {
-  revisaoId: string;
-  revisionNumber: number;
-  /** true quando a chamada criou automaticamente uma nova revisão (pós-emissão). */
-  forked: boolean;
-  /** Tradução id-antigo → id-novo quando houve fork (vazio caso contrário). */
-  idMap: IdMap;
-}
-
-const emptyIdMap = (): IdMap => ({ secoes: new Map(), itens: new Map() });
-
-/** Cópia profunda de seções + itens de uma revisão para outra; devolve o idMap. */
-async function copiarConteudo(
-  tx: Tx,
-  origemId: string,
-  destinoId: string,
-): Promise<IdMap> {
-  const idMap = emptyIdMap();
+/** Copia seções + itens de uma revisão para outra (preserva ordem e snapshot). */
+async function copiarConteudo(tx: Tx, origemId: string, destinoId: string) {
   const secoes = await tx.propostaSecao.findMany({
     where: { revisaoId: origemId },
     orderBy: { ordem: "asc" },
     select: {
-      id: true,
       nome: true,
       ordem: true,
       itens: {
         orderBy: { ordem: "asc" },
         select: {
-          id: true,
           tipo: true,
           produtoId: true,
           codigo: true,
@@ -157,82 +134,10 @@ async function copiarConteudo(
       data: { revisaoId: destinoId, nome: s.nome, ordem: s.ordem },
       select: { id: true },
     });
-    idMap.secoes.set(s.id, nova.id);
     for (const item of s.itens) {
-      const { id: oldItemId, ...dados } = item;
-      const novo = await tx.propostaItem.create({
-        data: { secaoId: nova.id, ...dados },
-        select: { id: true },
-      });
-      idMap.itens.set(oldItemId, novo.id);
+      await tx.propostaItem.create({ data: { secaoId: nova.id, ...item } });
     }
   }
-  return idMap;
-}
-
-/**
- * Garante uma revisão editável para a proposta. Ponto único do fork automático:
- * - CANCELADA → erro.
- * - RASCUNHO  → devolve a revisão atual (sem fork).
- * - EMITIDA   → cria Rev.N+1 (copia conteúdo), torna-a atual, status → RASCUNHO,
- *               audita NOVA_REVISAO (automática) + MUDANCA_STATUS, devolve idMap.
- */
-export async function ensureEditableRevision(
-  tx: Tx,
-  propostaId: string,
-): Promise<EditableRevision> {
-  const p = await tx.proposta.findUniqueOrThrow({
-    where: { id: propostaId },
-    select: {
-      status: true,
-      currentRevisionId: true,
-      currentRevision: { select: { revisionNumber: true } },
-    },
-  });
-  if (p.status === "CANCELADA") {
-    throw new Error("Proposta cancelada não pode ser editada.");
-  }
-  if (!p.currentRevisionId) {
-    throw new Error("Revisão atual não encontrada.");
-  }
-
-  if (p.status !== "EMITIDA") {
-    return {
-      revisaoId: p.currentRevisionId,
-      revisionNumber: p.currentRevision?.revisionNumber ?? 0,
-      forked: false,
-      idMap: emptyIdMap(),
-    };
-  }
-
-  // EMITIDA → fork automático na 1ª edição.
-  const novoNumero = (p.currentRevision?.revisionNumber ?? 0) + 1;
-  const nova = await tx.propostaRevisao.create({
-    data: { propostaId, revisionNumber: novoNumero },
-    select: { id: true },
-  });
-  const idMap = await copiarConteudo(tx, p.currentRevisionId, nova.id);
-  await tx.proposta.update({
-    where: { id: propostaId },
-    data: { currentRevisionId: nova.id, status: "RASCUNHO" },
-  });
-  await tx.propostaAuditoria.create({
-    data: {
-      propostaId,
-      evento: "NOVA_REVISAO",
-      revisionNumber: novoNumero,
-      observacao: "Revisão criada automaticamente (edição de proposta emitida)",
-    },
-  });
-  await tx.propostaAuditoria.create({
-    data: {
-      propostaId,
-      evento: "MUDANCA_STATUS",
-      revisionNumber: novoNumero,
-      observacao: "EMITIDA → RASCUNHO",
-    },
-  });
-  return { revisaoId: nova.id, revisionNumber: novoNumero, forked: true, idMap };
 }
 
 // ---------------------------------------------------------------------------
@@ -338,63 +243,135 @@ export async function criarPropostaCompleta(
   });
 }
 
-/** Campos editáveis do cabeçalho (auto-save por campo/bloco). */
-export interface CabecalhoPatch {
-  clienteId?: string | null;
-  vendedorId?: string | null;
-  modelo?: ModeloProposta;
-  validadeDias?: number;
-  obsInternas?: string | null;
-  obsProposta?: string | null;
-}
+/**
+ * Salva TODAS as alterações de uma proposta existente em UMA transação
+ * ("Salvar Alterações"). A revisão automática acontece **aqui**: se a proposta
+ * estava EMITIDA, cria a Rev.N+1 e volta o status a RASCUNHO. Grava o cabeçalho
+ * e SUBSTITUI o conteúdo da revisão editável pelo estado enviado. Auditoria
+ * consolidada. Nada é persistido durante a digitação.
+ */
+export async function salvarProposta(
+  propostaId: string,
+  payload: NovaPropostaPayload,
+): Promise<{ revisaoAtual: number; status: StatusProposta; forked: boolean }> {
+  return prisma.$transaction(async (tx) => {
+    const p = await tx.proposta.findUniqueOrThrow({
+      where: { id: propostaId },
+      select: {
+        status: true,
+        currentRevisionId: true,
+        currentRevision: { select: { revisionNumber: true } },
+      },
+    });
+    if (p.status === "CANCELADA") {
+      throw new Error("Proposta cancelada não pode ser editada.");
+    }
+    if (!p.currentRevisionId) {
+      throw new Error("Revisão atual não encontrada.");
+    }
 
-const CAMPO_LABEL: Record<keyof CabecalhoPatch, string> = {
-  clienteId: "cliente",
-  vendedorId: "vendedor",
-  modelo: "modelo",
-  validadeDias: "validade",
-  obsInternas: "observações internas",
-  obsProposta: "observações da proposta",
-};
+    let revisaoId = p.currentRevisionId;
+    let revisionNumber = p.currentRevision?.revisionNumber ?? 0;
+    let forked = false;
 
-/** Auto-save do cabeçalho. Forka se a proposta estiver emitida. */
-export async function updateCabecalho(
-  id: string,
-  patch: CabecalhoPatch,
-): Promise<void> {
-  await prisma.$transaction(async (tx) => {
-    const ctx = await ensureEditableRevision(tx, id);
+    // Revisão automática: só no salvamento, e apenas se estava emitida.
+    if (p.status === "EMITIDA") {
+      revisionNumber += 1;
+      const nova = await tx.propostaRevisao.create({
+        data: { propostaId, revisionNumber },
+        select: { id: true },
+      });
+      revisaoId = nova.id;
+      forked = true;
+      await tx.proposta.update({
+        where: { id: propostaId },
+        data: { currentRevisionId: nova.id, status: "RASCUNHO" },
+      });
+      await tx.propostaAuditoria.create({
+        data: {
+          propostaId,
+          evento: "NOVA_REVISAO",
+          revisionNumber,
+          observacao:
+            "Revisão criada automaticamente ao salvar (proposta emitida)",
+        },
+      });
+      await tx.propostaAuditoria.create({
+        data: {
+          propostaId,
+          evento: "MUDANCA_STATUS",
+          revisionNumber,
+          observacao: "EMITIDA → RASCUNHO",
+        },
+      });
+    }
+
+    // Cabeçalho.
     await tx.proposta.update({
-      where: { id },
+      where: { id: propostaId },
       data: {
-        ...("clienteId" in patch
-          ? { clienteId: patch.clienteId || null }
-          : {}),
-        ...("vendedorId" in patch
-          ? { vendedorId: trimOrNull(patch.vendedorId) }
-          : {}),
-        ...("modelo" in patch ? { modelo: patch.modelo } : {}),
-        ...("validadeDias" in patch ? { validadeDias: patch.validadeDias } : {}),
-        ...("obsInternas" in patch
-          ? { obsInternas: trimOrNull(patch.obsInternas) }
-          : {}),
-        ...("obsProposta" in patch
-          ? { obsProposta: trimOrNull(patch.obsProposta) }
-          : {}),
+        clienteId: payload.clienteId,
+        vendedorId: payload.vendedorId,
+        modelo: payload.modelo,
+        validadeDias: payload.validadeDias,
+        obsInternas: trimOrNull(payload.obsInternas),
+        obsProposta: trimOrNull(payload.obsProposta),
         updatedAt: new Date(),
       },
     });
-    const campos = (Object.keys(patch) as (keyof CabecalhoPatch)[])
-      .map((k) => CAMPO_LABEL[k])
-      .join(", ");
+
+    // Conteúdo: substitui a revisão editável pelo estado enviado
+    // (delete escopado à revisão; itens caem por cascade).
+    await tx.propostaSecao.deleteMany({ where: { revisaoId } });
+    for (let si = 0; si < payload.secoes.length; si++) {
+      const s = payload.secoes[si];
+      const secao = await tx.propostaSecao.create({
+        data: { revisaoId, nome: s.nome.trim(), ordem: si },
+        select: { id: true },
+      });
+      for (let ii = 0; ii < s.itens.length; ii++) {
+        const linha = s.itens[ii];
+        const prod = await tx.produto.findUniqueOrThrow({
+          where: { id: linha.produtoId },
+          select: {
+            codigo: true,
+            descricao: true,
+            unidade: true,
+            valorProduto: true,
+            valorServico: true,
+          },
+        });
+        await tx.propostaItem.create({
+          data: {
+            secaoId: secao.id,
+            tipo: "PRODUTO",
+            produtoId: linha.produtoId,
+            codigo: prod.codigo,
+            descricao: prod.descricao,
+            unidade: prod.unidade,
+            valorProduto: linha.valorUnitario ?? prod.valorProduto,
+            valorServico: prod.valorServico,
+            quantidade: linha.quantidade,
+            ordem: ii,
+          },
+        });
+      }
+    }
+
     await tx.propostaAuditoria.create({
       data: {
-        propostaId: id,
+        propostaId,
         evento: "ALTERACAO",
-        revisionNumber: ctx.revisionNumber,
-        observacao: `Cabeçalho atualizado: ${campos}`,
+        revisionNumber,
+        observacao: "Alterações salvas",
       },
     });
+
+    return {
+      revisaoAtual: revisionNumber,
+      status: forked ? "RASCUNHO" : p.status,
+      forked,
+    };
   });
 }
 

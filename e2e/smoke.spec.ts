@@ -129,22 +129,26 @@ test("Propostas: criação diferida, emitir e revisão automática", async ({
   await expect(page).toHaveURL(/\/propostas\/(?!nova$)[^/]+$/);
   await expect(page.getByRole("heading", { name: "Conteúdo" })).toBeVisible();
 
+  // Proposta existente: edição fica pendente até "Salvar Alterações".
+  await page
+    .getByPlaceholder("Nome da nova seção (ex.: Sala)")
+    .fill("Extra E2E");
+  await page.getByRole("button", { name: "Adicionar seção" }).click();
+  await page.getByRole("button", { name: "Salvar Alterações" }).click();
+  await expect(page.getByRole("heading", { name: "Extra E2E" })).toBeVisible();
+
   // "Gerar PDF" emite a proposta (RASCUNHO → EMITIDA).
   await page.getByRole("button", { name: "Gerar PDF" }).click();
   await expect(page.getByText("Emitida", { exact: true })).toBeVisible();
 
-  // 1ª alteração pós-emissão cria automaticamente a Rev.1 e volta a Rascunho.
+  // Alteração pós-emissão + Salvar cria automaticamente a Rev.1 e volta a Rascunho.
   await page
     .getByPlaceholder("Nome da nova seção (ex.: Sala)")
     .fill("Cozinha E2E");
   await page.getByRole("button", { name: "Adicionar seção" }).click();
-  await expect(
-    page.getByRole("heading", { name: "Cozinha E2E" }),
-  ).toBeVisible();
+  await page.getByRole("button", { name: "Salvar Alterações" }).click();
   await expect(page.getByText("Rascunho", { exact: true })).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: /Rev\.1/ }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Rev\.1/ })).toBeVisible();
 });
 
 test("Propostas: modelo Simplificada (produtos sem seções)", async ({

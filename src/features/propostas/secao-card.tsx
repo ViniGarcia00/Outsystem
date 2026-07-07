@@ -161,8 +161,8 @@ export function SecaoCard({
         open={addOpen}
         onOpenChange={setAddOpen}
         titulo={`Adicionar produto — ${secao.nome}`}
-        onAdd={(produtoId, quantidade, valorUnitario) =>
-          actions.adicionarItem(secao.id, produtoId, quantidade, valorUnitario)
+        onAdd={(produto, quantidade, valorUnitario) =>
+          actions.adicionarItem(secao.id, produto, quantidade, valorUnitario)
         }
         onAdded={refresh}
       />

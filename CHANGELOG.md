@@ -4,6 +4,29 @@ Todas as mudanças relevantes deste projeto são documentadas aqui.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o
 projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [0.6.4] — 2026-07-07
+
+### Edição por "Salvar Alterações" (pré-2.3). Ver ADR-0214.
+
+#### Alterado
+
+- **Proposta existente** deixa de ter **auto-save**: as alterações (cabeçalho,
+  seções, produtos, observações) ficam **pendentes** até **"Salvar Alterações"**,
+  que persiste tudo numa única transação. **Nova Proposta** permanece igual.
+- **Revisão automática** passa a ocorrer **somente no salvamento**: se a proposta
+  estava EMITIDA, "Salvar Alterações" cria a Rev.N+1, grava e volta a RASCUNHO.
+  Nada de revisão durante a digitação.
+- **Aviso ao sair** (voltar/fechar/navegar/atualizar) quando há alterações não
+  salvas, reutilizando o `FormDirtyGuard` existente. "Gerar PDF" fica desabilitado
+  enquanto houver pendências.
+
+#### Interno
+
+- Novo `salvarProposta` (substitui o conteúdo da revisão + auditoria consolidada);
+  hook `useConteudoMemoria` reutilizado pelos dois workspaces. Removido o
+  auto-save de conteúdo/cabeçalho (código morto): `ensureEditableRevision`,
+  `updateCabecalho`, Server Actions de conteúdo e `serverConteudoActions`.
+
 ## [0.6.3] — 2026-07-07
 
 ### Homologação do fluxo de produtos (pré-2.3). Ver ADR-0213.

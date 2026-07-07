@@ -53,6 +53,16 @@ export const novaPropostaSchema = z.object({
 
 export type NovaPropostaValues = z.infer<typeof novaPropostaSchema>;
 
+/**
+ * Payload de "Salvar Alterações" (proposta existente). Mesmo formato da criação,
+ * porém o cliente pode estar temporariamente vazio (exigido só na emissão).
+ */
+export const salvarPropostaSchema = novaPropostaSchema.extend({
+  clienteId: z.string().nullable(),
+});
+
+export type SalvarPropostaValues = z.infer<typeof salvarPropostaSchema>;
+
 /** Cancelamento — motivo obrigatório; obs obrigatória quando "Outro". */
 export const motivoEnum = z.enum([
   "CLIENTE_DESISTIU",

@@ -16,16 +16,12 @@ import {
   duplicarProposta,
   emitirProposta,
   listPropostas,
-  updateCabecalho,
+  salvarProposta,
   type PropostaListItem,
 } from "@/services/proposta.service";
 import { fail, ok, type ActionResult } from "@/types";
 
-import {
-  cabecalhoPatchSchema,
-  cancelarSchema,
-  novaPropostaSchema,
-} from "./schema";
+import { cancelarSchema, novaPropostaSchema, salvarPropostaSchema } from "./schema";
 
 export async function listPropostasAction(): Promise<PropostaListItem[]> {
   return listPropostas();
@@ -67,19 +63,22 @@ export async function criarPropostaAction(
   }
 }
 
-/** Auto-save do cabeçalho (patch parcial por campo). */
-export async function salvarCabecalhoAction(
+/**
+ * "Salvar Alterações": persiste TODAS as alterações da proposta existente numa
+ * única transação (revisão automática no salvamento, se emitida).
+ */
+export async function salvarPropostaAction(
   id: string,
-  patch: unknown,
-): Promise<ActionResult> {
-  const parsed = cabecalhoPatchSchema.safeParse(patch);
+  payload: unknown,
+): Promise<ActionResult<{ revisaoAtual: number; forked: boolean }>> {
+  const parsed = salvarPropostaSchema.safeParse(payload);
   if (!parsed.success) {
     return fail("Dados inválidos. Verifique os campos destacados.");
   }
   try {
-    await updateCabecalho(id, parsed.data);
+    const r = await salvarProposta(id, parsed.data);
     revalidatePath("/propostas");
-    return ok(undefined);
+    return ok({ revisaoAtual: r.revisaoAtual, forked: r.forked });
   } catch (error) {
     return fail(error instanceof Error ? error.message : "Falha ao salvar.");
   }

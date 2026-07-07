@@ -292,5 +292,34 @@ ADRs, problemas, soluções, lições e o hash do commit.
 
 ---
 
+## Homologação 0.6.4 — "Salvar Alterações" (fim do auto-save)
+
+- **Versão:** 0.6.4
+- **Data:** 2026-07-07
+- **Objetivo:** trocar o auto-save de propostas existentes por edição em memória
+  + "Salvar Alterações", antes da Sprint 2.3.
+- **Principais entregas:**
+  - Proposta existente edita **em memória**; persiste tudo em **"Salvar
+    Alterações"** (transação única). Nova Proposta inalterada.
+  - **Revisão automática só no salvamento** (`salvarProposta`): EMITIDA + Salvar
+    → Rev.N+1 + RASCUNHO; substitui o conteúdo da revisão; auditoria consolidada.
+  - **Aviso ao sair** via `FormDirtyGuard` reutilizado; "Gerar PDF" desabilitado
+    com alterações pendentes.
+  - Unificação dos dois workspaces no hook `useConteudoMemoria`; remoção do
+    auto-save (código morto): `ensureEditableRevision`, `updateCabecalho`, as
+    Server Actions de conteúdo e `serverConteudoActions`.
+- **ADRs criadas:** ADR-0214.
+- **Problemas encontrados:** reinicializar o estado em memória após salvar.
+- **Como foram resolvidos:** `key` por `updatedAt` na página `/[id]` remonta o
+  workspace com o DTO fresco após "Salvar Alterações".
+- **Lições aprendidas:** ao mover a persistência para um único save, o `idMap` do
+  fork por-operação deixa de ser necessário — o payload já é o estado final.
+- **Gate:** lint 0, typecheck 0, build 0, smoke **7/7**, `/api/health` 200 (db
+  up). Verificado por script: replace no RASCUNHO, fork no save (Rev.1 +
+  RASCUNHO, Rev.0 congelada), auditoria consolidada.
+- **Hash do commit:** `PENDENTE`
+
+---
+
 > Próximas Sprints: adicionar uma nova seção ao final, seguindo este mesmo
 > formato, ao concluir cada Sprint.

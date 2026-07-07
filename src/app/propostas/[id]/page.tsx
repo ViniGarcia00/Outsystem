@@ -21,5 +21,13 @@ export default async function PropostaWorkspacePage({
   ]);
   if (!data) notFound();
 
-  return <PropostaWorkspace data={data} vendedores={vendedores} />;
+  // A `key` por updatedAt remonta o workspace após "Salvar Alterações",
+  // reinicializando o estado em memória a partir do DTO fresco.
+  return (
+    <PropostaWorkspace
+      key={data.updatedAt.toISOString()}
+      data={data}
+      vendedores={vendedores}
+    />
+  );
 }

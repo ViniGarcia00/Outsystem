@@ -2,7 +2,7 @@
 
 import { AlertTriangle, Check, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
 import { AppPage, PageHeader } from "@/components/app";
@@ -12,57 +12,15 @@ import type {
   ModeloProposta,
   SelectOption,
 } from "@/services/proposta.service";
-import type { ItemDTO, SecaoDTO } from "@/services/proposta-conteudo.service";
-import type { ProdutoListItem } from "@/services/produto.service";
-import { ok, fail } from "@/types";
 
 import { criarPropostaAction } from "./actions";
 import { ConteudoEditor } from "./conteudo-editor";
-import type { ConteudoActions, Direcao } from "./conteudo-handlers";
+import { useConteudoMemoria } from "./conteudo-memoria";
 import {
   PropostaCabecalho,
   type CabecalhoValores,
 } from "./proposta-cabecalho";
 import type { CabecalhoPatchValues } from "./schema";
-
-/** Contador de ids temporários (só para a montagem em memória). */
-let tempSeq = 0;
-const novoId = () => `tmp-${tempSeq++}`;
-
-/** Monta um item em memória (snapshot do produto; valor editável). */
-function criarItemMem(
-  prod: ProdutoListItem,
-  quantidade: number,
-  valorUnitario: number | undefined,
-  ordem: number,
-): ItemDTO {
-  return {
-    id: novoId(),
-    tipo: "PRODUTO",
-    produtoId: prod.id,
-    codigo: prod.codigo,
-    descricao: prod.descricao,
-    unidade: prod.unidade,
-    valorProduto: valorUnitario ?? prod.valorProduto,
-    valorServico: prod.valorServico,
-    quantidade,
-    ordem,
-  };
-}
-
-/** Move um item da lista e renumera `ordem` (0,1,2…). */
-function moverNaLista<T extends { id: string; ordem: number }>(
-  lista: T[],
-  id: string,
-  direcao: Direcao,
-): T[] {
-  const idx = lista.findIndex((x) => x.id === id);
-  const swap = direcao === "UP" ? idx - 1 : idx + 1;
-  if (idx < 0 || swap < 0 || swap >= lista.length) return lista;
-  const novo = [...lista];
-  [novo[idx], novo[swap]] = [novo[swap], novo[idx]];
-  return novo.map((x, i) => ({ ...x, ordem: i }));
-}
 
 const CABECALHO_INICIAL: CabecalhoValores = {
   clienteId: null,
@@ -76,142 +34,20 @@ const CABECALHO_INICIAL: CabecalhoValores = {
 
 /**
  * Workspace de CRIAÇÃO — tudo em memória. Nada é gravado até "Criar Proposta",
- * que persiste cabeçalho + seções + produtos numa única transação (ver
- * `criarPropostaCompleta`). Fechar/cancelar antes ⇒ nada existe, nenhum número
- * consumido.
+ * que persiste cabeçalho + seções + produtos numa única transação. Fechar/
+ * cancelar antes ⇒ nada existe, nenhum número consumido.
  */
 export function NovaPropostaWorkspace({
-  produtosData,
   vendedores,
 }: {
-  produtosData: ProdutoListItem[];
   vendedores: SelectOption[];
 }) {
   const router = useRouter();
   const [header, setHeader] = useState<CabecalhoValores>(CABECALHO_INICIAL);
-  const [secoes, setSecoes] = useState<SecaoDTO[]>([]);
   const [criando, setCriando] = useState(false);
 
-  const produtosById = useMemo(
-    () => new Map(produtosData.map((p) => [p.id, p])),
-    [produtosData],
-  );
-
-  const actions: ConteudoActions = useMemo(
-    () => ({
-      adicionarSecao: async (nome) => {
-        setSecoes((prev) => [
-          ...prev,
-          { id: novoId(), nome: nome.trim(), ordem: prev.length, itens: [] },
-        ]);
-        return ok(undefined);
-      },
-      renomearSecao: async (secaoId, nome) => {
-        setSecoes((prev) =>
-          prev.map((s) =>
-            s.id === secaoId ? { ...s, nome: nome.trim() } : s,
-          ),
-        );
-        return ok(undefined);
-      },
-      removerSecao: async (secaoId) => {
-        setSecoes((prev) =>
-          prev
-            .filter((s) => s.id !== secaoId)
-            .map((s, i) => ({ ...s, ordem: i })),
-        );
-        return ok(undefined);
-      },
-      moverSecao: async (secaoId, direcao) => {
-        setSecoes((prev) => moverNaLista(prev, secaoId, direcao));
-        return ok(undefined);
-      },
-      adicionarItem: async (secaoId, produtoId, quantidade, valorUnitario) => {
-        const prod = produtosById.get(produtoId);
-        if (!prod) return fail("Produto não encontrado.");
-        setSecoes((prev) =>
-          prev.map((s) =>
-            s.id === secaoId
-              ? {
-                  ...s,
-                  itens: [
-                    ...s.itens,
-                    criarItemMem(prod, quantidade, valorUnitario, s.itens.length),
-                  ],
-                }
-              : s,
-          ),
-        );
-        return ok(undefined);
-      },
-      adicionarItemAvulso: async (produtoId, quantidade, valorUnitario) => {
-        const prod = produtosById.get(produtoId);
-        if (!prod) return fail("Produto não encontrado.");
-        setSecoes((prev) => {
-          const base: SecaoDTO[] =
-            prev.length > 0
-              ? prev
-              : [{ id: novoId(), nome: "Produtos", ordem: 0, itens: [] }];
-          return base.map((s, i) =>
-            i === 0
-              ? {
-                  ...s,
-                  itens: [
-                    ...s.itens,
-                    criarItemMem(prod, quantidade, valorUnitario, s.itens.length),
-                  ],
-                }
-              : s,
-          );
-        });
-        return ok(undefined);
-      },
-      atualizarQuantidade: async (itemId, quantidade) => {
-        setSecoes((prev) =>
-          prev.map((s) => ({
-            ...s,
-            itens: s.itens.map((it) =>
-              it.id === itemId ? { ...it, quantidade } : it,
-            ),
-          })),
-        );
-        return ok(undefined);
-      },
-      atualizarValorUnitario: async (itemId, valor) => {
-        setSecoes((prev) =>
-          prev.map((s) => ({
-            ...s,
-            itens: s.itens.map((it) =>
-              it.id === itemId ? { ...it, valorProduto: valor } : it,
-            ),
-          })),
-        );
-        return ok(undefined);
-      },
-      removerItem: async (itemId) => {
-        setSecoes((prev) =>
-          prev.map((s) => ({
-            ...s,
-            itens: s.itens
-              .filter((it) => it.id !== itemId)
-              .map((it, i) => ({ ...it, ordem: i })),
-          })),
-        );
-        return ok(undefined);
-      },
-      moverItem: async (itemId, direcao) => {
-        setSecoes((prev) =>
-          prev.map((s) =>
-            s.itens.some((it) => it.id === itemId)
-              ? { ...s, itens: moverNaLista(s.itens, itemId, direcao) }
-              : s,
-          ),
-        );
-        return ok(undefined);
-      },
-    }),
-    [produtosById],
-  );
+  const semMutacao = useCallback(() => {}, []);
+  const { secoes, actions } = useConteudoMemoria([], semMutacao);
 
   const onCampo = (patch: CabecalhoPatchValues) =>
     setHeader((h) => ({
@@ -277,7 +113,9 @@ export function NovaPropostaWorkspace({
               onClick={criar}
               disabled={criando || semCliente}
               title={
-                semCliente ? "Selecione o cliente para criar a proposta." : undefined
+                semCliente
+                  ? "Selecione o cliente para criar a proposta."
+                  : undefined
               }
             >
               <Check className="h-4 w-4" />
