@@ -191,7 +191,7 @@ ADRs, problemas, soluções, lições e o hash do commit.
   antes de adotá-lo. Não é o banco ativo (dev usa o nativo).
 - **Gate:** lint 0, typecheck 0, build 0, smoke 6/6, `/api/health` 200 (db up),
   `/dev/diagnostics` 200.
-- **Hash do commit:** `PENDENTE`
+- **Hash do commit:** `f841a6e`
 
 ---
 
