@@ -14,6 +14,7 @@ import type { ConteudoActions } from "./conteudo-handlers";
 import { ItensTable } from "./itens-table";
 import { RodapeTotais } from "./rodape-totais";
 import { SecaoCard } from "./secao-card";
+import type { Desconto } from "./totais";
 
 /**
  * Editor de conteúdo. No modelo **Comercial**, produtos vivem dentro de seções
@@ -27,12 +28,16 @@ export function ConteudoEditor({
   readOnly,
   refresh,
   simplificada,
+  desconto,
+  onDescontoChange,
 }: {
   secoes: SecaoDTO[];
   actions: ConteudoActions;
   readOnly: boolean;
   refresh: () => void;
   simplificada: boolean;
+  desconto: Desconto;
+  onDescontoChange: (desconto: Desconto) => void;
 }) {
   // Todos os itens da proposta (todas as seções) — base dos totais em tempo real.
   const itens = secoes.flatMap((s) => s.itens);
@@ -57,7 +62,13 @@ export function ConteudoEditor({
       )}
 
       {itens.length > 0 && (
-        <RodapeTotais itens={itens} simplificada={simplificada} />
+        <RodapeTotais
+          itens={itens}
+          simplificada={simplificada}
+          desconto={desconto}
+          onDescontoChange={onDescontoChange}
+          readOnly={readOnly}
+        />
       )}
     </section>
   );

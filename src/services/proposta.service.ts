@@ -18,6 +18,7 @@ import { prisma } from "@/infrastructure/database";
 
 export type StatusProposta = "RASCUNHO" | "EMITIDA" | "CANCELADA";
 export type ModeloProposta = "COMERCIAL" | "SIMPLIFICADA";
+export type TipoDesconto = "VALOR" | "PERCENTUAL";
 export type MotivoCancelamento =
   | "CLIENTE_DESISTIU"
   | "CONCORRENCIA"
@@ -163,6 +164,8 @@ export interface NovaPropostaPayload {
   validadeDias: number;
   obsInternas: string | null;
   obsProposta: string | null;
+  descontoTipo?: TipoDesconto;
+  descontoValor?: number;
   secoes: NovaPropostaSecao[];
 }
 
@@ -184,6 +187,8 @@ export async function criarPropostaCompleta(
         validadeDias: payload.validadeDias,
         obsInternas: trimOrNull(payload.obsInternas),
         obsProposta: trimOrNull(payload.obsProposta),
+        tipoDesconto: payload.descontoTipo ?? "VALOR",
+        valorDesconto: payload.descontoValor ?? 0,
         status: "RASCUNHO",
       },
       select: { id: true, proposalNumber: true },
@@ -322,6 +327,8 @@ export async function salvarProposta(
         validadeDias: payload.validadeDias,
         obsInternas: trimOrNull(payload.obsInternas),
         obsProposta: trimOrNull(payload.obsProposta),
+        tipoDesconto: payload.descontoTipo ?? "VALOR",
+        valorDesconto: payload.descontoValor ?? 0,
         updatedAt: new Date(),
       },
     });

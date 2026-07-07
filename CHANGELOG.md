@@ -4,6 +4,26 @@ Todas as mudanças relevantes deste projeto são documentadas aqui.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o
 projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [0.9.0] — 2026-07-07
+
+### Sprint 2.5 — Desconto da Proposta. Ver ADR-0220.
+
+#### Adicionado
+
+- **Campo de desconto inteligente** (único): digitar `500` = desconto em **valor**
+  (R$ 500,00); acrescentar `%` (`10%`, `7,5%`) = **percentual**. Sem seletor; ao
+  perder o foco, formata (R$/%). Placeholder "Ex.: 500 ou 10%" + texto de ajuda.
+- **Rodapé:** passa a exibir **Subtotal · Desconto · Total da Proposta**
+  (= Subtotal − Desconto, nunca negativo). Recalcula em tempo real a cada
+  mutação; sem botão de recalcular.
+- **Persistência (modelagem separada):** `Proposta.tipoDesconto`
+  (VALOR|PERCENTUAL) + `valorDesconto` (Decimal) — nunca uma string. Migration
+  aditiva `20260707040000_desconto`.
+- **Regras:** desconto em valor ≥ 0 e ≤ Subtotal; percentual 0–100%. Na
+  Simplificada o desconto incide sobre o Subtotal (só produtos).
+- **Helper `totais.ts`** estendido (`aplicarDesconto`, `descontoAplicado`,
+  `totalProposta`) — reutiliza a lógica da Sprint 2.4, sem duplicação.
+
 ## [0.8.0] — 2026-07-07
 
 ### Sprint 2.4 (parte 2) — Totais da Proposta. Ver ADR-0219.

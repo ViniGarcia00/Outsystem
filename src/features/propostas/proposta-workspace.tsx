@@ -27,6 +27,7 @@ import {
   type CabecalhoValores,
 } from "./proposta-cabecalho";
 import type { CabecalhoPatchValues, CancelarFormValues } from "./schema";
+import type { Desconto } from "./totais";
 
 interface Option {
   value: string;
@@ -52,12 +53,21 @@ export function PropostaWorkspace({
     obsInternas: data.obsInternas,
     obsProposta: data.obsProposta,
   });
+  const [desconto, setDesconto] = useState<Desconto>({
+    tipo: data.descontoTipo,
+    valor: data.descontoValor,
+  });
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
 
   const marcarSujo = useCallback(() => setDirty(true), []);
   const { secoes, actions } = useConteudoMemoria(data.secoes, marcarSujo);
+
+  const onDesconto = (d: Desconto) => {
+    setDirty(true);
+    setDesconto(d);
+  };
 
   const onCampo = (patch: CabecalhoPatchValues) => {
     setDirty(true);
@@ -90,6 +100,8 @@ export function PropostaWorkspace({
       validadeDias: header.validadeDias,
       obsInternas: header.obsInternas || null,
       obsProposta: header.obsProposta || null,
+      descontoTipo: desconto.tipo,
+      descontoValor: desconto.valor,
       secoes: secoes.map((s) => ({
         nome: s.nome,
         itens: s.itens.map((it) => ({
@@ -257,6 +269,8 @@ export function PropostaWorkspace({
         readOnly={readOnly}
         refresh={() => {}}
         simplificada={header.modelo === "SIMPLIFICADA"}
+        desconto={desconto}
+        onDescontoChange={onDesconto}
       />
 
       <CancelarDialog

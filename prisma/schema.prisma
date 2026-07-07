@@ -72,6 +72,12 @@ enum TipoItemProposta {
   SERVICO
 }
 
+/// Como o desconto da proposta é interpretado (ADR-0220).
+enum TipoDesconto {
+  VALOR
+  PERCENTUAL
+}
+
 // ---------------------------------------------------------------------------
 // Cadastros base
 // ---------------------------------------------------------------------------
@@ -171,6 +177,11 @@ model Proposta {
   obsInternas String? @db.Text
   /// Observações da proposta (futuro PDF).
   obsProposta String? @db.Text
+
+  /// Desconto da proposta (ADR-0220). Modelagem separada de tipo/valor; o total
+  /// é derivado (nunca persistido). Congelamento por-revisão fica para o PDF.
+  tipoDesconto  TipoDesconto @default(VALOR)
+  valorDesconto Decimal      @default(0) @db.Decimal(12, 2)
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt

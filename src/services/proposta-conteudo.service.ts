@@ -3,6 +3,7 @@ import { prisma } from "@/infrastructure/database";
 import type {
   ModeloProposta,
   StatusProposta,
+  TipoDesconto,
 } from "./proposta.service";
 
 /**
@@ -51,6 +52,9 @@ export interface WorkspaceDTO {
   validadeDias: number;
   obsInternas: string;
   obsProposta: string;
+  // Desconto (modelagem separada tipo/valor; total é derivado)
+  descontoTipo: TipoDesconto;
+  descontoValor: number;
   // Datas
   emitidaAt: Date | null; // 1ª emissão da proposta (referência)
   revisaoEmitidaAt: Date | null; // emissão da revisão exibida
@@ -78,6 +82,8 @@ export async function getWorkspace(
       validadeDias: true,
       obsInternas: true,
       obsProposta: true,
+      tipoDesconto: true,
+      valorDesconto: true,
       emitidaAt: true,
       updatedAt: true,
       clienteId: true,
@@ -131,6 +137,8 @@ export async function getWorkspace(
     validadeDias: p.validadeDias,
     obsInternas: p.obsInternas ?? "",
     obsProposta: p.obsProposta ?? "",
+    descontoTipo: p.tipoDesconto,
+    descontoValor: toNumber(p.valorDesconto),
     emitidaAt: p.emitidaAt,
     revisaoEmitidaAt: p.currentRevision?.emittedAt ?? null,
     updatedAt: p.updatedAt,

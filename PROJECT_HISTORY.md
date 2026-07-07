@@ -401,5 +401,32 @@ ADRs, problemas, soluções, lições e o hash do commit.
 
 ---
 
+## Sprint 2.5 — Desconto da Proposta
+
+- **Versão:** 0.9.0
+- **Data:** 2026-07-07
+- **Objetivo:** desconto da proposta com um único campo inteligente e cálculo do
+  Total da Proposta em tempo real.
+- **Principais entregas:**
+  - **`DescontoInput`** (campo único): `500` → VALOR; `10%`/`7,5%` → PERCENTUAL;
+    formata no blur (R$/%); placeholder + ajuda. Sem seletor/botão.
+  - **Persistência separada:** `Proposta.tipoDesconto` (enum) + `valorDesconto`
+    (Decimal). Migration aditiva `20260707040000_desconto` (defaults VALOR/0).
+  - **Cálculo (helper `totais.ts`):** `aplicarDesconto` + `calcularTotais` com
+    `descontoAplicado`/`totalProposta`. Clamps: valor ≤ Subtotal; percentual
+    0–100%. Fluxo Subtotal → Desconto → Total da Proposta (≥ 0).
+  - **Rodapé:** Subtotal · Desconto · Total da Proposta; Simplificada mantém
+    Total Serviços oculto (desconto sobre o Subtotal de produtos).
+- **ADRs criadas:** ADR-0220.
+- **Decisão de modelagem:** desconto na **Proposta** (nível-proposta, como
+  modelo/validade); congelamento por-revisão fica para o PDF (2.7).
+- **Gate:** lint 0, typecheck 0, build 0, smoke **7/7** (com desconto e Total da
+  Proposta), `/api/health` 200 (db up). Verificado por script (clamps + round-trip
+  da persistência).
+- **Hash do commit:** `PENDENTE`
+- **Próxima:** **2.6 Frete**.
+
+---
+
 > Próximas Sprints: adicionar uma nova seção ao final, seguindo este mesmo
 > formato, ao concluir cada Sprint.

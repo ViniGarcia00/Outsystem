@@ -571,3 +571,30 @@ Formato: **ADR** enxuto (Architecture Decision Record).
   internamente — só a exibição muda. Valores à direita, máscara BRL.
 - **Fora de escopo (próximas Sprints):** desconto, frete, total final, impostos,
   custos, margem, lucro, condições comerciais, PDF.
+
+---
+
+## Sprint 2.5 — Desconto da proposta
+
+### ADR-0220 — Desconto: campo único inteligente + modelagem separada tipo/valor
+
+- **UX (campo inteligente):** um único campo. Digitar `500` ⇒ desconto em
+  **VALOR** (R$ 500,00); acrescentar `%` (`10%`, `7,5%`) ⇒ **PERCENTUAL**. Sem
+  botão/seletor. Ao sair do foco, formata a exibição (R$ ou %). Placeholder
+  "Ex.: 500 ou 10%" + ajuda "Digite um valor… ou acrescente % …".
+- **Persistência (modelagem separada):** NUNCA se grava a string. Persistem-se
+  **`Proposta.tipoDesconto`** (enum VALOR|PERCENTUAL) + **`valorDesconto`**
+  (Decimal). Migration aditiva `20260707040000_desconto` (defaults VALOR/0). O
+  desconto fica na **Proposta** (nível-proposta, junto de modelo/validade); o
+  congelamento por-revisão (com o cabeçalho) fica para o PDF (Sprint 2.7).
+- **Cálculo em tempo real (helper central, ADR-0219):** `totais.ts` ganha
+  `aplicarDesconto(subtotal, desconto)` e `calcularTotais` passa a devolver
+  `descontoAplicado` + `totalProposta`. **Regras (clamp):** VALOR ≥ 0 e nunca >
+  Subtotal; PERCENTUAL 0–100%. Fluxo: **Subtotal → Desconto → Total da Proposta**
+  (nunca negativo). Recalcula a cada mutação (item/quantidade/valor/desconto);
+  sem botão de recalcular.
+- **Simplificada (apresentação):** o Subtotal (e a base do desconto) considera só
+  os produtos; Total Serviços oculto. Valores de serviço seguem existindo.
+- **Consequência:** rodapé passa a exibir Subtotal · Desconto · **Total da
+  Proposta**. Componente `DescontoInput` (reutilizável) + tipo `Desconto` no
+  helper. Fora de escopo: frete, total final, impostos, PDF (próximas Sprints).

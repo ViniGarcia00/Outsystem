@@ -5,6 +5,7 @@ import { z } from "zod";
  * O cabeçalho é auto-salvo por campo (patch parcial); não há formulário/submit.
  */
 export const modeloEnum = z.enum(["COMERCIAL", "SIMPLIFICADA"]);
+export const tipoDescontoEnum = z.enum(["VALOR", "PERCENTUAL"]);
 
 /** Patch parcial do cabeçalho (auto-save por campo). */
 export const cabecalhoPatchSchema = z
@@ -37,6 +38,8 @@ export const novaPropostaSchema = z.object({
     .max(3650, "Máximo de 3650 dias."),
   obsInternas: z.string().max(5000).nullable(),
   obsProposta: z.string().max(5000).nullable(),
+  descontoTipo: tipoDescontoEnum.optional(),
+  descontoValor: z.number().nonnegative().optional(),
   secoes: z.array(
     z.object({
       nome: z.string().trim().min(1, "Informe o nome da seção."),

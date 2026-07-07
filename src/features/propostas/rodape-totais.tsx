@@ -1,44 +1,81 @@
 import { Separator } from "@/components/ui/separator";
 import { formatCurrency } from "@/utils";
 
-import { calcularTotais, type ItemCalculavel } from "./totais";
+import { DescontoInput } from "./desconto-input";
+import { calcularTotais, type Desconto, type ItemCalculavel } from "./totais";
 
 /**
- * Rodapé financeiro da proposta — totais derivados dos itens em **tempo real**
- * (recalcula a cada re-render; sem persistência, sem botão de recalcular).
- * No modelo Simplificada, oculta **Total Serviços** e o **Subtotal = Total
- * Produtos** (os valores de serviço seguem existindo internamente — só a
- * apresentação muda). Valores à direita, máscara BRL. ADR-0219.
+ * Rodapé financeiro da proposta — totais derivados dos itens + desconto em
+ * **tempo real** (recalcula a cada re-render; sem persistência dos totais, sem
+ * botão de recalcular). No modelo Simplificada, oculta **Total Serviços** e o
+ * **Subtotal = Total Produtos** (valores de serviço seguem existindo
+ * internamente). Fluxo: Subtotal → Desconto → Total da Proposta. Valores à
+ * direita, máscara BRL. ADR-0219/0220.
  */
 export function RodapeTotais({
   itens,
   simplificada,
+  desconto,
+  onDescontoChange,
+  readOnly,
 }: {
   itens: ReadonlyArray<ItemCalculavel>;
   simplificada: boolean;
+  desconto: Desconto;
+  onDescontoChange: (desconto: Desconto) => void;
+  readOnly: boolean;
 }) {
-  const { totalProdutos, totalServicos } = calcularTotais(itens);
-  const subtotal = simplificada ? totalProdutos : totalProdutos + totalServicos;
+  const t = calcularTotais(itens, simplificada, desconto);
 
   return (
     <div className="ml-auto w-full max-w-sm rounded-md border bg-card p-4 text-sm">
       <dl className="space-y-2">
+        <Linha label="Total Produtos" valor={t.totalProdutos} />
+        {!simplificada && <Linha label="Total Serviços" valor={t.totalServicos} />}
+
+        <Separator />
+
+        <Linha label="Subtotal" valor={t.subtotal} />
+
         <div className="flex items-center justify-between gap-6">
-          <dt className="text-muted-foreground">Total Produtos</dt>
-          <dd className="tabular-nums">{formatCurrency(totalProdutos)}</dd>
+          <dt className="text-muted-foreground">Desconto</dt>
+          <dd>
+            <DescontoInput
+              value={desconto}
+              onChange={onDescontoChange}
+              disabled={readOnly}
+            />
+          </dd>
         </div>
-        {!simplificada && (
-          <div className="flex items-center justify-between gap-6">
-            <dt className="text-muted-foreground">Total Serviços</dt>
-            <dd className="tabular-nums">{formatCurrency(totalServicos)}</dd>
+        {t.descontoAplicado > 0 && (
+          <div className="flex justify-end text-xs tabular-nums text-muted-foreground">
+            − {formatCurrency(t.descontoAplicado)}
           </div>
         )}
+
         <Separator />
+
         <div className="flex items-center justify-between gap-6 text-base font-semibold">
-          <dt>Subtotal</dt>
-          <dd className="tabular-nums">{formatCurrency(subtotal)}</dd>
+          <dt>Total da Proposta</dt>
+          <dd className="tabular-nums">{formatCurrency(t.totalProposta)}</dd>
         </div>
       </dl>
+
+      {!readOnly && (
+        <p className="mt-3 text-xs text-muted-foreground">
+          Digite um valor para desconto em reais ou acrescente % para desconto
+          percentual.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function Linha({ label, valor }: { label: string; valor: number }) {
+  return (
+    <div className="flex items-center justify-between gap-6">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="tabular-nums">{formatCurrency(valor)}</dd>
     </div>
   );
 }

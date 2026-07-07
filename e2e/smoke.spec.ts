@@ -127,10 +127,20 @@ test("Propostas: criação diferida, emitir e revisão automática", async ({
   await expect(
     page.getByRole("columnheader", { name: "Valor Serviço" }),
   ).toBeVisible();
-  // Rodapé de totais (Completo): Total Produtos, Total Serviços e Subtotal.
+  // Rodapé de totais (Completo): Total Produtos, Total Serviços, Subtotal,
+  // Desconto e Total da Proposta.
   await expect(page.getByText("Total Produtos", { exact: true })).toBeVisible();
   await expect(page.getByText("Total Serviços", { exact: true })).toBeVisible();
   await expect(page.getByText("Subtotal", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Total da Proposta", { exact: true }),
+  ).toBeVisible();
+
+  // Desconto inteligente: "10%" é interpretado como percentual e formatado.
+  const desconto = page.getByLabel("Desconto");
+  await desconto.fill("10%");
+  await desconto.blur();
+  await expect(desconto).toHaveValue("10%");
 
   // "Criar Proposta" persiste tudo e abre o workspace definitivo.
   await page.getByRole("button", { name: "Criar Proposta" }).click();
@@ -192,9 +202,13 @@ test("Propostas: modelo Simplificada (produtos sem seções)", async ({
   await expect(
     page.getByRole("columnheader", { name: "Total", exact: true }),
   ).toBeVisible();
-  // Simplificada: rodapé sem "Total Serviços"; Subtotal = Total Produtos.
+  // Simplificada: rodapé sem "Total Serviços"; Subtotal = Total Produtos;
+  // Total da Proposta presente.
   await expect(page.getByText("Total Produtos", { exact: true })).toBeVisible();
   await expect(page.getByText("Subtotal", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Total da Proposta", { exact: true }),
+  ).toBeVisible();
   await expect(page.getByText("Total Serviços", { exact: true })).toHaveCount(0);
   await expect(
     page.getByRole("columnheader", { name: "Valor Serviço" }),

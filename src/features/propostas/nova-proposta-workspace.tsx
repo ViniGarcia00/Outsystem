@@ -21,6 +21,7 @@ import {
   type CabecalhoValores,
 } from "./proposta-cabecalho";
 import type { CabecalhoPatchValues } from "./schema";
+import { DESCONTO_ZERO, type Desconto } from "./totais";
 
 const CABECALHO_INICIAL: CabecalhoValores = {
   clienteId: null,
@@ -44,6 +45,7 @@ export function NovaPropostaWorkspace({
 }) {
   const router = useRouter();
   const [header, setHeader] = useState<CabecalhoValores>(CABECALHO_INICIAL);
+  const [desconto, setDesconto] = useState<Desconto>(DESCONTO_ZERO);
   const [criando, setCriando] = useState(false);
 
   const semMutacao = useCallback(() => {}, []);
@@ -80,6 +82,8 @@ export function NovaPropostaWorkspace({
       validadeDias: header.validadeDias,
       obsInternas: header.obsInternas || null,
       obsProposta: header.obsProposta || null,
+      descontoTipo: desconto.tipo,
+      descontoValor: desconto.valor,
       secoes: secoes.map((s) => ({
         nome: s.nome,
         itens: s.itens.map((it) => ({
@@ -165,6 +169,8 @@ export function NovaPropostaWorkspace({
         readOnly={false}
         refresh={() => {}}
         simplificada={header.modelo === "SIMPLIFICADA"}
+        desconto={desconto}
+        onDescontoChange={setDesconto}
       />
     </AppPage>
   );
