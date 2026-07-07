@@ -4,6 +4,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import {
+  confirmDiscardChanges,
+  useNavigationBlocker,
+} from "@/components/shared";
+import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
@@ -20,6 +24,7 @@ interface SidebarNavProps {
 
 export function SidebarNav({ collapsed = false, onNavigate }: SidebarNavProps) {
   const pathname = usePathname();
+  const { isBlocked } = useNavigationBlocker();
 
   return (
     <nav className="flex flex-col gap-1 px-2" aria-label="Navegação principal">
@@ -32,6 +37,12 @@ export function SidebarNav({ collapsed = false, onNavigate }: SidebarNavProps) {
           <Link
             href={item.href}
             onClick={onNavigate}
+            onNavigate={(event) => {
+              // Bloqueia a saída quando há alterações não salvas no formulário.
+              if (isBlocked && !confirmDiscardChanges()) {
+                event.preventDefault();
+              }
+            }}
             aria-current={active ? "page" : undefined}
             className={cn(
               "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",

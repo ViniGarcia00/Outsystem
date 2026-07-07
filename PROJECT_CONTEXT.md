@@ -19,8 +19,11 @@ Sistema **interno** de geração de propostas da Outmat. Não é SaaS. Uso restr
 | UI            | shadcn/ui (Radix) + Lucide React             |
 | Formulários   | React Hook Form + Zod                        |
 | Tabelas       | TanStack Table                               |
-| ORM / Banco   | Prisma 7 (driver adapter Pg) + PostgreSQL    |
-| Testes        | Vitest                                       |
+| ORM / Banco   | Prisma 7 (driver adapter Pg) + PostgreSQL nativo |
+| Dados (UI→DB) | Server Actions → services → Prisma (`ActionResult`) |
+| Toasts        | sonner                                       |
+| Testes        | Vitest (unidade) + Playwright (smoke E2E)     |
+| Impressão     | `print.css` (base para o Preview HTML futuro) |
 | Tema          | next-themes (claro/escuro/sistema)           |
 
 ## Arquitetura
@@ -69,26 +72,40 @@ prisma/           schema · migrations · seed
 
 ## Estado atual (o que existe)
 
-- ✅ Estrutura de pastas e camadas.
-- ✅ Layout base: Sidebar recolhível, Header, Breadcrumb, área principal.
-- ✅ Tema claro/escuro/sistema.
-- ✅ 6 rotas placeholder (sem funcionalidades).
-- ✅ Componentes base reutilizáveis.
-- ✅ Prisma configurado + 8 models estruturais + migration inicial.
-- ✅ Seed de dados fictícios (5 clientes, 20 produtos, 3 vendedores).
-- ✅ Formatadores (moeda, data, CPF/CNPJ, telefone) + testes.
-- ✅ `lint`, `build` e `test` sem erros.
+Sprint 0 (fundação) + **Sprint 1 (cadastros base)** + **Sprint 1.5 (polimento,
+UX, testes e preparação)** concluídas.
 
-**Fora de escopo da Sprint 0 (proibido):** CRUD, telas funcionais, Dashboard,
-PDF, regras de negócio, propostas.
+- ✅ Estrutura de pastas e camadas; layout base; tema claro/escuro/sistema.
+- ✅ **Banco PostgreSQL nativo** (usuário dedicado `outmat`); migrations + seed.
+- ✅ **CRUD completo**: Configuração (singleton), Clientes, Produtos, Vendedores.
+- ✅ Listagens: busca instantânea, ordenação, paginação (20/pág), filtro de
+  inativos, ações por linha — via `CrudListView` + `CrudLayout`.
+- ✅ Formulários: React Hook Form + Zod, autofocus, atalhos CTRL+S/ESC,
+  redirect + toast ao salvar, `FormDirtyGuard` (guarda de dados não salvos).
+- ✅ Regras de exclusão (uso em propostas) e inativação (`ativo`).
+- ✅ Validações (CPF/CNPJ, e-mail, obrigatórios, monetário) compartilhadas
+  cliente/servidor.
+- ✅ `/api/health`, `VERSION`, `DECISIONS.md`, scripts padronizados.
+- ✅ **Sprint 1.5:** smoke tests (Playwright), `print.css`, `FormSection`,
+  `TableSkeleton`, revisão de acessibilidade/performance e limpeza de código
+  morto. README com trilhas Desenvolvimento/Publicação. Página dev-only
+  `/dev/diagnostics`.
+- ✅ Processo de release: `docs/CHECKLIST_RELEASE.md` (gate obrigatório) +
+  `PROJECT_HISTORY.md` (histórico por Sprint); toda Sprint termina com commit.
+- ✅ `lint`, `build` e `typecheck` sem erros.
+
+## Tela "About" (planejada — não implementada)
+
+Estrutura preparada na Sprint 1.5 (ver BACKLOG). No futuro exibirá: Versão do
+Sistema, Build, Última atualização, Versão do Banco, PostgreSQL, Prisma,
+Next.js, Ambiente, Health e Diagnostics. Diferente de `/dev/diagnostics`, a
+About é voltada ao usuário final e existirá também em produção.
 
 ## Próximas Sprints (visão)
 
-- **Sprint 1 — Cadastros base:** Clientes, Produtos, Vendedores (CRUD, forms,
-  tabelas, validação). Modelagem completa dos campos.
-- **Sprint 2 — Configuração do sistema:** tela do singleton (empresa, logo,
-  cores, textos, templates, caminhos).
-- **Sprint 3 — Propostas (núcleo):** Proposta → Revisão → Seção → Item; modelos
+- ✅ **Sprint 1 — Cadastros base:** Configuração, Clientes, Produtos, Vendedores
+  (CRUD, forms, tabelas, validação). **Concluída.**
+- **Sprint 2 — Propostas (núcleo):** Proposta → Revisão → Seção → Item; modelos
   COMERCIAL e SIMPLIFICADA.
 - **Sprint 4 — Módulos da proposta comercial:** Projeto Wi-Fi, Projeto Som
   (arquitetura extensível).

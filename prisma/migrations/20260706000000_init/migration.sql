@@ -4,10 +4,27 @@ CREATE SCHEMA IF NOT EXISTS "public";
 -- CreateEnum
 CREATE TYPE "ModeloProposta" AS ENUM ('COMERCIAL', 'SIMPLIFICADA');
 
+-- CreateEnum
+CREATE TYPE "TipoPessoa" AS ENUM ('PF', 'PJ');
+
 -- CreateTable
 CREATE TABLE "clientes" (
     "id" TEXT NOT NULL,
-    "nome" TEXT NOT NULL,
+    "ativo" BOOLEAN NOT NULL DEFAULT true,
+    "tipoPessoa" "TipoPessoa" NOT NULL DEFAULT 'PF',
+    "nome" TEXT,
+    "empresa" TEXT,
+    "cpfCnpj" TEXT,
+    "cep" TEXT,
+    "endereco" TEXT,
+    "numero" TEXT,
+    "complemento" TEXT,
+    "bairro" TEXT,
+    "cidade" TEXT,
+    "estado" TEXT,
+    "telefone" TEXT,
+    "email" TEXT,
+    "observacoes" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -17,7 +34,11 @@ CREATE TABLE "clientes" (
 -- CreateTable
 CREATE TABLE "produtos" (
     "id" TEXT NOT NULL,
-    "nome" TEXT NOT NULL,
+    "ativo" BOOLEAN NOT NULL DEFAULT true,
+    "codigo" TEXT NOT NULL,
+    "descricao" TEXT NOT NULL,
+    "valorProduto" DECIMAL(12,2) NOT NULL,
+    "valorServico" DECIMAL(12,2) NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -27,7 +48,10 @@ CREATE TABLE "produtos" (
 -- CreateTable
 CREATE TABLE "vendedores" (
     "id" TEXT NOT NULL,
+    "ativo" BOOLEAN NOT NULL DEFAULT true,
     "nome" TEXT NOT NULL,
+    "telefone" TEXT,
+    "email" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -82,11 +106,45 @@ CREATE TABLE "proposta_itens" (
 -- CreateTable
 CREATE TABLE "configuracao_sistema" (
     "id" TEXT NOT NULL DEFAULT 'singleton',
+    "nomeEmpresa" TEXT,
+    "razaoSocial" TEXT,
+    "cnpj" TEXT,
+    "cep" TEXT,
+    "endereco" TEXT,
+    "numero" TEXT,
+    "complemento" TEXT,
+    "bairro" TEXT,
+    "cidade" TEXT,
+    "estado" TEXT,
+    "telefone" TEXT,
+    "whatsapp" TEXT,
+    "email" TEXT,
+    "site" TEXT,
+    "logo" TEXT,
+    "corPrimaria" TEXT,
+    "corSecundaria" TEXT,
+    "textoQuemSomos" TEXT,
+    "textoFinalProposta" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "configuracao_sistema_pkey" PRIMARY KEY ("id")
 );
+
+-- CreateIndex
+CREATE UNIQUE INDEX "clientes_cpfCnpj_key" ON "clientes"("cpfCnpj");
+
+-- CreateIndex
+CREATE INDEX "clientes_ativo_idx" ON "clientes"("ativo");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "produtos_codigo_key" ON "produtos"("codigo");
+
+-- CreateIndex
+CREATE INDEX "produtos_ativo_idx" ON "produtos"("ativo");
+
+-- CreateIndex
+CREATE INDEX "vendedores_ativo_idx" ON "vendedores"("ativo");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "propostas_proposalNumber_key" ON "propostas"("proposalNumber");

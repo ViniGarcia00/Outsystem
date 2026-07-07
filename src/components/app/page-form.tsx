@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 interface PageFormProps {
   onSubmit?: FormEventHandler<HTMLFormElement>;
   children: ReactNode;
-  /** Rodapé de ações (ex.: `<PageActions onSave onCancel />`). */
+  /** Rodapé de ações (ex.: botões Salvar/Cancelar). */
   footer?: ReactNode;
   className?: string;
 }

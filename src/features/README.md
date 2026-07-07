@@ -1,17 +1,21 @@
 # Features (Feature-First)
 
-Cada feature é **auto-contida** e representa um domínio da aplicação. A estrutura
-interna padrão de uma feature (a ser preenchida nas próximas Sprints) é:
+Cada feature é **auto-contida** e representa um domínio da aplicação.
+
+## Estrutura real (a partir da Sprint 1)
 
 ```
 features/<dominio>/
-  components/   # componentes específicos da feature (UI da feature)
-  hooks/        # hooks específicos da feature
-  schemas/      # validação Zod (formulários, entrada de dados)
-  services/     # casos de uso / acesso a dados via infraestrutura
-  types/        # tipos do domínio
-  index.ts      # API pública da feature (barrel)
+  schema.ts             # validação Zod (fonte única: RHF + Server Action)
+  actions.ts            # Server Actions ("use server") → services
+  <dominio>-form.tsx    # formulário (client) — usa CrudFormShell
+  <dominio>s-list.tsx   # listagem (client) — usa CrudListView
+  index.ts              # API pública da feature (barrel)
 ```
+
+Os **services** (acesso a dados via Prisma) ficam centralizados em
+`src/services/<dominio>.service.ts` — as features os consomem através das
+Server Actions.
 
 ## Regras de arquitetura
 
@@ -20,15 +24,8 @@ features/<dominio>/
 - A feature expõe apenas o necessário pelo `index.ts` (encapsulamento).
 - Dependências apontam para dentro: `app → features → services → infrastructure`.
 
-## Sprint 0
+## Estado atual
 
-Nesta Sprint as features existem **apenas como esqueletos** — nenhuma regra de
-negócio foi implementada (proibido). Os diretórios abaixo são os pontos de
-extensão das próximas Sprints:
-
-- `dashboard/`
-- `propostas/`
-- `clientes/`
-- `produtos/`
-- `vendedores/`
-- `configuracoes/`
+- Implementadas (Sprint 1): `clientes/`, `produtos/`, `vendedores/`,
+  `configuracoes/`.
+- Placeholder (próximas Sprints): `dashboard/`, `propostas/`.

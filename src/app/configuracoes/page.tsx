@@ -1,22 +1,14 @@
-import { Settings } from "lucide-react";
 import type { Metadata } from "next";
 
-import { AppPage, PageEmpty, PageHeader } from "@/components/app";
+import { ConfiguracaoForm } from "@/features/configuracoes";
+import { getConfiguracao } from "@/services/configuracao.service";
 
 export const metadata: Metadata = { title: "Configurações" };
 
-export default function ConfiguracoesPage() {
-  return (
-    <AppPage>
-      <PageHeader
-        title="Configurações"
-        description="Configurações gerais do sistema (registro único)."
-      />
-      <PageEmpty
-        icon={Settings}
-        title="Configurações em construção"
-        description="A tela de configuração do sistema será implementada nas próximas Sprints."
-      />
-    </AppPage>
-  );
+// Sempre refletir o estado atual do banco (registro único).
+export const dynamic = "force-dynamic";
+
+export default async function ConfiguracoesPage() {
+  const config = await getConfiguracao();
+  return <ConfiguracaoForm initial={config} />;
 }

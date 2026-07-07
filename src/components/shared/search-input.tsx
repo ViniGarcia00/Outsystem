@@ -24,6 +24,7 @@ export function SearchInput({
       />
       <Input
         type="search"
+        aria-label="Buscar"
         className={cn("pl-9", className)}
         placeholder="Buscar..."
         {...props}

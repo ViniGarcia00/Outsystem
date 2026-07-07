@@ -7,3 +7,5 @@ export {
   onlyDigits,
   type DateInput,
 } from "./format";
+
+export { isValidCpf, isValidCnpj, isValidCpfCnpj } from "./validation";

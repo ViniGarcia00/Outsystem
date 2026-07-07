@@ -13,7 +13,7 @@ interface PageFiltersProps {
   searchPlaceholder?: string;
   /** Filtros adicionais (selects, toggles, etc.). */
   children?: ReactNode;
-  /** Ações à direita (ex.: `<PageActions />`). */
+  /** Ações à direita (ex.: botões). */
   actions?: ReactNode;
   className?: string;
 }

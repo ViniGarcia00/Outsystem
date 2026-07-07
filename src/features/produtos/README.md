@@ -1,6 +1,12 @@
 # Feature: produtos
 
-Esqueleto (Sprint 0) — sem regras de negócio.
+CRUD de produtos (Sprint 1).
 
-Estrutura planejada: `components/`, `hooks/`, `schemas/`, `services/`, `types/`, `index.ts`.
-Ver `src/features/README.md` para as convenções.
+- `schema.ts` — Zod: `codigo` e `descricao` obrigatórios (`codigo` único);
+  `valorProduto`/`valorServico` monetários ≥ 0 (serviço pode ser 0).
+- `actions.ts` — Server Actions (list/create/update/delete/toggle ativo).
+- `produto-form.tsx` — formulário via `CrudFormShell`.
+- `produtos-list.tsx` — listagem via `CrudListView`.
+
+Service: `src/services/produto.service.ts`. Sprint 1: produto sem relação com
+proposta → exclusão sempre permitida (ver DECISIONS.md ADR-0104).

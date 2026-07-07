@@ -11,8 +11,8 @@ import type { NavItem } from "@/types";
 
 /**
  * Fonte única da navegação principal.
- * Cada item aponta para uma feature. As telas são apenas placeholders
- * nesta Sprint (sem funcionalidades).
+ * Cada item aponta para uma feature. Dashboard e Propostas ainda são telas
+ * placeholder (implementação nas próximas Sprints).
  */
 export const mainNavigation: NavItem[] = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },

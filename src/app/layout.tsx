@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 
 import { AppShell, ThemeProvider } from "@/components/layout";
+import { NavigationBlockerProvider } from "@/components/shared";
+import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 import "./globals.css";
@@ -28,8 +30,11 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <TooltipProvider delayDuration={200}>
-            <AppShell>{children}</AppShell>
+            <NavigationBlockerProvider>
+              <AppShell>{children}</AppShell>
+            </NavigationBlockerProvider>
           </TooltipProvider>
+          <Toaster />
         </ThemeProvider>
       </body>
     </html>

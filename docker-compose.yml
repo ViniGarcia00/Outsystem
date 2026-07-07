@@ -1,0 +1,27 @@
+# Ambiente de desenvolvimento — Outmat Propostas
+# Sobe um PostgreSQL 17 local para desenvolvimento.
+#
+#   docker compose up -d      # inicia o banco
+#   docker compose down       # para o banco (dados preservados no volume)
+#   docker compose down -v    # para e APAGA os dados
+services:
+  postgres:
+    image: postgres:17
+    container_name: outmat_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: outmat_propostas
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - outmat_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d outmat_propostas"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  outmat_pgdata:

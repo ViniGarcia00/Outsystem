@@ -3,11 +3,11 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import type { ReactNode } from "react";
 
-import { Loading } from "@/components/shared";
 import { DataTable } from "@/components/tables";
 import { cn } from "@/lib/utils";
 
 import { PagePagination, type PagePaginationProps } from "./page-pagination";
+import { TableSkeleton } from "./table-skeleton";
 
 interface PageTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -39,9 +39,7 @@ export function PageTable<TData, TValue>({
   return (
     <div className={cn("flex flex-col gap-4", className)}>
       {loading ? (
-        <div className="rounded-md border">
-          <Loading />
-        </div>
+        <TableSkeleton columns={columns.length} />
       ) : isEmpty && empty ? (
         empty
       ) : (

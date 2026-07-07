@@ -39,7 +39,9 @@ export function SidebarContent({ collapsed, onNavigate }: SidebarContentProps) {
 export function DesktopSidebar({ collapsed = false }: { collapsed?: boolean }) {
   return (
     <aside
+      data-slot="sidebar"
       data-collapsed={collapsed}
+      aria-label="Barra lateral"
       className={cn(
         "hidden shrink-0 border-r border-sidebar-border transition-[width] duration-200 md:block",
         collapsed ? "w-14" : "w-56",

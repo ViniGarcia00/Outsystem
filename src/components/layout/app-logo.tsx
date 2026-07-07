@@ -17,8 +17,8 @@ interface AppLogoProps {
  * a partir das Configurações no futuro (basta então renderizar `src` aqui).
  */
 export function AppLogo({ collapsed = false, className }: AppLogoProps) {
-  // TODO(configuracoes): quando `src` estiver disponível, renderizar a imagem
-  // da logo cadastrada em vez do símbolo "OP" (sem alterar os consumidores).
+  // Ponto único da marca. No futuro, quando houver `src` (logo das
+  // Configurações), basta renderizar a imagem aqui, sem alterar os consumidores.
   return (
     <div className={cn("flex items-center gap-2", className)}>
       <div

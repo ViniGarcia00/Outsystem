@@ -83,6 +83,12 @@ prisma/
 Prisma 7 com o generator `prisma-client` (saída em `src/generated/prisma`) e
 **driver adapter** (`@prisma/adapter-pg`). Configuração em `prisma.config.ts`.
 
+> **Banco oficial (a partir da Sprint 1): PostgreSQL nativo**, com **usuário
+> dedicado** `outmat` — a aplicação **nunca** usa o superusuário `postgres`.
+> Bootstrap único em `scripts/db/bootstrap.sql`. Docker é **opcional** (ambiente
+> isolado). A aplicação/Prisma sempre leem a `DATABASE_URL` do `.env`. Detalhes
+> e histórico em `DECISIONS.md` (ADR-0101).
+
 ### Models (apenas estruturais na Sprint 0)
 
 | Model                 | Tabela                  | Papel                                            |
@@ -133,6 +139,36 @@ telefones, WhatsApp, email, site, redes sociais, rodapé do PDF, textos
 institucionais, templates, caminhos de armazenamento e configurações gerais.
 Esses campos serão adicionados via migration incremental.
 
+## 4.1. Camada de dados — Server Actions (Sprint 1)
+
+O CRUD segue o fluxo **Server Action (`"use server"`) → `services/` → Prisma**,
+com retorno padronizado `ActionResult<T>` (`src/types`). Não há Route Handlers
+para o CRUD (apenas `/api/health` como endpoint operacional). O mesmo schema Zod
+valida no cliente (React Hook Form) e no servidor (action). As **listagens** são
+processadas no cliente (busca instantânea por qualquer parte do texto, ordenação
+e paginação de 20/pág) — os services retornam apenas os campos exibidos. Ver
+`DECISIONS.md` (ADR-0102, ADR-0103).
+
+Camadas de UI reutilizáveis: `CrudLayout`/`CrudListView` (listagem) e
+`CrudFormShell` (formulário) garantem o **mesmo padrão visual** em todos os
+cadastros (ADR-0106).
+
+## 4.2. Regras de exclusão e inativação (cadastros)
+
+- **Inativação:** Cliente, Produto e Vendedor têm `ativo` (default `true`). As
+  listagens mostram apenas ativos; o filtro "Mostrar inativos" revela os demais.
+- **Exclusão condicionada ao uso em propostas:** um registro só pode ser
+  **excluído** se nunca foi usado em uma proposta; caso contrário deve ser
+  **inativado** (mensagem padrão única).
+  - **Cliente** e **Vendedor** possuem relação com `Proposta` — a checagem já é
+    aplicada (`proposta.count`).
+  - **Produto NÃO possui relação com `Proposta` na Sprint 1** (decisão
+    deliberada — não criar vínculo artificial). Portanto, **na Sprint 1 o
+    produto é excluível normalmente**. Quando a Sprint de Propostas criar o
+    vínculo (`produtoId` nos itens), a checagem será adicionada em
+    `ProdutoService.remove` e a regra passará a valer automaticamente. Ver
+    `DECISIONS.md` (ADR-0104).
+
 ## 5. Configuração e Storage (Windows Server 2019)
 
 - **Env tipado:** `infrastructure/configuration/env.ts` valida `process.env`
@@ -163,6 +199,34 @@ Esses campos serão adicionados via migration incremental.
 | `npm run lint`             | ESLint                                           |
 | `npm run test`             | Testes (Vitest)                                  |
 | `npm run db:generate`      | Gera o Prisma Client                             |
+| `npm run typecheck`        | Verificação de tipos (tsc)                       |
+| `npm run test`             | Testes de unidade (Vitest)                       |
+| `npm run test:e2e`         | Smoke tests (Playwright)                          |
 | `npm run db:migrate:deploy`| Aplica migrations (no servidor com DB)           |
-| `npm run db:migrate:diff`  | Gera SQL de migration offline (sem DB)           |
-| `npm run db:seed`          | Popula dados fictícios de teste                  |
+| `npm run db:seed`          | Popula dados de exemplo                          |
+| `npm run db:validate`      | Valida o CRUD contra o PostgreSQL real           |
+
+## 8. Testes
+
+- **Unidade (Vitest):** formatadores/validações e utilitários puros
+  (`src/**/*.test.ts`).
+- **E2E smoke (Playwright):** fluxos mínimos de navegação e CRUD básico contra a
+  aplicação real, em `e2e/`. Apenas Chromium, execução serial (os testes escrevem
+  no banco); o `webServer` sobe a aplicação automaticamente. Ver DECISIONS.md
+  (ADR-0150).
+
+## 9. Impressão (base para o Preview HTML)
+
+`src/app/print.css` (importado no `globals.css`) define a **estrutura de
+impressão**: `@page` A4, utilitários (`.no-print`, `.print-only`,
+`.print-avoid-break`, `.print-break-before`, `.print-page`) e regras
+`@media print` que ocultam o chrome (sidebar/header/toasts) e neutralizam
+superfícies. É a base do futuro Preview HTML da proposta (ainda não
+implementado). Ver DECISIONS.md (ADR-0151).
+
+## 10. Convenção de imports
+
+- **Barrels** (`index.ts`) expõem a API pública **entre pastas**. Dentro de uma
+  mesma pasta, os arquivos podem se importar por caminho relativo direto.
+- Componentes de formulário compartilham `FormSection` e os campos ligados ao
+  RHF (`TextField`, `SelectField`, etc.) de `@/components/forms`.

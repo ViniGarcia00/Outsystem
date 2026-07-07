@@ -1,19 +1,13 @@
-import { Package } from "lucide-react";
 import type { Metadata } from "next";
 
-import { AppPage, PageEmpty, PageHeader } from "@/components/app";
+import { ProdutosList } from "@/features/produtos";
+import { listProdutos } from "@/services/produto.service";
 
 export const metadata: Metadata = { title: "Produtos" };
 
-export default function ProdutosPage() {
-  return (
-    <AppPage>
-      <PageHeader title="Produtos" description="Catálogo de produtos." />
-      <PageEmpty
-        icon={Package}
-        title="Nenhum produto ainda"
-        description="O catálogo de produtos será implementado nas próximas Sprints."
-      />
-    </AppPage>
-  );
+export const dynamic = "force-dynamic";
+
+export default async function ProdutosPage() {
+  const produtos = await listProdutos(false);
+  return <ProdutosList initialRows={produtos} />;
 }

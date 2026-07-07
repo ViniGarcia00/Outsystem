@@ -31,38 +31,79 @@ enum ModeloProposta {
   SIMPLIFICADA
 }
 
+/// Tipo de pessoa do cliente.
+enum TipoPessoa {
+  PF
+  PJ
+}
+
 // ---------------------------------------------------------------------------
 // Cadastros base
 // ---------------------------------------------------------------------------
 
 model Cliente {
-  id        String   @id @default(cuid())
-  nome      String
+  id         String     @id @default(cuid())
+  ativo      Boolean    @default(true)
+  tipoPessoa TipoPessoa @default(PF)
+
+  /// Obrigatório quando PF (validado no Zod).
+  nome String?
+  /// Obrigatório quando PJ (validado no Zod).
+  empresa String?
+
+  /// Opcional; ÚNICO quando informado (nulos não conflitam no PostgreSQL).
+  cpfCnpj String? @unique
+
+  cep         String?
+  endereco    String?
+  numero      String?
+  complemento String?
+  bairro      String?
+  cidade      String?
+  estado      String?
+
+  telefone    String?
+  email       String?
+  observacoes String? @db.Text
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   propostas Proposta[]
 
+  @@index([ativo])
   @@map("clientes")
 }
 
 model Produto {
-  id        String   @id @default(cuid())
-  nome      String
+  id           String  @id @default(cuid())
+  ativo        Boolean @default(true)
+  codigo       String  @unique
+  descricao    String
+  valorProduto Decimal @db.Decimal(12, 2)
+  /// Pode ser zero.
+  valorServico Decimal @db.Decimal(12, 2)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([ativo])
   @@map("produtos")
 }
 
 model Vendedor {
-  id        String   @id @default(cuid())
-  nome      String
+  id       String  @id @default(cuid())
+  ativo    Boolean @default(true)
+  nome     String
+  telefone String?
+  email    String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   propostas Proposta[]
 
+  @@index([ativo])
   @@map("vendedores")
 }
 
@@ -164,7 +205,37 @@ model PropostaItem {
 /// Esses campos serão adicionados nas próximas Sprints via migration incremental.
 model ConfiguracaoSistema {
   /// id fixo garante a natureza singleton (sempre "singleton").
-  id        String   @id @default("singleton")
+  id String @id @default("singleton")
+
+  // Dados da empresa
+  nomeEmpresa String?
+  razaoSocial String?
+  cnpj        String?
+
+  // Endereço
+  cep         String?
+  endereco    String?
+  numero      String?
+  complemento String?
+  bairro      String?
+  cidade      String?
+  estado      String?
+
+  // Contatos
+  telefone String?
+  whatsapp String?
+  email    String?
+  site     String?
+
+  // Identidade visual
+  logo          String?
+  corPrimaria   String?
+  corSecundaria String?
+
+  // Textos institucionais
+  textoQuemSomos     String? @db.Text
+  textoFinalProposta String? @db.Text
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

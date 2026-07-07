@@ -1,0 +1,100 @@
+/* =============================================================================
+ * print.css — ESTRUTURA de impressão (Sprint 1.5)
+ *
+ * Base para o futuro Preview HTML da proposta e para a impressão/geração de PDF.
+ * NÃO implementa o Preview — apenas define as regras e utilitários reutilizáveis.
+ *
+ * Utilitários (uso em tela e na impressão):
+ *   .no-print          → oculto ao imprimir (chrome da aplicação, ações, etc.)
+ *   .print-only        → oculto na tela, visível apenas ao imprimir
+ *   .print-avoid-break → evita quebra de página no meio do bloco
+ *   .print-break-before→ força quebra de página antes do bloco
+ *   .print-page        → "folha" A4 (cânvas do documento); base do preview futuro
+ * ========================================================================== */
+
+/* Tamanho e margens da página impressa. */
+@page {
+  size: A4;
+  margin: 12mm;
+}
+
+/* Utilitários disponíveis em tela e na impressão. */
+.print-only {
+  display: none;
+}
+.print-avoid-break {
+  break-inside: avoid;
+}
+.print-break-before {
+  break-before: page;
+}
+
+/* "Folha" do documento — base do cânvas do Preview HTML (uso futuro).
+   Em tela aparece como uma folha branca centralizada; ao imprimir ocupa a
+   página inteira sem sombra/borda. */
+.print-page {
+  width: 210mm;
+  min-height: 297mm;
+  margin-inline: auto;
+  padding: 12mm;
+  background: #ffffff;
+  color: #111111;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 12%), 0 8px 24px rgb(0 0 0 / 8%);
+}
+
+/* ---------------------------------------------------------------------------
+ * Regras aplicadas SOMENTE na impressão.
+ * ------------------------------------------------------------------------- */
+@media print {
+  /* Cores fiéis (fundos/realces do documento). */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Chrome da aplicação não vai para o papel. */
+  .no-print,
+  header,
+  [data-slot="sidebar"],
+  [data-sonner-toaster],
+  [data-slot="dropdown-menu-content"],
+  [data-slot="dialog-overlay"] {
+    display: none !important;
+  }
+
+  /* Conteúdo exclusivo de impressão. */
+  .print-only {
+    display: revert;
+  }
+
+  /* Superfície neutra: fundo branco, texto escuro, sem sombras. */
+  html,
+  body {
+    background: #ffffff !important;
+    color: #111111 !important;
+  }
+  * {
+    box-shadow: none !important;
+  }
+
+  /* A folha ocupa a página inteira ao imprimir. */
+  .print-page {
+    width: auto;
+    min-height: auto;
+    margin: 0;
+    padding: 0;
+    box-shadow: none;
+  }
+
+  /* Evita órfãs/viúvas e cortes ruins em blocos e tabelas. */
+  h1,
+  h2,
+  h3 {
+    break-after: avoid;
+  }
+  tr,
+  img,
+  .print-avoid-break {
+    break-inside: avoid;
+  }
+}

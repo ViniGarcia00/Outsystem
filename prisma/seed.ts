@@ -5,11 +5,11 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
 
 /**
- * Seed de dados FICTÍCIOS para testes (Sprint 0).
+ * Seed de dados de exemplo para desenvolvimento/testes (Sprint 1).
  *
  * Requer um PostgreSQL acessível via DATABASE_URL e a migration aplicada
- * (`npm run db:migrate:deploy`). Como os models ainda são estruturais,
- * o seed preenche apenas o identificador `nome` de cada cadastro.
+ * (`npm run db:migrate:deploy`). Popula os cadastros base (Clientes, Produtos,
+ * Vendedores) e garante o singleton de Configuração do Sistema.
  *
  * Executar: `npm run db:seed`
  */
@@ -19,62 +19,103 @@ const adapter = new PrismaPg({
 });
 const prisma = new PrismaClient({ adapter });
 
+// CPF/CNPJ válidos (dígitos verificadores corretos) para exemplo.
 const CLIENTES = [
-  "Construtora Horizonte Ltda",
-  "Studio Arquitetura Flávio",
-  "Condomínio Parque das Águas",
-  "Comercial São Jorge ME",
-  "Residência Família Andrade",
+  {
+    tipoPessoa: "PJ" as const,
+    empresa: "Construtora Horizonte Ltda",
+    cpfCnpj: "11.222.333/0001-81",
+    cidade: "Belo Horizonte",
+    estado: "MG",
+    telefone: "(31) 3333-4444",
+    email: "contato@horizonte.com.br",
+  },
+  {
+    tipoPessoa: "PF" as const,
+    nome: "Flávio Andrade",
+    cpfCnpj: "529.982.247-25",
+    cidade: "Contagem",
+    estado: "MG",
+    telefone: "(31) 98888-7777",
+    email: "flavio.andrade@email.com",
+  },
+  {
+    tipoPessoa: "PJ" as const,
+    empresa: "Comercial São Jorge ME",
+    cidade: "Betim",
+    estado: "MG",
+  },
+  {
+    tipoPessoa: "PF" as const,
+    nome: "Maria Oliveira",
+    cidade: "Nova Lima",
+    estado: "MG",
+    telefone: "(31) 97777-6666",
+  },
+  {
+    tipoPessoa: "PF" as const,
+    nome: "Residência Família Ribeiro",
+    cidade: "Sabará",
+    estado: "MG",
+  },
 ];
 
-const VENDEDORES = ["Ana Souza", "Bruno Lima", "Carla Mendes"];
+const VENDEDORES = [
+  { nome: "Ana Souza", telefone: "(31) 99999-1111", email: "ana@outmat.com.br" },
+  { nome: "Bruno Lima", telefone: "(31) 99999-2222" },
+  { nome: "Carla Mendes", email: "carla@outmat.com.br" },
+];
 
 const PRODUTOS = [
-  "Roteador Wi-Fi 6 Dual Band",
-  "Access Point PoE Teto",
-  "Switch Gerenciável 24 Portas",
-  "Switch PoE 8 Portas",
-  "Cabo de Rede Cat6 (caixa 305m)",
-  "Patch Panel 24 Portas",
-  "Rack de Parede 8U",
-  "Caixa de Som Embutir 6''",
-  "Caixa de Som Embutir 8''",
-  "Amplificador de Áudio 4 Zonas",
-  "Central de Áudio Multiroom",
-  "Subwoofer Ativo 10''",
-  "Soundbar Residencial",
-  "Controlador de Volume por Zona",
-  "Nobreak 1500VA",
-  "Câmera IP Bullet 4MP",
-  "Gravador NVR 8 Canais",
-  "Fonte de Alimentação 12V 5A",
-  "Conector RJ45 (pacote 100un)",
-  "Kit Ferramenta de Rede",
+  { codigo: "RTR-001", descricao: "Roteador Wi-Fi 6 Dual Band", valorProduto: 899.9, valorServico: 150 },
+  { codigo: "AP-002", descricao: "Access Point PoE de Teto", valorProduto: 649.0, valorServico: 120 },
+  { codigo: "SW-024", descricao: "Switch Gerenciável 24 Portas", valorProduto: 1890.0, valorServico: 200 },
+  { codigo: "SW-P08", descricao: "Switch PoE 8 Portas", valorProduto: 720.0, valorServico: 90 },
+  { codigo: "CAB-C6", descricao: "Cabo de Rede Cat6 (caixa 305m)", valorProduto: 560.0, valorServico: 0 },
+  { codigo: "PP-024", descricao: "Patch Panel 24 Portas", valorProduto: 240.0, valorServico: 60 },
+  { codigo: "RCK-8U", descricao: "Rack de Parede 8U", valorProduto: 430.0, valorServico: 110 },
+  { codigo: "SPK-06", descricao: 'Caixa de Som de Embutir 6"', valorProduto: 189.9, valorServico: 45 },
+  { codigo: "SPK-08", descricao: 'Caixa de Som de Embutir 8"', valorProduto: 239.9, valorServico: 45 },
+  { codigo: "AMP-4Z", descricao: "Amplificador de Áudio 4 Zonas", valorProduto: 1290.0, valorServico: 180 },
+  { codigo: "AUD-MR", descricao: "Central de Áudio Multiroom", valorProduto: 2490.0, valorServico: 300 },
+  { codigo: "SUB-10", descricao: 'Subwoofer Ativo 10"', valorProduto: 990.0, valorServico: 60 },
+  { codigo: "NBK-15", descricao: "Nobreak 1500VA", valorProduto: 780.0, valorServico: 0 },
+  { codigo: "CAM-4M", descricao: "Câmera IP Bullet 4MP", valorProduto: 349.0, valorServico: 80 },
+  { codigo: "NVR-08", descricao: "Gravador NVR 8 Canais", valorProduto: 890.0, valorServico: 150 },
 ];
 
 async function main() {
-  // Limpa apenas os cadastros base (ordem segura — sem propostas no seed).
+  // Ordem segura (não há propostas no seed).
   await prisma.produto.deleteMany();
   await prisma.vendedor.deleteMany();
   await prisma.cliente.deleteMany();
 
-  await prisma.cliente.createMany({
-    data: CLIENTES.map((nome) => ({ nome })),
-  });
+  await prisma.cliente.createMany({ data: CLIENTES });
+  await prisma.vendedor.createMany({ data: VENDEDORES });
+  await prisma.produto.createMany({ data: PRODUTOS });
 
-  await prisma.vendedor.createMany({
-    data: VENDEDORES.map((nome) => ({ nome })),
-  });
-
-  await prisma.produto.createMany({
-    data: PRODUTOS.map((nome) => ({ nome })),
-  });
-
-  // Garante o registro único de configuração (singleton).
+  // Configuração do sistema (singleton) com dados de exemplo.
   await prisma.configuracaoSistema.upsert({
     where: { id: "singleton" },
     update: {},
-    create: { id: "singleton" },
+    create: {
+      id: "singleton",
+      nomeEmpresa: "Outmat",
+      razaoSocial: "Outmat Tecnologia Ltda",
+      cnpj: "11.222.333/0001-81",
+      cidade: "Belo Horizonte",
+      estado: "MG",
+      telefone: "(31) 3333-0000",
+      whatsapp: "(31) 99999-0000",
+      email: "contato@outmat.com.br",
+      site: "https://www.outmat.com.br",
+      corPrimaria: "#0F172A",
+      corSecundaria: "#2563EB",
+      textoQuemSomos:
+        "A Outmat oferece soluções em redes, áudio e automação para residências e empresas.",
+      textoFinalProposta:
+        "Agradecemos a oportunidade. Esta proposta é válida por 15 dias.",
+    },
   });
 
   const [clientes, vendedores, produtos] = await Promise.all([

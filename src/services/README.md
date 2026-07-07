@@ -8,8 +8,15 @@ services — nunca do Prisma diretamente.
 app/ → features/ → services/ → infrastructure/
 ```
 
-## Sprint 0
+## Estado atual (Sprint 1)
 
-Vazio por design — nenhuma regra de negócio foi implementada. Os services de
-cada domínio (clientes, produtos, propostas, etc.) serão adicionados nas
-próximas Sprints, retornando `ActionResult<T>` (ver `src/types`).
+Services implementados por domínio:
+
+- `configuracao.service.ts` — singleton (get/upsert).
+- `cliente.service.ts` — CRUD + regra de exclusão por uso em propostas.
+- `produto.service.ts` — CRUD (sem relação com proposta na Sprint 1).
+- `vendedor.service.ts` — CRUD + regra de exclusão por uso em propostas.
+
+As **Server Actions** (em `features/*/actions.ts`) chamam estes services e
+padronizam o retorno como `ActionResult<T>` (ver `src/types`). Os services em si
+retornam dados/DTOs e lançam erros de domínio (tratados na fronteira da action).

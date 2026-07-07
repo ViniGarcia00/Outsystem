@@ -1,19 +1,13 @@
-import { UserSquare } from "lucide-react";
 import type { Metadata } from "next";
 
-import { AppPage, PageEmpty, PageHeader } from "@/components/app";
+import { VendedoresList } from "@/features/vendedores";
+import { listVendedores } from "@/services/vendedor.service";
 
 export const metadata: Metadata = { title: "Vendedores" };
 
-export default function VendedoresPage() {
-  return (
-    <AppPage>
-      <PageHeader title="Vendedores" description="Cadastro de vendedores." />
-      <PageEmpty
-        icon={UserSquare}
-        title="Nenhum vendedor ainda"
-        description="O cadastro de vendedores será implementado nas próximas Sprints."
-      />
-    </AppPage>
-  );
+export const dynamic = "force-dynamic";
+
+export default async function VendedoresPage() {
+  const vendedores = await listVendedores(false);
+  return <VendedoresList initialRows={vendedores} />;
 }
