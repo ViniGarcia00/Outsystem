@@ -156,6 +156,23 @@ Esses campos serão adicionados via migration incremental.
   reutilizam `CrudLayout`/`useCrudList` (listagem) e `CrudFormShell` (formulário,
   com modo `readOnly`).
 
+### Estrutura-alvo (diretriz — ADR-0206)
+
+Todo o **conteúdo comercial** vive **dentro da Revisão**; o cabeçalho fica na
+`Proposta` e não é versionado:
+
+```
+Proposta
+ ├── Cabeçalho (cliente, vendedor, modelo, validade, status, datas) — NÃO versionado
+ ├── Revisão 0 → Seções · Produtos · Serviços · Observações · Totais
+ ├── Revisão 1
+ └── Revisão N
+```
+
+Produtos, serviços, seções, textos, totais, descontos, frete e impostos serão
+implementados **exclusivamente** dentro da Revisão, evitando migrações quando
+chegarem PDF, histórico e comparação entre versões.
+
 ## 4.1. Camada de dados — Server Actions (Sprint 1)
 
 O CRUD segue o fluxo **Server Action (`"use server"`) → `services/` → Prisma**,

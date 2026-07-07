@@ -277,6 +277,32 @@ Formato: **ADR** enxuto (Architecture Decision Record).
     transação** (data/hora, evento, revisão, observação). Sem tela nesta Sprint.
 - **Consequência:** histórico fiel e consistente; operações atômicas.
 
+### ADR-0206 — Conteúdo comercial vive na Revisão (diretriz para as próximas Sprints)
+
+- **Contexto:** a partir da Sprint 2.2 serão implementados seções/ambientes,
+  produtos, serviços, textos, totais, descontos, frete e impostos.
+- **Decisão (diretriz fixa):** **todo o conteúdo comercial** da proposta deve
+  existir **exclusivamente dentro da `PropostaRevisao`**. `Cliente`, `Vendedor`,
+  `Modelo` e demais dados de **cabeçalho permanecem na `Proposta`** e **NÃO são
+  versionados**. Estrutura alvo:
+
+  ```
+  Proposta
+   ├── Cabeçalho (cliente, vendedor, modelo, validade, status, datas) — NÃO versionado
+   ├── Revisão 0
+   │     ├── Seções (ambientes)
+   │     ├── Produtos
+   │     ├── Serviços
+   │     ├── Observações comerciais
+   │     └── Totais
+   ├── Revisão 1
+   └── Revisão N
+  ```
+
+- **Consequência:** criar nova revisão copia o **conteúdo comercial completo**;
+  PDF, histórico e comparação entre versões operam sobre a Revisão **sem migração
+  futura**. Reforça a ADR-0202.
+
 ### ADR-0205 — Tipo da proposta (Comercial/Simplificada): apenas persistência
 
 - **Decisão:** o tipo/modelo é apenas **armazenado** (`modelo`) nesta Sprint —
