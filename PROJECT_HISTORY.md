@@ -48,7 +48,8 @@ ADRs, problemas, soluções, lições e o hash do commit.
   (`scripts/db/bootstrap.sql`); seed reescrito para o schema real.
 - **Lições aprendidas:** usar sempre usuário dedicado; validar o CRUD no banco
   real com script (`db:validate`).
-- **Hash do commit:** landado junto com a Sprint 1.5 — ver hash abaixo.
+- **Hash do commit:** `ef90915` (Sprint 1 não havia sido commitada isoladamente;
+  foi oficializada junto com a Sprint 1.5).
 
 ---
 
@@ -81,7 +82,7 @@ ADRs, problemas, soluções, lições e o hash do commit.
   `/dev/diagnostics` para achar problemas de infraestrutura em segundos; validar
   a saúde do banco (processo + porta + handshake real), não só o status do
   serviço no SCM.
-- **Hash do commit:** `__HASH_SPRINT_1_5__`
+- **Hash do commit:** `ef90915`
 
 ---
 
