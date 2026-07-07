@@ -288,7 +288,7 @@ ADRs, problemas, soluções, lições e o hash do commit.
 - **Gate:** lint 0, typecheck 0, build 0, smoke **7/7**, `/api/health` 200 (db
   up). Verificado por script: snapshot com valor editado (cadastro intacto),
   `atualizarValorUnitario`, `adicionarItemAvulso` cria "Produtos", Total por linha.
-- **Hash do commit:** `PENDENTE`
+- **Hash do commit:** `3877a04`
 
 ---
 
