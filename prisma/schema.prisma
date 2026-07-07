@@ -345,9 +345,11 @@ model ConfiguracaoSistema {
   id String @id @default("singleton")
 
   // Dados da empresa
-  nomeEmpresa String?
-  razaoSocial String?
-  cnpj        String?
+  nomeEmpresa       String?
+  razaoSocial       String?
+  cnpj              String?
+  /// Inscrição Estadual da empresa (ADR-0225).
+  inscricaoEstadual String?
 
   // Endereço
   cep         String?

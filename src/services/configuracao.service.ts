@@ -12,6 +12,7 @@ export interface ConfiguracaoInput {
   nomeEmpresa?: string;
   razaoSocial?: string;
   cnpj?: string;
+  inscricaoEstadual?: string;
   cep?: string;
   endereco?: string;
   numero?: string;
@@ -37,6 +38,7 @@ const FIELDS: (keyof ConfiguracaoInput)[] = [
   "nomeEmpresa",
   "razaoSocial",
   "cnpj",
+  "inscricaoEstadual",
   "cep",
   "endereco",
   "numero",

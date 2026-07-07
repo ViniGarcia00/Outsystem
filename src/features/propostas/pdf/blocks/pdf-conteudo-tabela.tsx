@@ -120,11 +120,9 @@ export function PdfConteudoTabela({
           <View
             minPresenceAhead={40}
             style={{
-              backgroundColor: tema.cores.fundoSuave,
-              paddingVertical: tema.espaco(1),
+              backgroundColor: tema.cores.faixaSecao,
+              paddingVertical: tema.espaco(1.25),
               paddingHorizontal: 4,
-              borderBottomWidth: 0.5,
-              borderBottomColor: tema.cores.linha,
             }}
           >
             <Text

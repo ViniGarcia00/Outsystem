@@ -139,6 +139,17 @@
     @apply font-sans;
   }
 
+  /* Placeholders claramente mais apagados que o texto digitado — sobretudo no
+     tema escuro, onde o cinza padrão fica muito próximo do branco. */
+  input::placeholder,
+  textarea::placeholder {
+    opacity: 0.75;
+  }
+  .dark input::placeholder,
+  .dark textarea::placeholder {
+    opacity: 0.5;
+  }
+
   /* Barras de rolagem padronizadas em todo o sistema (Firefox + WebKit). */
   * {
     scrollbar-width: thin;

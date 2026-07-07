@@ -1,3 +1,4 @@
+import { calcularTotais } from "@/features/propostas/totais";
 import { prisma } from "@/infrastructure/database";
 
 /**
@@ -37,6 +38,8 @@ export interface PropostaListItem {
   status: StatusProposta;
   validadeDias: number;
   updatedAt: Date;
+  /** Total da Proposta (derivado, via helper `totais`) — exibido na listagem. */
+  valorTotal: number;
 }
 
 export interface SelectOption {
@@ -70,24 +73,62 @@ export async function listPropostas(): Promise<PropostaListItem[]> {
       status: true,
       validadeDias: true,
       updatedAt: true,
-      currentRevision: { select: { revisionNumber: true } },
+      tipoDesconto: true,
+      valorDesconto: true,
+      frete: true,
+      currentRevision: {
+        select: {
+          revisionNumber: true,
+          secoes: {
+            select: {
+              itens: {
+                select: {
+                  quantidade: true,
+                  valorProduto: true,
+                  valorServico: true,
+                },
+              },
+            },
+          },
+        },
+      },
       cliente: { select: { tipoPessoa: true, nome: true, empresa: true } },
       vendedor: { select: { nome: true } },
     },
     orderBy: { proposalNumber: "desc" },
   });
 
-  return rows.map((r) => ({
-    id: r.id,
-    proposalNumber: r.proposalNumber,
-    revisaoAtual: r.currentRevision?.revisionNumber ?? null,
-    clienteNome: r.cliente ? clienteDisplay(r.cliente) : null,
-    vendedorNome: r.vendedor?.nome ?? null,
-    modelo: r.modelo,
-    status: r.status,
-    validadeDias: r.validadeDias,
-    updatedAt: r.updatedAt,
-  }));
+  const num = (v: { toString(): string }) => Number(v.toString());
+
+  return rows.map((r) => {
+    // Total da Proposta derivado — mesma lógica do rodapé (helper `totais`).
+    const itens = (r.currentRevision?.secoes ?? []).flatMap((s) =>
+      s.itens.map((i) => ({
+        quantidade: num(i.quantidade),
+        valorProduto: num(i.valorProduto),
+        valorServico: num(i.valorServico),
+      })),
+    );
+    const { totalProposta } = calcularTotais(
+      itens,
+      r.modelo === "SIMPLIFICADA",
+      { tipo: r.tipoDesconto, valor: num(r.valorDesconto) },
+      num(r.frete),
+    );
+
+    return {
+      id: r.id,
+      proposalNumber: r.proposalNumber,
+      revisaoAtual: r.currentRevision?.revisionNumber ?? null,
+      clienteNome: r.cliente ? clienteDisplay(r.cliente) : null,
+      vendedorNome: r.vendedor?.nome ?? null,
+      modelo: r.modelo,
+      status: r.status,
+      validadeDias: r.validadeDias,
+      updatedAt: r.updatedAt,
+      valorTotal: totalProposta,
+    };
+  });
 }
 
 /** Opções (vendedores ativos) para o Select do workspace. Cliente usa autocomplete. */

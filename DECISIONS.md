@@ -729,3 +729,42 @@ tocam modelagem/arquitetura:
 - **Consequência operacional:** o seed continua **global-idempotente** (ADR-0209)
   — se um cadastro específico faltar no dev, ele não é repovoado sozinho;
   repopular pontualmente é um passo manual de ambiente.
+
+---
+
+## Sprint 2.7.6 — Ajustes pós-PDF (2ª rodada)
+
+### ADR-0225 — Ajustes de UX/apresentação; IE da empresa; logo do PDF por data URI
+
+Sprint de refinamento (sem novas funcionalidades de negócio). Pontos com
+impacto em modelagem/arquitetura:
+
+- **Config — Inscrição Estadual:** coluna aditiva `ConfiguracaoSistema.inscricaoEstadual`
+  (migration `20260707080000_config_ie`); layout `CNPJ | IE`. **UF** vira lista.
+- **Logo do PDF (correção):** o logo não aparecia porque estava dentro do
+  callback `render` do cabeçalho fixo — o **@react-pdf só embute imagens da
+  árvore estática**, não de conteúdo gerado por `render`. Correções: (1) o
+  cabeçalho passou a ser **estático** (logo no canto superior esquerdo, repetido
+  em todas as páginas, sem `render`); (2) a IO entrega `empresa.logo` como
+  **DATA URI base64** (via `readLogoFile`), evitando a ambiguidade de caminho de
+  arquivo no Windows. Validado: PDF com logo passa de ~180 KB (embutido).
+- **Lista de Propostas — coluna Valor:** o Total da Proposta passa a ser
+  **calculado na listagem** (`listPropostas` busca itens+desconto+frete e usa o
+  helper `calcularTotais` — sem duplicar lógica). Legenda de status abaixo da
+  tabela; badge de status movido para junto da ação; **Cancelada = vermelho**
+  (badge `danger`).
+- **Não-duplicidade de produto por seção:** as ações em memória
+  (`adicionarItem`/`adicionarItemAvulso`) recusam o mesmo `produtoId` na mesma
+  seção (checagem via ref espelho do estado, sincronizado por efeito); a mesma
+  referência é permitida em outras seções. O diálogo exibe a mensagem.
+- **Motivo do cancelamento:** `WorkspaceDTO` passa a expor
+  `motivoCancelamento`/`obsCancelamento`; o workspace mostra o motivo em
+  destaque discreto logo abaixo do número quando a proposta está cancelada.
+- **PDF — Observações da proposta:** novo bloco com `obsProposta`. Faixa das
+  seções em cinza médio (token `faixaSecao`), destacando do zebrado; menos
+  espaço entre cabeçalho e bloco do cliente.
+- **Cliente — CPF/CNPJ:** rótulo e placeholder acompanham o tipo de pessoa (a
+  máscara/validação já se ajustam pela quantidade de dígitos); o valor não é
+  apagado ao trocar o tipo.
+- **Placeholders no tema escuro:** regra global (`globals.css`) reduz a opacidade
+  dos placeholders (mais no dark), diferenciando-os do texto digitado.

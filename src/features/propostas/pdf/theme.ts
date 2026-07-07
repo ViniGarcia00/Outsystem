@@ -15,6 +15,8 @@ export interface Tema {
     textoClaro: string;
     linha: string;
     fundoSuave: string;
+    /** Faixa dos títulos de seção — cinza médio, destaca do zebrado. */
+    faixaSecao: string;
     branco: string;
   };
   fonte: string;
@@ -47,6 +49,7 @@ export function criarTema(corPrimaria: string, corSecundaria: string): Tema {
       textoClaro: "#9CA3AF",
       linha: "#E5E7EB",
       fundoSuave: "#F3F4F6",
+      faixaSecao: "#CBD2DA",
       branco: "#FFFFFF",
     },
     fonte: FONT_FAMILY,
@@ -64,7 +67,7 @@ export function criarTema(corPrimaria: string, corSecundaria: string): Tema {
     pagina: {
       paddingHorizontal: 40,
       // Reserva vertical para as faixas fixas de cabeçalho e rodapé.
-      paddingTop: 94,
+      paddingTop: 88,
       paddingBottom: 54,
     },
   };

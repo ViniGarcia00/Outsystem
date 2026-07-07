@@ -80,6 +80,8 @@ export interface PropostaPdfDTO {
   desconto: Desconto;
   formaPagamento: string | null;
   previsaoInstalacao: string | null;
+  /** Observações da proposta (campo do cabeçalho). */
+  obsProposta: string | null;
   obsComerciais: string | null;
   obsTecnicas: string | null;
 }
@@ -122,6 +124,7 @@ export interface FontePropostaPdf {
   frete: Numerico;
   formaPagamento: string | null;
   previsaoInstalacao: string | null;
+  obsProposta: string | null;
   obsComerciais: string | null;
   obsTecnicas: string | null;
   cliente: FonteCliente | null;
@@ -232,6 +235,7 @@ export function montarPropostaPdfDTO(
     desconto,
     formaPagamento: nn(p.formaPagamento),
     previsaoInstalacao: nn(p.previsaoInstalacao),
+    obsProposta: nn(p.obsProposta),
     obsComerciais: nn(p.obsComerciais),
     obsTecnicas: nn(p.obsTecnicas),
   };

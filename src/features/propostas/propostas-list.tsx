@@ -29,7 +29,7 @@ import type {
   PropostaListItem,
   StatusProposta,
 } from "@/services/proposta.service";
-import { formatDateTime } from "@/utils";
+import { formatCurrency, formatDateTime } from "@/utils";
 
 import {
   cancelarPropostaAction,
@@ -156,12 +156,12 @@ export function PropostasList({
         cell: ({ row }) => row.original.vendedorNome ?? "—",
       },
       {
-        id: "status",
-        header: () => sortHeader("status", "Status"),
+        id: "valorTotal",
+        header: () => sortHeader("valorTotal", "Valor"),
         cell: ({ row }) => (
-          <Badge variant={STATUS_BADGE_VARIANT[row.original.status]}>
-            {STATUS_LABEL[row.original.status]}
-          </Badge>
+          <span className="tabular-nums">
+            {formatCurrency(row.original.valorTotal)}
+          </span>
         ),
       },
       {
@@ -177,7 +177,11 @@ export function PropostasList({
           const label = `Proposta ${p.proposalNumber}`;
           const cancelada = p.status === "CANCELADA";
           return (
-            <div className="flex justify-end">
+            <div className="flex items-center justify-end gap-2">
+              {/* Status ao lado da ação (leitura mais direta — ADR-0225). */}
+              <Badge variant={STATUS_BADGE_VARIANT[p.status]}>
+                {STATUS_LABEL[p.status]}
+              </Badge>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon-sm" aria-label="Ações">
@@ -257,6 +261,25 @@ export function PropostasList({
           totalLabel: `${list.total} proposta${list.total === 1 ? "" : "s"}`,
         }}
       />
+
+      {/* Legenda das cores de status (badges existentes). */}
+      <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
+        <span className="font-medium">Status:</span>
+        {(
+          [
+            ["RASCUNHO", "Em edição"],
+            ["EMITIDA", "Emitida"],
+            ["CANCELADA", "Cancelada"],
+          ] as const
+        ).map(([status, descricao]) => (
+          <span key={status} className="flex items-center gap-1.5">
+            <Badge variant={STATUS_BADGE_VARIANT[status]}>
+              {STATUS_LABEL[status]}
+            </Badge>
+            <span>{descricao}</span>
+          </span>
+        ))}
+      </div>
 
       <CancelarDialog
         open={cancelTarget !== null}

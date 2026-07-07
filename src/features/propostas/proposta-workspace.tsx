@@ -22,7 +22,7 @@ import { CancelarDialog } from "./cancelar-dialog";
 import { ConteudoEditor } from "./conteudo-editor";
 import { useConteudoMemoria } from "./conteudo-memoria";
 import { FinalizacaoProposta } from "./finalizacao-proposta";
-import { STATUS_BADGE_VARIANT, STATUS_LABEL } from "./labels";
+import { MOTIVO_LABEL, STATUS_BADGE_VARIANT, STATUS_LABEL } from "./labels";
 import {
   PropostaCabecalho,
   type CabecalhoValores,
@@ -265,6 +265,18 @@ export function PropostaWorkspace({
           </>
         }
       />
+
+      {/* Motivo do cancelamento — logo abaixo do número (destaque discreto). */}
+      {data.status === "CANCELADA" && data.motivoCancelamento && (
+        <div className="flex items-center gap-2 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">
+          <Ban className="h-4 w-4 shrink-0" />
+          <span>
+            <span className="font-medium">Motivo do cancelamento:</span>{" "}
+            {MOTIVO_LABEL[data.motivoCancelamento]}
+            {data.obsCancelamento ? ` — ${data.obsCancelamento}` : ""}
+          </span>
+        </div>
+      )}
 
       {/* Indicador de alterações pendentes / estado */}
       {!readOnly && (

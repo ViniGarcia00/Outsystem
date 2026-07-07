@@ -2,6 +2,7 @@ import { prisma } from "@/infrastructure/database";
 
 import type {
   ModeloProposta,
+  MotivoCancelamento,
   StatusProposta,
   TipoDesconto,
 } from "./proposta.service";
@@ -43,6 +44,9 @@ export interface WorkspaceDTO {
   status: StatusProposta;
   /** true apenas quando CANCELADA (read-only). EMITIDA é editável (edição forka). */
   readOnly: boolean;
+  /** Cancelamento (exibido no cabeçalho quando CANCELADA). */
+  motivoCancelamento: MotivoCancelamento | null;
+  obsCancelamento: string | null;
   // Cabeçalho editável inline
   clienteId: string | null;
   clienteNome: string | null;
@@ -87,6 +91,8 @@ export async function getWorkspace(
       status: true,
       modelo: true,
       validadeDias: true,
+      motivoCancelamento: true,
+      obsCancelamento: true,
       obsInternas: true,
       obsProposta: true,
       formaPagamento: true,
@@ -141,6 +147,8 @@ export async function getWorkspace(
     revisaoAtual: p.currentRevision?.revisionNumber ?? null,
     status: p.status,
     readOnly: p.status === "CANCELADA",
+    motivoCancelamento: p.motivoCancelamento,
+    obsCancelamento: p.obsCancelamento,
     clienteId: p.clienteId,
     clienteNome: p.cliente ? clienteDisplay(p.cliente) : null,
     vendedorId: p.vendedorId,

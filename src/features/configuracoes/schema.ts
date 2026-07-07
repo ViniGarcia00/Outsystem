@@ -11,6 +11,7 @@ export const configuracaoSchema = z.object({
   nomeEmpresa: optionalText(200),
   razaoSocial: optionalText(200),
   cnpj: optionalText(20),
+  inscricaoEstadual: optionalText(30),
   cep: optionalText(12),
   endereco: optionalText(200),
   numero: optionalText(20),

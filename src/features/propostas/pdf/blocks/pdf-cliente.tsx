@@ -28,7 +28,7 @@ export function PdfCliente({
       wrap={false}
       style={{
         flexDirection: "row",
-        marginTop: tema.espaco(4),
+        marginTop: tema.espaco(1.5),
         borderWidth: 0.5,
         borderColor: tema.cores.linha,
         borderRadius: 4,

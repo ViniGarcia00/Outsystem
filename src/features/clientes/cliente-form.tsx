@@ -78,12 +78,17 @@ export function ClienteForm({ clienteId, defaultValues }: ClienteFormProps) {
         ) : (
           <TextField name="nome" label="Nome" autoFocus />
         )}
+        {/* Rótulo/placeholder acompanham o tipo de pessoa; a máscara (formatCpfCnpj)
+            e a validação (isValidCpfCnpj) já se ajustam pela quantidade de dígitos.
+            O valor NÃO é apagado ao trocar o tipo. */}
         <MaskedField
           name="cpfCnpj"
-          label="CPF / CNPJ"
+          label={tipoPessoa === "PJ" ? "CNPJ" : "CPF"}
           inputMode="numeric"
           format={formatCpfCnpj}
-          placeholder="Opcional"
+          placeholder={
+            tipoPessoa === "PJ" ? "00.000.000/0000-00" : "000.000.000-00"
+          }
         />
         {/* Documento secundário opcional: RG (PF) ou Inscrição Estadual (PJ). */}
         {tipoPessoa === "PJ" ? (

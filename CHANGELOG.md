@@ -4,6 +4,42 @@ Todas as mudanças relevantes deste projeto são documentadas aqui.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o
 projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [0.12.2] — 2026-07-07
+
+### Sprint 2.7.6 — Ajustes pós-PDF (2ª rodada). Ver ADR-0225.
+
+#### Configurações
+
+- Novo campo **Inscrição Estadual** (layout `CNPJ | IE`).
+- **UF** vira lista (sem texto livre).
+
+#### Clientes
+
+- **CPF/CNPJ** com rótulo e placeholder que acompanham o **Tipo de Pessoa**
+  (o valor não é apagado ao trocar).
+
+#### Propostas
+
+- Listagem: **legenda das cores de status**, nova coluna **Valor** (Total da
+  Proposta) e **badge de status ao lado da ação**.
+- **Cancelada** passa a usar badge **vermelho**; o **motivo do cancelamento**
+  aparece em destaque discreto abaixo do número da proposta.
+- Não é possível **adicionar o mesmo produto duas vezes na mesma seção**
+  (mensagem ao tentar); a referência continua válida em outras seções.
+- **Frete** com a mesma experiência/alinhamento do campo **Desconto**.
+
+#### Interface
+
+- Placeholders mais apagados no **tema escuro** (padrão global).
+
+#### PDF
+
+- **Logo corrigido** — aparece no canto superior esquerdo (cabeçalho estático +
+  logo embutido como data URI).
+- Novo bloco **Observações da proposta**.
+- Faixa dos **títulos de seção** em cinza médio (destaca do zebrado).
+- Menos espaço entre **cabeçalho** e **bloco do cliente**.
+
 ## [0.12.1] — 2026-07-07
 
 ### Sprint 2.7.5 — Ajustes pós-PDF. Ver ADR-0224.

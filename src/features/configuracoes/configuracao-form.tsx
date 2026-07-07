@@ -6,7 +6,13 @@ import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 
 import { CrudFormShell } from "@/components/app";
-import { FormSection, MaskedField, TextField } from "@/components/forms";
+import {
+  FormSection,
+  MaskedField,
+  SelectField,
+  TextField,
+} from "@/components/forms";
+import { UF_OPTIONS } from "@/lib/ufs";
 import type { ConfiguracaoValues } from "@/services/configuracao.service";
 import { formatPhone } from "@/utils";
 
@@ -74,6 +80,7 @@ export function ConfiguracaoForm({ initial }: { initial: ConfiguracaoValues }) {
         <TextField name="nomeEmpresa" label="Nome da empresa" autoFocus />
         <TextField name="razaoSocial" label="Razão social" />
         <TextField name="cnpj" label="CNPJ" />
+        <TextField name="inscricaoEstadual" label="Inscrição Estadual" />
       </FormSection>
 
       <FormSection title="Endereço">
@@ -83,7 +90,12 @@ export function ConfiguracaoForm({ initial }: { initial: ConfiguracaoValues }) {
         <TextField name="complemento" label="Complemento" />
         <TextField name="bairro" label="Bairro" />
         <TextField name="cidade" label="Cidade" />
-        <TextField name="estado" label="Estado" />
+        <SelectField
+          name="estado"
+          label="UF"
+          options={UF_OPTIONS}
+          placeholder="UF"
+        />
       </FormSection>
 
       <FormSection title="Contatos">

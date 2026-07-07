@@ -7,6 +7,7 @@ import { PdfCabecalho } from "./blocks/pdf-cabecalho";
 import { PdfCliente } from "./blocks/pdf-cliente";
 import { PdfConteudoTabela } from "./blocks/pdf-conteudo-tabela";
 import { PdfInformacoesComerciais } from "./blocks/pdf-informacoes-comerciais";
+import { PdfObservacaoProposta } from "./blocks/pdf-observacao-proposta";
 import { PdfObservacoes } from "./blocks/pdf-observacoes";
 import { PdfRodapeDocumento } from "./blocks/pdf-rodape-documento";
 import { PdfRodapeFinanceiro } from "./blocks/pdf-rodape-financeiro";
@@ -69,6 +70,8 @@ export function PropostaPdfDocument({ dto }: { dto: PropostaPdfDTO }) {
         />
 
         <PdfRodapeFinanceiro tema={tema} dto={dto} />
+
+        <PdfObservacaoProposta tema={tema} texto={dto.obsProposta} />
 
         <PdfInformacoesComerciais
           tema={tema}

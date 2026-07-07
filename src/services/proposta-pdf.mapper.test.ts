@@ -7,6 +7,7 @@ const CONFIG_VAZIA: ConfiguracaoValues = {
   nomeEmpresa: "",
   razaoSocial: "",
   cnpj: "",
+  inscricaoEstadual: "",
   cep: "",
   endereco: "",
   numero: "",
@@ -37,6 +38,7 @@ function fonteBase(over: Partial<FontePropostaPdf> = {}): FontePropostaPdf {
     frete: 0,
     formaPagamento: null,
     previsaoInstalacao: null,
+    obsProposta: null,
     obsComerciais: null,
     obsTecnicas: null,
     cliente: {

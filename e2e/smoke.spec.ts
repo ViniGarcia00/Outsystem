@@ -28,6 +28,9 @@ test("abre a Configuração do Sistema", async ({ page }) => {
   ).toBeVisible();
   // O campo "Nome da empresa" deve estar presente e associado ao label.
   await expect(page.getByLabel("Nome da empresa")).toBeVisible();
+  // Inscrição Estadual (novo) e UF em lista.
+  await expect(page.getByLabel("Inscrição Estadual")).toBeVisible();
+  await expect(page.getByLabel("UF")).toBeVisible();
   // Logotipo agora é por upload (sem campo de URL).
   await expect(page.getByLabel("Enviar logotipo")).toBeVisible();
 });
@@ -105,6 +108,11 @@ test("Propostas: criação diferida, emitir e revisão automática", async ({
   await expect(
     page.getByRole("heading", { level: 1, name: "Propostas" }),
   ).toBeVisible();
+  // Coluna "Valor" e legenda de status na listagem.
+  await expect(
+    page.getByRole("columnheader", { name: "Valor" }),
+  ).toBeVisible();
+  await expect(page.getByText("Em edição", { exact: true })).toBeVisible();
 
   // "Nova proposta" abre o workspace de montagem em memória (nada é criado).
   await page.getByRole("button", { name: "Nova proposta" }).click();
@@ -132,6 +140,14 @@ test("Propostas: criação diferida, emitir e revisão automática", async ({
   await expect(
     page.getByRole("columnheader", { name: "Valor Serviço" }),
   ).toBeVisible();
+
+  // Não permite o mesmo produto duas vezes na MESMA seção.
+  await page.getByRole("button", { name: "Adicionar produto" }).click();
+  await page.getByLabel("Produto", { exact: true }).fill("RTR");
+  await page.getByRole("option").first().click();
+  await page.getByRole("button", { name: "Adicionar", exact: true }).click();
+  await expect(page.getByText(/já foi adicionado/i)).toBeVisible();
+  await page.getByRole("button", { name: "Cancelar" }).click();
   // Rodapé de totais (Completo): Total Produtos, Total Serviços, Subtotal,
   // Desconto e Total da Proposta.
   await expect(page.getByText("Total Produtos", { exact: true })).toBeVisible();

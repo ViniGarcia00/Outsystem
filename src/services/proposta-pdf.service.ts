@@ -1,7 +1,7 @@
 import { prisma } from "@/infrastructure/database";
 
 import { getConfiguracao } from "./configuracao.service";
-import { getLogoAbsolutePath } from "./logo.service";
+import { readLogoFile } from "./logo.service";
 import { montarPropostaPdfDTO, type PropostaPdfDTO } from "./proposta-pdf.mapper";
 
 /**
@@ -18,7 +18,7 @@ export * from "./proposta-pdf.mapper";
 export async function getPropostaPdfData(
   propostaId: string,
 ): Promise<PropostaPdfDTO | null> {
-  const [p, config, logoPath] = await Promise.all([
+  const [p, config, logoFile] = await Promise.all([
     prisma.proposta.findUnique({
       where: { id: propostaId },
       select: {
@@ -32,6 +32,7 @@ export async function getPropostaPdfData(
         frete: true,
         formaPagamento: true,
         previsaoInstalacao: true,
+        obsProposta: true,
         obsComerciais: true,
         obsTecnicas: true,
         cliente: {
@@ -78,13 +79,16 @@ export async function getPropostaPdfData(
       },
     }),
     getConfiguracao(),
-    getLogoAbsolutePath(),
+    readLogoFile(),
   ]);
   if (!p) return null;
 
   const dto = montarPropostaPdfDTO(p, config);
-  // O PDF (Node) embute o arquivo do logo diretamente do disco; usa o caminho
-  // absoluto quando o arquivo existe, senão cai no fallback textual.
-  dto.empresa.logo = logoPath;
+  // Embute o logo como DATA URI (base64). Evita ambiguidade de caminho de
+  // arquivo no Windows (o @react-pdf não resolvia o path absoluto) e garante a
+  // renderização; fallback textual quando não há logo.
+  dto.empresa.logo = logoFile
+    ? `data:${logoFile.contentType};base64,${logoFile.data.toString("base64")}`
+    : null;
   return dto;
 }

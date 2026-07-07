@@ -12,14 +12,14 @@ export const STATUS_LABEL: Record<StatusProposta, string> = {
   CANCELADA: "Cancelada",
 };
 
-/** Cor do badge por status (padrão ADR-0159). */
+/** Cor do badge por status (padrão ADR-0159). Cancelada = vermelho (ADR-0225). */
 export const STATUS_BADGE_VARIANT: Record<
   StatusProposta,
-  "secondary" | "info" | "outline"
+  "secondary" | "info" | "danger"
 > = {
   RASCUNHO: "secondary",
   EMITIDA: "info",
-  CANCELADA: "outline",
+  CANCELADA: "danger",
 };
 
 export const MODELO_LABEL: Record<ModeloProposta, string> = {

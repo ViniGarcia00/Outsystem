@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { ItemDTO, SecaoDTO } from "@/services/proposta-conteudo.service";
-import { ok } from "@/types";
+import { fail, ok } from "@/types";
 
 import type { ConteudoActions, Direcao, ProdutoRef } from "./conteudo-handlers";
 
@@ -57,6 +57,16 @@ export function useConteudoMemoria(
   onMutate: () => void,
 ): { secoes: SecaoDTO[]; actions: ConteudoActions } {
   const [secoes, setSecoes] = useState<SecaoDTO[]>(inicial);
+  // Espelho do estado atual — permite checagens síncronas nas ações (ex.:
+  // duplicidade) sem recriar o objeto `actions`. Atualizado após o commit.
+  const secoesRef = useRef(secoes);
+  useEffect(() => {
+    secoesRef.current = secoes;
+  }, [secoes]);
+
+  /** Mensagem quando o produto já existe na seção (regra de não-duplicidade). */
+  const PRODUTO_DUPLICADO =
+    "Este produto já foi adicionado nesta seção. A mesma referência pode ser usada em outras seções.";
 
   const actions: ConteudoActions = useMemo(() => {
     const mut = (updater: (prev: SecaoDTO[]) => SecaoDTO[]) => {
@@ -96,6 +106,11 @@ export function useConteudoMemoria(
         valorProduto,
         valorServico,
       ) => {
+        // Não permite o mesmo produto duas vezes na MESMA seção.
+        const secao = secoesRef.current.find((s) => s.id === secaoId);
+        if (secao?.itens.some((it) => it.produtoId === produto.id)) {
+          return fail(PRODUTO_DUPLICADO);
+        }
         mut((prev) =>
           prev.map((s) =>
             s.id === secaoId
@@ -123,6 +138,11 @@ export function useConteudoMemoria(
         valorProduto,
         valorServico,
       ) => {
+        // Simplificada usa uma seção única implícita; checa a duplicidade nela.
+        const secaoAlvo = secoesRef.current[0];
+        if (secaoAlvo?.itens.some((it) => it.produtoId === produto.id)) {
+          return fail(PRODUTO_DUPLICADO);
+        }
         mut((prev) => {
           const base: SecaoDTO[] =
             prev.length > 0

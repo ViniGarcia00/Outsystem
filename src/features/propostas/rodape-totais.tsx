@@ -57,9 +57,9 @@ export function RodapeTotais({
           </dd>
         </div>
 
-        <div className="flex items-center justify-between gap-6">
+        <div className="flex items-center justify-between gap-4">
           <dt className="text-muted-foreground">Frete</dt>
-          <dd>
+          <dd className="flex items-center gap-2">
             <CurrencyInput
               value={frete}
               onChange={onFreteChange}
@@ -67,6 +67,8 @@ export function RodapeTotais({
               aria-label="Frete"
               className="h-8 w-32 text-right"
             />
+            {/* Espaçador para alinhar o input com o campo de Desconto. */}
+            <span className="w-16" aria-hidden />
           </dd>
         </div>
 

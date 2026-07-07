@@ -538,5 +538,33 @@ ADRs, problemas, soluções, lições e o hash do commit.
 
 ---
 
+## Sprint 2.7.6 — Ajustes pós-PDF (2ª rodada)
+
+- **Versão:** 0.12.2
+- **Data:** 2026-07-07
+- **Objetivo:** segunda rodada de ajustes de UX/layout/apresentação da
+  homologação, sem novas funcionalidades de negócio.
+- **Principais entregas:**
+  - **Config:** Inscrição Estadual (migration aditiva `20260707080000_config_ie`;
+    layout CNPJ|IE); UF em lista.
+  - **Clientes:** CPF/CNPJ com rótulo/placeholder por tipo de pessoa.
+  - **Propostas:** legenda de status; coluna **Valor** (Total via
+    `calcularTotais` na listagem); badge ao lado da ação; **Cancelada vermelho**;
+    **motivo do cancelamento** abaixo do número; **não-duplicidade de produto**
+    por seção.
+  - **Frete** alinhado ao **Desconto**; **placeholders** mais apagados no dark
+    (global).
+  - **PDF:** **logo corrigido** (cabeçalho estático + data URI — o @react-pdf
+    não embute imagem dentro de `render`); bloco **Observações da proposta**;
+    faixa de seção em cinza médio; menos espaço cabeçalho→cliente.
+- **ADRs criadas:** ADR-0225.
+- **Gate:** lint 0, typecheck 0, build 0, **unit 17/17**, smoke **7/7** (IE/UF,
+  coluna Valor + legenda, não-duplicidade de produto), `/api/health` 200 (db up).
+  Logo do PDF validado (embute ~200 KB).
+- **Hash do commit:** `PENDENTE`
+- **Próxima:** **2.8 homologação geral**.
+
+---
+
 > Próximas Sprints: adicionar uma nova seção ao final, seguindo este mesmo
 > formato, ao concluir cada Sprint.
