@@ -607,7 +607,7 @@ ADRs, problemas, soluções, lições e o hash do commit.
 - **Gate:** lint 0, typecheck 0, build 0, **unit 17/17**, smoke **7/7** (Nome do
   Projeto persistência, não-duplicidade, coluna Valor/legenda), `/api/health`
   200 (db up). PDF revalidado (render OK).
-- **Hash do commit:** `PENDENTE`
+- **Hash do commit:** `b53b3c3`
 - **Próxima:** **2.8 homologação geral**.
 
 ---
