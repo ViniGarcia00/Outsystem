@@ -6,3 +6,4 @@ export { SelectField, type SelectOption } from "./select-field";
 export { SwitchField } from "./switch-field";
 export { CurrencyField } from "./currency-field";
 export { MaskedField } from "./masked-field";
+export { NumberField } from "./number-field";

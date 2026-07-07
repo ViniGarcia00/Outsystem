@@ -83,3 +83,24 @@ test("navegação principal entre os módulos", async ({ page }) => {
     await expect(page).toHaveURL(new RegExp(`${path}$`));
   }
 });
+
+test("Propostas: abrir listagem e criar proposta", async ({ page }) => {
+  await page.goto("/propostas");
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Propostas" }),
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: "Nova proposta" }).click();
+  await expect(page).toHaveURL(/\/propostas\/nova$/);
+
+  // Seleciona o primeiro cliente disponível (do seed).
+  await page.getByLabel("Cliente").click();
+  await page.getByRole("option").first().click();
+
+  await page.getByRole("button", { name: "Salvar" }).click();
+
+  await expect(page).toHaveURL(/\/propostas$/);
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Propostas" }),
+  ).toBeVisible();
+});

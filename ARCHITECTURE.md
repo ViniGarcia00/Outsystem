@@ -139,6 +139,23 @@ telefones, WhatsApp, email, site, redes sociais, rodapé do PDF, textos
 institucionais, templates, caminhos de armazenamento e configurações gerais.
 Esses campos serão adicionados via migration incremental.
 
+## 4.0. Propostas — fundação (Sprint 2.1)
+
+- **Numeração:** `Proposta.proposalNumber` é sequência do PostgreSQL iniciando em
+  1001 (nunca reutilizada). ADR-0201.
+- **Cabeçalho na Proposta:** cliente/vendedor/modelo/validade/observações/status/
+  datas ficam na `Proposta`; as **revisões** (`PropostaRevisao`) versionam o
+  conteúdo (seções/itens) das próximas Sprints. `Rev.0` nasce com a proposta.
+  ADR-0202.
+- **Cancelamento (nunca excluir):** status `CANCELADA` com motivo; duplicação não
+  copia `obsInternas`. ADR-0203.
+- **Ciclo de vida:** transições controladas + datas de status imutáveis +
+  **auditoria** (`PropostaAuditoria`) na mesma transação. ADR-0204.
+- **Tipo** (Comercial/Simplificada): apenas persistido. ADR-0205.
+- `proposta.service.ts` concentra as operações (transações + auditoria); as telas
+  reutilizam `CrudLayout`/`useCrudList` (listagem) e `CrudFormShell` (formulário,
+  com modo `readOnly`).
+
 ## 4.1. Camada de dados — Server Actions (Sprint 1)
 
 O CRUD segue o fluxo **Server Action (`"use server"`) → `services/` → Prisma**,

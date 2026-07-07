@@ -92,6 +92,10 @@ UX, testes e preparação)** concluídas.
   `/dev/diagnostics`.
 - ✅ Processo de release: `docs/CHECKLIST_RELEASE.md` (gate obrigatório) +
   `PROJECT_HISTORY.md` (histórico por Sprint); toda Sprint termina com commit.
+- ✅ **Sprint 2.1 — Fundação de Propostas:** CRUD de propostas, numeração
+  sequencial (1001+), revisões, cancelamento, duplicação, status + datas
+  automáticas e auditoria (sem produtos/serviços/PDF ainda). Ver DECISIONS.md
+  ADR-0201..0205.
 - ✅ `lint`, `build` e `typecheck` sem erros.
 
 ## Tela "About" (planejada — não implementada)

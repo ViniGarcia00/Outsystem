@@ -85,7 +85,8 @@ const PRODUTOS = [
 ];
 
 async function main() {
-  // Ordem segura (não há propostas no seed).
+  // Ordem segura de limpeza (propostas primeiro — FK para cliente/vendedor).
+  await prisma.proposta.deleteMany(); // cascata: revisões + auditorias
   await prisma.produto.deleteMany();
   await prisma.vendedor.deleteMany();
   await prisma.cliente.deleteMany();
@@ -118,14 +119,81 @@ async function main() {
     },
   });
 
-  const [clientes, vendedores, produtos] = await Promise.all([
+  // Propostas de exemplo (fundação — sem produtos/serviços). Cada uma nasce com
+  // Rev.0 + auditoria de criação.
+  const clientesList = await prisma.cliente.findMany({
+    select: { id: true },
+    orderBy: { createdAt: "asc" },
+  });
+  const vendedoresList = await prisma.vendedor.findMany({
+    select: { id: true },
+    orderBy: { nome: "asc" },
+  });
+
+  async function criarPropostaSeed(data: {
+    clienteId: string;
+    vendedorId?: string;
+    modelo: "COMERCIAL" | "SIMPLIFICADA";
+    status: "RASCUNHO" | "EMITIDA" | "CANCELADA";
+    obsProposta?: string;
+  }) {
+    const p = await prisma.proposta.create({
+      data: {
+        clienteId: data.clienteId,
+        vendedorId: data.vendedorId ?? null,
+        modelo: data.modelo,
+        status: data.status,
+        obsProposta: data.obsProposta ?? null,
+        emitidaAt: data.status === "EMITIDA" ? new Date() : null,
+        canceladaAt: data.status === "CANCELADA" ? new Date() : null,
+        motivoCancelamento:
+          data.status === "CANCELADA" ? "PROPOSTA_SUBSTITUIDA" : null,
+      },
+      select: { id: true },
+    });
+    const rev = await prisma.propostaRevisao.create({
+      data: { propostaId: p.id, revisionNumber: 0 },
+      select: { id: true },
+    });
+    await prisma.proposta.update({
+      where: { id: p.id },
+      data: { currentRevisionId: rev.id },
+    });
+    await prisma.propostaAuditoria.create({
+      data: { propostaId: p.id, evento: "CRIACAO", revisionNumber: 0 },
+    });
+  }
+
+  if (clientesList.length >= 3) {
+    await criarPropostaSeed({
+      clienteId: clientesList[0].id,
+      vendedorId: vendedoresList[0]?.id,
+      modelo: "COMERCIAL",
+      status: "RASCUNHO",
+      obsProposta: "Proposta inicial de exemplo.",
+    });
+    await criarPropostaSeed({
+      clienteId: clientesList[1].id,
+      vendedorId: vendedoresList[1]?.id,
+      modelo: "SIMPLIFICADA",
+      status: "EMITIDA",
+    });
+    await criarPropostaSeed({
+      clienteId: clientesList[2].id,
+      modelo: "COMERCIAL",
+      status: "CANCELADA",
+    });
+  }
+
+  const [clientes, vendedores, produtos, propostas] = await Promise.all([
     prisma.cliente.count(),
     prisma.vendedor.count(),
     prisma.produto.count(),
+    prisma.proposta.count(),
   ]);
 
   console.log(
-    `Seed concluído: ${clientes} clientes, ${vendedores} vendedores, ${produtos} produtos.`,
+    `Seed concluído: ${clientes} clientes, ${vendedores} vendedores, ${produtos} produtos, ${propostas} propostas.`,
   );
 }
 

@@ -222,3 +222,65 @@ Formato: **ADR** enxuto (Architecture Decision Record).
   primitivos genéricos ainda úteis mesmo sem consumidor atual (`Loading`,
   `Skeleton` — este passou a ser usado pelo `TableSkeleton`).
 - **Consequência:** menor superfície morta, sem descartar primitivos reutilizáveis.
+
+---
+
+## Sprint 2.1 — Fundação do Módulo de Propostas
+
+### ADR-0201 — Numeração da proposta via sequência do PostgreSQL
+
+- **Contexto:** `proposalNumber` deve ser sequencial, começar em 1001 e **nunca**
+  ser reutilizado (canceladas mantêm o número; duplicar gera o próximo).
+- **Decisão:** `proposalNumber` passa a ser `@default(autoincrement())` (sequência
+  nativa do Postgres `propostas_proposalnumber_seq`), com a migration executando
+  `ALTER SEQUENCE ... RESTART WITH 1001`. A sequência é atômica e não reutiliza
+  valores mesmo após exclusão/cancelamento.
+- **Consequência:** numeração confiável sem lógica de aplicação nem corrida de
+  concorrência. O `id` (cuid) permanece como chave interna.
+
+### ADR-0202 — Revisões versionam CONTEÚDO; cabeçalho fica na Proposta
+
+- **Decisão:** **Cliente, Vendedor e Modelo pertencem ao cabeçalho da `Proposta`
+  e NÃO são versionados.** As revisões (`PropostaRevisao`) versionam o **conteúdo**
+  (seções/itens das próximas Sprints). A `Rev.0` é criada junto com a proposta;
+  "nova revisão" cria `Rev.(N+1)` e a torna atual (anteriores read-only). Não é
+  permitido criar revisão quando a proposta está `CANCELADA`.
+- **Consequência:** respeita a modelagem da Sprint 0 (sem remodelar); evita
+  interpretações divergentes sobre o que é versionado.
+
+### ADR-0203 — Cancelamento (nunca excluir) + não copiar obsInternas na duplicação
+
+- **Decisão:** propostas **não são excluídas** — apenas **canceladas** (ação
+  Cancelar, com `motivoCancelamento` obrigatório; `obsCancelamento` obrigatório
+  quando "Outro"). A proposta cancelada permanece no banco, nas pesquisas, no
+  histórico e com todas as revisões, e não pode mais ser editada. A **duplicação**
+  copia `clienteId/vendedorId/modelo/validadeDias/obsProposta`, gera novo número e
+  `Rev.0`, status `RASCUNHO`, e **não copia** `obsInternas` (anotações internas de
+  negociação), status, datas, auditoria, motivo/obs de cancelamento, número nem
+  revisão.
+- **Consequência:** rastreabilidade total; anotações internas não vazam para a
+  cópia.
+
+### ADR-0204 — Ciclo de vida: transições, datas imutáveis e auditoria
+
+- **Decisão:**
+  - **Transições permitidas:** `RASCUNHO→{EMITIDA,CANCELADA}`,
+    `EMITIDA→{APROVADA,REPROVADA,CANCELADA}`, `APROVADA→{CANCELADA}`,
+    `REPROVADA→{CANCELADA}`, `CANCELADA→{}`. Nunca retornar a status anterior. O
+    service valida; o select do formulário só oferece transições válidas
+    (Cancelada apenas via ação Cancelar).
+  - **Datas de status imutáveis:** `emitidaAt/aprovadaAt/reprovadaAt/canceladaAt`
+    são preenchidas apenas na **primeira** transição correspondente e **nunca**
+    sobrescritas.
+  - **Auditoria:** toda mutação (criação, alteração, nova revisão, duplicação,
+    mudança de status, cancelamento) grava `PropostaAuditoria` na **mesma
+    transação** (data/hora, evento, revisão, observação). Sem tela nesta Sprint.
+- **Consequência:** histórico fiel e consistente; operações atômicas.
+
+### ADR-0205 — Tipo da proposta (Comercial/Simplificada): apenas persistência
+
+- **Decisão:** o tipo/modelo é apenas **armazenado** (`modelo`) nesta Sprint —
+  nenhuma diferença de layout, produtos, serviços ou cálculo. A arquitetura já
+  carrega a informação para as próximas Sprints usarem.
+- **Consequência:** evolução futura sem migração de dados; sem lógica específica
+  prematura.

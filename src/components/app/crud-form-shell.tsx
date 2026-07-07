@@ -1,6 +1,6 @@
 "use client";
 
-import { Save, X } from "lucide-react";
+import { ArrowLeft, Save, X } from "lucide-react";
 import type { ReactNode } from "react";
 import type { FieldValues, UseFormReturn } from "react-hook-form";
 
@@ -23,6 +23,10 @@ interface CrudFormShellProps<TValues extends FieldValues> {
   onCancel: () => void;
   submitting?: boolean;
   submitLabel?: string;
+  /** Somente leitura: desabilita os campos e mostra apenas "Voltar". */
+  readOnly?: boolean;
+  /** Ações à direita do cabeçalho (ex.: badge de status). */
+  headerActions?: ReactNode;
   children: ReactNode;
 }
 
@@ -41,47 +45,63 @@ export function CrudFormShell<TValues extends FieldValues>({
   onCancel,
   submitting = false,
   submitLabel = "Salvar",
+  readOnly = false,
+  headerActions,
   children,
 }: CrudFormShellProps<TValues>) {
   const submit = form.handleSubmit(onSubmit);
 
   const handleCancel = () => {
-    if (form.formState.isDirty && !confirmDiscardChanges()) return;
+    if (!readOnly && form.formState.isDirty && !confirmDiscardChanges()) return;
     onCancel();
   };
 
   useFormShortcuts({
     onSave: submit,
     onCancel: handleCancel,
-    enabled: !submitting,
+    enabled: !submitting && !readOnly,
   });
+
+  const footer = readOnly ? (
+    <Button type="button" variant="outline" onClick={onCancel}>
+      <ArrowLeft className="h-4 w-4" />
+      Voltar
+    </Button>
+  ) : (
+    <>
+      <Button
+        type="button"
+        variant="ghost"
+        onClick={handleCancel}
+        disabled={submitting}
+      >
+        <X className="h-4 w-4" />
+        Cancelar
+      </Button>
+      <Button type="submit" disabled={submitting}>
+        <Save className="h-4 w-4" />
+        {submitting ? "Salvando..." : submitLabel}
+      </Button>
+    </>
+  );
 
   return (
     <Form {...form}>
-      <FormDirtyGuard when={form.formState.isDirty && !submitting} />
+      <FormDirtyGuard when={!readOnly && form.formState.isDirty && !submitting} />
       <AppPage>
-        <PageHeader title={title} description={description} />
-        <PageForm
-          onSubmit={submit}
-          footer={
-            <>
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={handleCancel}
-                disabled={submitting}
-              >
-                <X className="h-4 w-4" />
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={submitting}>
-                <Save className="h-4 w-4" />
-                {submitting ? "Salvando..." : submitLabel}
-              </Button>
-            </>
-          }
-        >
-          {children}
+        <PageHeader
+          title={title}
+          description={description}
+          actions={headerActions}
+        />
+        <PageForm onSubmit={submit} footer={footer}>
+          {readOnly ? (
+            <fieldset disabled className="contents">
+              {children}
+            </fieldset>
+          ) : (
+            children
+          )}
         </PageForm>
       </AppPage>
     </Form>

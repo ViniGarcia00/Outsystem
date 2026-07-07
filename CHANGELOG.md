@@ -4,6 +4,38 @@ Todas as mudanças relevantes deste projeto são documentadas aqui.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o
 projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [0.4.0] — 2026-07-07
+
+### Sprint 2.1 — Fundação do Módulo de Propostas
+
+Estrutura da proposta comercial. **Sem** produtos, serviços, seções, PDF,
+preview, totais ou cálculos (próximas Sprints).
+
+#### Adicionado
+
+- **Modelagem** (migration aditiva, sem remodelar): enums `StatusProposta`,
+  `MotivoCancelamento`, `EventoAuditoria`; novos campos na `Proposta` (status,
+  `validadeDias`, `obsInternas`/`obsProposta`, datas de status,
+  motivo/obs de cancelamento); tabela `PropostaAuditoria`.
+- **Numeração sequencial** via sequência do PostgreSQL iniciando em **1001**
+  (`proposalNumber` autoincrement); nunca reutilizada (ADR-0201).
+- **CRUD de propostas**: criar (Rev.0, Rascunho, validade 5 dias), editar,
+  **nova revisão**, **duplicar** (novo número, Rev.0, sem copiar obsInternas),
+  **cancelar** (com motivo; sem excluir), **alterar status**.
+- **Ciclo de vida** com transições validadas e **datas de status imutáveis**;
+  **auditoria** gravada na mesma transação (ADR-0204).
+- **Listagem** (`CrudLayout` + `useCrudList`): número, revisão, cliente, vendedor,
+  modelo, status, validade, última alteração, ações; busca instantânea,
+  ordenação, paginação e **filtro por status**. Badges de status pelo padrão
+  ADR-0159.
+- **Formulário** (`CrudFormShell`): cliente, vendedor, modelo, validade,
+  observações internas/da proposta, status. Modo **somente leitura** quando
+  cancelada.
+- Componentes reutilizáveis novos: `NumberField`; `readOnly` no `CrudFormShell`.
+- **Tipo** Comercial/Simplificada apenas persistido (ADR-0205).
+- Seed com 3 propostas de exemplo; smoke test de propostas.
+- ADRs 0201–0205; VERSION 0.4.0.
+
 ## [0.3.1] — 2026-07-07
 
 ### Sprint 1.5.1 — Ajustes finais

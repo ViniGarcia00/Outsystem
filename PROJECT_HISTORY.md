@@ -112,5 +112,31 @@ ADRs, problemas, soluções, lições e o hash do commit.
 
 ---
 
+## Sprint 2.1 — Fundação do Módulo de Propostas
+
+- **Versão:** 0.4.0
+- **Data:** 2026-07-07
+- **Objetivo:** criar a estrutura da proposta comercial (CRUD, numeração,
+  revisões, cancelamento, duplicação, status, datas, auditoria) — sem produtos,
+  serviços, PDF, preview ou cálculos.
+- **Principais entregas:** modelagem aditiva (enums, campos na Proposta,
+  `PropostaAuditoria`); numeração via sequência do Postgres (1001+); service
+  transacional com auditoria e transições de status; listagem com filtro por
+  status; formulário com modo somente leitura; duplicação e cancelamento; seed de
+  exemplo; smoke test de propostas.
+- **ADRs criadas:** ADR-0201 (numeração), ADR-0202 (revisões/cabeçalho),
+  ADR-0203 (cancelamento + duplicação), ADR-0204 (ciclo de vida/datas/auditoria),
+  ADR-0205 (tipo da proposta).
+- **Problemas encontrados:** flags do `prisma migrate diff` mudaram no Prisma 7
+  (`--from-url` removido); a sequência de autoincrement nasce em 1.
+- **Como foram resolvidos:** usar `--from-config-datasource`; migration aditiva
+  com `ALTER SEQUENCE ... RESTART WITH 1001`.
+- **Lições aprendidas:** manter o cabeçalho na Proposta (não versionar) evita
+  remodelagem; registrar transições e imutabilidade de datas explicitamente no
+  service evita estados inconsistentes.
+- **Hash do commit:** `__HASH_SPRINT_2_1__`
+
+---
+
 > Próximas Sprints: adicionar uma nova seção ao final, seguindo este mesmo
 > formato, ao concluir cada Sprint.

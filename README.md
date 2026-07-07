@@ -15,6 +15,15 @@ autenticação na v1. Versão atual em [`VERSION`](./VERSION).
 - **[docs/CHECKLIST_RELEASE.md](./docs/CHECKLIST_RELEASE.md)** — gate de conclusão de Sprint.
 - **[BACKLOG.md](./BACKLOG.md)** — próximas Sprints.
 
+## Módulos
+
+- **Cadastros:** Configuração do Sistema, Clientes, Produtos, Vendedores (CRUD
+  completo).
+- **Propostas (fundação):** criar/editar/duplicar, revisões, cancelamento,
+  status e datas automáticas, auditoria — **sem** produtos/serviços/PDF ainda
+  (próximas Sprints).
+- **Dev:** `/api/health` e `/dev/diagnostics` (somente desenvolvimento).
+
 ---
 
 # 🛠️ DESENVOLVIMENTO (Windows)

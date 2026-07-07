@@ -37,6 +37,35 @@ enum TipoPessoa {
   PJ
 }
 
+/// Status oficiais da proposta (ciclo de vida). Ver DECISIONS.md ADR-0204.
+enum StatusProposta {
+  RASCUNHO
+  EMITIDA
+  APROVADA
+  REPROVADA
+  CANCELADA
+}
+
+/// Motivo do cancelamento (obrigatório ao cancelar). ADR-0203.
+enum MotivoCancelamento {
+  CLIENTE_DESISTIU
+  CONCORRENCIA
+  PROJETO_CANCELADO
+  ERRO_PROPOSTA
+  PROPOSTA_SUBSTITUIDA
+  OUTRO
+}
+
+/// Eventos de auditoria da proposta. ADR-0204.
+enum EventoAuditoria {
+  CRIACAO
+  ALTERACAO
+  NOVA_REVISAO
+  DUPLICACAO
+  MUDANCA_STATUS
+  CANCELAMENTO
+}
+
 // ---------------------------------------------------------------------------
 // Cadastros base
 // ---------------------------------------------------------------------------
@@ -114,14 +143,35 @@ model Vendedor {
 model Proposta {
   id String @id @default(cuid())
 
-  /// Numeração COMERCIAL da proposta (ex.: 26001001).
-  /// NÃO usar o id do banco para representar a numeração. Regra de geração
-  /// será implementada nas próximas Sprints.
-  proposalNumber Int @unique
+  /// Numeração sequencial da proposta (sequência do PostgreSQL, inicia em 1001).
+  /// Nunca reutilizada; canceladas mantêm o número. Ver DECISIONS.md ADR-0201.
+  proposalNumber Int @unique @default(autoincrement())
 
-  modelo    ModeloProposta @default(COMERCIAL)
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
+  /// Tipo/modelo da proposta (apenas persistência nesta Sprint). ADR-0205.
+  modelo ModeloProposta @default(COMERCIAL)
+
+  /// Ciclo de vida (ADR-0204). Cancelada apenas via ação Cancelar (ADR-0203).
+  status StatusProposta @default(RASCUNHO)
+
+  /// Validade em dias (nasce com 5; usuário pode alterar).
+  validadeDias Int @default(5)
+
+  /// Observações internas (NUNCA no PDF/cliente).
+  obsInternas String? @db.Text
+  /// Observações da proposta (futuro PDF).
+  obsProposta String? @db.Text
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  /// Datas de status — carimbadas apenas na 1ª transição; nunca sobrescritas.
+  emitidaAt   DateTime?
+  aprovadaAt  DateTime?
+  reprovadaAt DateTime?
+  canceladaAt DateTime?
+
+  /// Cancelamento (ADR-0203). obsCancelamento obrigatório quando OUTRO.
+  motivoCancelamento MotivoCancelamento?
+  obsCancelamento    String?             @db.Text
 
   clienteId  String
   cliente    Cliente   @relation(fields: [clienteId], references: [id])
@@ -133,11 +183,31 @@ model Proposta {
   currentRevisionId String?          @unique
   currentRevision   PropostaRevisao? @relation("PropostaRevisaoAtual", fields: [currentRevisionId], references: [id])
 
-  revisoes PropostaRevisao[] @relation("PropostaRevisoes")
+  revisoes   PropostaRevisao[]   @relation("PropostaRevisoes")
+  auditorias PropostaAuditoria[]
 
   @@index([clienteId])
   @@index([vendedorId])
+  @@index([status])
   @@map("propostas")
+}
+
+/// Trilha de auditoria da proposta (sem tela nesta Sprint). ADR-0204.
+model PropostaAuditoria {
+  id String @id @default(cuid())
+
+  propostaId String
+  proposta   Proposta @relation(fields: [propostaId], references: [id], onDelete: Cascade)
+
+  evento         EventoAuditoria
+  /// Número da revisão vigente no momento do evento (quando aplicável).
+  revisionNumber Int?
+  observacao     String? @db.Text
+
+  createdAt DateTime @default(now())
+
+  @@index([propostaId])
+  @@map("proposta_auditorias")
 }
 
 model PropostaRevisao {
