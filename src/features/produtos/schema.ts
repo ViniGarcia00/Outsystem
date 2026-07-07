@@ -11,6 +11,7 @@ export const produtoSchema = z.object({
   ativo: z.boolean(),
   codigo: requiredText("Código", 60),
   descricao: requiredText("Descrição", 300),
+  unidade: requiredText("Unidade", 10),
   valorProduto: money,
   valorServico: money,
 });
@@ -21,6 +22,7 @@ export const produtoDefaults: ProdutoFormValues = {
   ativo: true,
   codigo: "",
   descricao: "",
+  unidade: "UN",
   valorProduto: 0,
   valorServico: 0,
 };

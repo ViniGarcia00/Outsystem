@@ -4,6 +4,33 @@ Todas as mudanças relevantes deste projeto são documentadas aqui.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o
 projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [0.5.0] — 2026-07-07
+
+### Sprint 2.2 — Seções + Produtos na Revisão (workspace)
+
+A Proposta vira um **workspace**. Conteúdo comercial (seções + produtos) vive
+dentro da revisão atual. **Sem** serviços, totais, cálculos, PDF ou preview.
+
+#### Adicionado
+
+- **Workspace** em `/propostas/[id]` (cabeçalho resumido + editor de conteúdo da
+  revisão atual). Formulário de cabeçalho movido para `/propostas/[id]/editar`.
+  "Editar" da listagem abre o workspace.
+- **Seções** (agrupadores neutros) e **Produtos** dentro da revisão:
+  adicionar/renomear/remover/reordenar (Mover ↑/↓); item de produto com
+  **snapshot** (código/descrição/unidade/valores) + `produtoId` + quantidade
+  (`Decimal(12,3)`, permite frações). Ordenação contígua (ADR-0208).
+- **Nova revisão** e **duplicação** copiam **em profundidade** o conteúdo da
+  revisão atual (ADR-0208).
+- **Produto:** campo `unidade` (UN, MT, CX…); exclusão de produto usado em
+  proposta **bloqueada** (ADR-0104 ativa / ADR-0207).
+- Campo `tipo` (`PRODUTO`/`SERVICO`) já preparado no item para a próxima Sprint.
+- Auditoria granular por operação de conteúdo; revisão histórica e proposta
+  cancelada em **somente leitura** (`readOnly` no `CrudFormShell`).
+- Componente reutilizável `NumberField`.
+- Seed com conteúdo de exemplo; smoke test do workspace (seção + produto).
+- ADRs 0207–0208; VERSION 0.5.0.
+
 ## [0.4.0] — 2026-07-07
 
 ### Sprint 2.1 — Fundação do Módulo de Propostas

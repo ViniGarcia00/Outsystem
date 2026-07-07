@@ -1,56 +1,30 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { PropostaForm } from "@/features/propostas";
-import { MOTIVO_LABEL } from "@/features/propostas/labels";
-import {
-  getPropostaForEdit,
-  getPropostaFormOptions,
-} from "@/services/proposta.service";
+import { PropostaWorkspace } from "@/features/propostas";
+import { getWorkspace } from "@/services/proposta-conteudo.service";
+import { listProdutos } from "@/services/produto.service";
 
 export const metadata: Metadata = { title: "Proposta" };
 
 export const dynamic = "force-dynamic";
 
-export default async function EditarPropostaPage({
+export default async function PropostaWorkspacePage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [dto, options] = await Promise.all([
-    getPropostaForEdit(id),
-    getPropostaFormOptions(),
+  const [data, produtosList] = await Promise.all([
+    getWorkspace(id),
+    listProdutos(false),
   ]);
-  if (!dto) notFound();
+  if (!data) notFound();
 
-  const cancelInfo = dto.motivoCancelamento
-    ? {
-        motivoLabel: MOTIVO_LABEL[dto.motivoCancelamento],
-        obs: dto.obsCancelamento,
-      }
-    : undefined;
+  const produtos = produtosList.map((p) => ({
+    value: p.id,
+    label: `${p.codigo} — ${p.descricao}`,
+  }));
 
-  return (
-    <PropostaForm
-      propostaId={id}
-      defaultValues={{
-        clienteId: dto.clienteId,
-        vendedorId: dto.vendedorId,
-        modelo: dto.modelo,
-        validadeDias: dto.validadeDias,
-        obsInternas: dto.obsInternas,
-        obsProposta: dto.obsProposta,
-        status: dto.status,
-      }}
-      clientes={options.clientes}
-      vendedores={options.vendedores}
-      proposalNumber={dto.proposalNumber}
-      revisaoAtual={dto.revisaoAtual}
-      currentStatus={dto.status}
-      clienteNome={dto.clienteNome}
-      cancelInfo={cancelInfo}
-      readOnly={dto.readOnly}
-    />
-  );
+  return <PropostaWorkspace data={data} produtos={produtos} />;
 }

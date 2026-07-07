@@ -290,12 +290,53 @@ export async function updateProposta(
   });
 }
 
+/** Client transacional do Prisma. */
+type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
+
+/** Cópia profunda de seções + itens de uma revisão para outra (ADR-0208). */
+async function copiarConteudo(tx: Tx, origemId: string, destinoId: string) {
+  const secoes = await tx.propostaSecao.findMany({
+    where: { revisaoId: origemId },
+    orderBy: { ordem: "asc" },
+    select: {
+      nome: true,
+      ordem: true,
+      itens: {
+        orderBy: { ordem: "asc" },
+        select: {
+          tipo: true,
+          produtoId: true,
+          codigo: true,
+          descricao: true,
+          unidade: true,
+          valorProduto: true,
+          valorServico: true,
+          quantidade: true,
+          ordem: true,
+        },
+      },
+    },
+  });
+  for (const s of secoes) {
+    const nova = await tx.propostaSecao.create({
+      data: { revisaoId: destinoId, nome: s.nome, ordem: s.ordem },
+      select: { id: true },
+    });
+    if (s.itens.length) {
+      await tx.propostaItem.createMany({
+        data: s.itens.map((i) => ({ secaoId: nova.id, ...i })),
+      });
+    }
+  }
+}
+
 export async function criarRevisao(id: string): Promise<void> {
   await prisma.$transaction(async (tx) => {
     const p = await tx.proposta.findUniqueOrThrow({
       where: { id },
       select: {
         status: true,
+        currentRevisionId: true,
         currentRevision: { select: { revisionNumber: true } },
       },
     });
@@ -308,6 +349,10 @@ export async function criarRevisao(id: string): Promise<void> {
       data: { propostaId: id, revisionNumber: novo },
       select: { id: true },
     });
+    // Cópia profunda do conteúdo da revisão atual (ADR-0208).
+    if (p.currentRevisionId) {
+      await copiarConteudo(tx, p.currentRevisionId, rev.id);
+    }
     await tx.proposta.update({
       where: { id },
       data: { currentRevisionId: rev.id },
@@ -331,6 +376,7 @@ export async function duplicarProposta(
         modelo: true,
         validadeDias: true,
         obsProposta: true,
+        currentRevisionId: true,
       },
     });
 
@@ -350,6 +396,10 @@ export async function duplicarProposta(
       data: { propostaId: nova.id, revisionNumber: 0 },
       select: { id: true },
     });
+    // Copia o conteúdo da revisão atual da origem para a nova Rev.0 (ADR-0208).
+    if (orig.currentRevisionId) {
+      await copiarConteudo(tx, orig.currentRevisionId, rev.id);
+    }
     await tx.proposta.update({
       where: { id: nova.id },
       data: { currentRevisionId: rev.id },

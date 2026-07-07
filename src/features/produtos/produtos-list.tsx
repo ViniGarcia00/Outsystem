@@ -25,6 +25,11 @@ const columns: CrudColumn<ProdutoListItem>[] = [
     cell: (p) => p.descricao,
   },
   {
+    key: "unidade",
+    header: "Un.",
+    cell: (p) => p.unidade,
+  },
+  {
     key: "valorProduto",
     header: "Valor produto",
     cell: (p) => formatCurrency(p.valorProduto),

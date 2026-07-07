@@ -69,6 +69,12 @@ export function ProdutoForm({ produtoId, defaultValues }: ProdutoFormProps) {
           autoFocus
         />
         <TextField name="descricao" label="Descrição" />
+        <MaskedField
+          name="unidade"
+          label="Unidade"
+          format={upper}
+          placeholder="UN, MT, CX, RL..."
+        />
         <CurrencyField name="valorProduto" label="Valor do produto" />
         <CurrencyField
           name="valorServico"

@@ -84,23 +84,38 @@ test("navegação principal entre os módulos", async ({ page }) => {
   }
 });
 
-test("Propostas: abrir listagem e criar proposta", async ({ page }) => {
+test("Propostas: criar, abrir workspace, adicionar seção e produto", async ({
+  page,
+}) => {
   await page.goto("/propostas");
   await expect(
     page.getByRole("heading", { level: 1, name: "Propostas" }),
   ).toBeVisible();
 
+  // Criar → o salvar leva ao workspace da nova proposta.
   await page.getByRole("button", { name: "Nova proposta" }).click();
   await expect(page).toHaveURL(/\/propostas\/nova$/);
-
-  // Seleciona o primeiro cliente disponível (do seed).
   await page.getByLabel("Cliente").click();
   await page.getByRole("option").first().click();
-
   await page.getByRole("button", { name: "Salvar" }).click();
 
-  await expect(page).toHaveURL(/\/propostas$/);
+  // Workspace da nova proposta.
+  await expect(page).toHaveURL(/\/propostas\/(?!nova$)[^/]+$/);
+  await expect(page.getByRole("heading", { name: /Conteúdo/ })).toBeVisible();
+
+  // Adicionar seção.
+  await page.getByPlaceholder("Nome da nova seção (ex.: Sala)").fill("Sala E2E");
+  await page.getByRole("button", { name: "Adicionar seção" }).click();
+  await expect(page.getByRole("heading", { name: "Sala E2E" })).toBeVisible();
+
+  // Adicionar produto na seção.
+  await page.getByRole("button", { name: "Adicionar produto" }).click();
+  await page.getByLabel("Produto", { exact: true }).click();
+  await page.getByRole("option").first().click();
+  await page.getByRole("button", { name: "Adicionar", exact: true }).click();
+
+  // A tabela de itens da seção aparece (coluna "Código").
   await expect(
-    page.getByRole("heading", { level: 1, name: "Propostas" }),
+    page.getByRole("columnheader", { name: "Código" }),
   ).toBeVisible();
 });

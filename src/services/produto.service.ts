@@ -1,11 +1,12 @@
+import { CANNOT_DELETE_USED_IN_PROPOSTAS } from "@/lib/messages";
 import { prisma } from "@/infrastructure/database";
 
 /**
  * Serviço de Produtos.
  *
- * Sprint 1: `Produto` NÃO possui relação com `Proposta` (ver DECISIONS.md /
- * ADR-0104). Portanto a exclusão é sempre permitida. Quando a Sprint de
- * Propostas criar o vínculo, a checagem de uso será adicionada aqui.
+ * A partir da Sprint 2.2, `Produto` é referenciado por itens de proposta
+ * (`PropostaItem.produtoId`). Regra ADR-0104 ativa: produto usado em qualquer
+ * proposta NÃO pode ser excluído — apenas inativado.
  */
 
 const toNumber = (value: { toString(): string }): number =>
@@ -16,6 +17,7 @@ export interface ProdutoListItem {
   ativo: boolean;
   codigo: string;
   descricao: string;
+  unidade: string;
   valorProduto: number;
   valorServico: number;
 }
@@ -24,6 +26,7 @@ export interface ProdutoFormDTO {
   ativo: boolean;
   codigo: string;
   descricao: string;
+  unidade: string;
   valorProduto: number;
   valorServico: number;
 }
@@ -32,6 +35,7 @@ export interface ProdutoInput {
   ativo: boolean;
   codigo: string;
   descricao: string;
+  unidade: string;
   valorProduto: number;
   valorServico: number;
 }
@@ -42,6 +46,7 @@ function toData(input: ProdutoInput) {
     // Sempre em MAIÚSCULO → unicidade case-insensitive (ABC001 == abc001).
     codigo: input.codigo.trim().toUpperCase(),
     descricao: input.descricao.trim(),
+    unidade: input.unidade?.trim().toUpperCase() || "UN",
     valorProduto: input.valorProduto,
     valorServico: input.valorServico,
   };
@@ -69,6 +74,7 @@ export async function listProdutos(
       ativo: true,
       codigo: true,
       descricao: true,
+      unidade: true,
       valorProduto: true,
       valorServico: true,
     },
@@ -91,6 +97,7 @@ export async function getProdutoForEdit(
     ativo: p.ativo,
     codigo: p.codigo,
     descricao: p.descricao,
+    unidade: p.unidade,
     valorProduto: toNumber(p.valorProduto),
     valorServico: toNumber(p.valorServico),
   };
@@ -120,7 +127,13 @@ export async function updateProduto(
 }
 
 export async function removeProduto(id: string): Promise<void> {
-  // Sprint 1: sem relação com propostas — exclusão sempre permitida.
+  // ADR-0104 ativa: produto usado em proposta não pode ser excluído.
+  const usadoEmPropostas = await prisma.propostaItem.count({
+    where: { produtoId: id },
+  });
+  if (usadoEmPropostas > 0) {
+    throw new Error(CANNOT_DELETE_USED_IN_PROPOSTAS);
+  }
   await prisma.produto.delete({ where: { id } });
 }
 

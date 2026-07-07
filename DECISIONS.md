@@ -75,6 +75,8 @@ Formato: **ADR** enxuto (Architecture Decision Record).
   e Vendedor, que possuem relação `propostas`).
 - **Consequência:** `ProdutoService.remove` não faz checagem de uso nesta Sprint;
   a checagem será adicionada quando o relacionamento existir.
+- **Atualização (Sprint 2.2 — ADR-0207):** o vínculo existe (`PropostaItem.produtoId`)
+  e a regra está **ativa** — produto usado em proposta não pode ser excluído.
 
 ### ADR-0105 — Logo como texto/URL (sem upload na Sprint 1)
 
@@ -276,6 +278,34 @@ Formato: **ADR** enxuto (Architecture Decision Record).
     mudança de status, cancelamento) grava `PropostaAuditoria` na **mesma
     transação** (data/hora, evento, revisão, observação). Sem tela nesta Sprint.
 - **Consequência:** histórico fiel e consistente; operações atômicas.
+
+### ADR-0207 — Item da revisão: snapshot + vínculo + tipo (exclusão de produto ativa)
+
+- **Contexto:** produtos entram no conteúdo da revisão (Sprint 2.2).
+- **Decisão:** `PropostaItem` guarda um **snapshot imutável** do produto no
+  momento (`codigo`, `descricao`, `unidade`, `valorProduto`, `valorServico`) —
+  alterações futuras no cadastro **não** mudam propostas já montadas. Mantém
+  `produtoId` (FK, **RESTRICT**) para rastreabilidade e para a regra de exclusão.
+  Campo `tipo TipoItemProposta` (`PRODUTO`/`SERVICO`, default `PRODUTO`) já
+  preparado para a próxima Sprint (só PRODUTO é usado agora). `quantidade` é
+  `Decimal(12,3)` (permite frações). `Produto` ganhou `unidade` (origem do
+  snapshot).
+- **ADR-0104 agora ATIVA:** `ProdutoService.remove` bloqueia a exclusão de
+  produto usado em qualquer item de proposta ("… Utilize a opção Inativar.").
+- **Consequência:** histórico de preço preservado; produto rastreável; regra de
+  exclusão consistente com Cliente/Vendedor.
+
+### ADR-0208 — Cópia profunda de conteúdo (nova revisão e duplicação) + ordenação
+
+- **Decisão:** **nova revisão** copia em profundidade todas as seções e itens
+  (com snapshots, quantidades e ordem) da revisão atual; a revisão anterior fica
+  **imutável**. A **duplicação** de proposta copia o conteúdo da revisão atual da
+  origem para a nova `Rev.0`. Somente a revisão atual (e proposta não cancelada) é
+  editável. **Ordenação** (`ordem`) é única dentro da seção (itens) e da revisão
+  (seções), **contígua** a partir de 0, **sem buracos** — remover renumera; mover
+  ↑/↓ troca com o vizinho.
+- **Consequência:** PDF, histórico e comparação entre versões (futuros) operam
+  sobre a Revisão sem migração; ordenação simples e previsível.
 
 ### ADR-0206 — Conteúdo comercial vive na Revisão (diretriz para as próximas Sprints)
 

@@ -150,6 +150,7 @@ async function main() {
     ativo: true,
     codigo: "TESTE-CRUD",
     descricao: "Produto de teste",
+    unidade: "UN",
     valorProduto: 100.5,
     valorServico: 0,
   });
@@ -161,6 +162,7 @@ async function main() {
         ativo: true,
         codigo: "TESTE-CRUD",
         descricao: "Duplicado",
+        unidade: "UN",
         valorProduto: 1,
         valorServico: 0,
       }),

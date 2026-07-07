@@ -130,12 +130,28 @@ async function main() {
     orderBy: { nome: "asc" },
   });
 
+  const produtosSnap = await prisma.produto.findMany({
+    select: {
+      id: true,
+      codigo: true,
+      descricao: true,
+      unidade: true,
+      valorProduto: true,
+      valorServico: true,
+    },
+  });
+  const produtoPorCodigo = new Map(produtosSnap.map((p) => [p.codigo, p]));
+
   async function criarPropostaSeed(data: {
     clienteId: string;
     vendedorId?: string;
     modelo: "COMERCIAL" | "SIMPLIFICADA";
     status: "RASCUNHO" | "EMITIDA" | "CANCELADA";
     obsProposta?: string;
+    conteudo?: {
+      secao: string;
+      itens: { codigo: string; quantidade: number }[];
+    }[];
   }) {
     const p = await prisma.proposta.create({
       data: {
@@ -162,6 +178,34 @@ async function main() {
     await prisma.propostaAuditoria.create({
       data: { propostaId: p.id, evento: "CRIACAO", revisionNumber: 0 },
     });
+
+    // Conteúdo de exemplo (seções + produtos com snapshot).
+    const secoes = data.conteudo ?? [];
+    for (let si = 0; si < secoes.length; si++) {
+      const secao = await prisma.propostaSecao.create({
+        data: { revisaoId: rev.id, nome: secoes[si].secao, ordem: si },
+        select: { id: true },
+      });
+      for (let ii = 0; ii < secoes[si].itens.length; ii++) {
+        const linha = secoes[si].itens[ii];
+        const prod = produtoPorCodigo.get(linha.codigo);
+        if (!prod) continue;
+        await prisma.propostaItem.create({
+          data: {
+            secaoId: secao.id,
+            tipo: "PRODUTO",
+            produtoId: prod.id,
+            codigo: prod.codigo,
+            descricao: prod.descricao,
+            unidade: prod.unidade,
+            valorProduto: prod.valorProduto,
+            valorServico: prod.valorServico,
+            quantidade: linha.quantidade,
+            ordem: ii,
+          },
+        });
+      }
+    }
   }
 
   if (clientesList.length >= 3) {
@@ -171,6 +215,22 @@ async function main() {
       modelo: "COMERCIAL",
       status: "RASCUNHO",
       obsProposta: "Proposta inicial de exemplo.",
+      conteudo: [
+        {
+          secao: "Sala",
+          itens: [
+            { codigo: "RTR-001", quantidade: 1 },
+            { codigo: "AP-002", quantidade: 2 },
+          ],
+        },
+        {
+          secao: "Cozinha",
+          itens: [
+            { codigo: "SPK-06", quantidade: 4 },
+            { codigo: "CAB-C6", quantidade: 1.5 },
+          ],
+        },
+      ],
     });
     await criarPropostaSeed({
       clienteId: clientesList[1].id,

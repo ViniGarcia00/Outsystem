@@ -67,17 +67,26 @@ export function PropostaForm({
 
   async function onSubmit(values: PropostaFormValues) {
     setSaving(true);
-    const result = propostaId
-      ? await updatePropostaAction(propostaId, values)
-      : await createPropostaAction(values);
-
-    if (result.success) {
-      form.reset(values);
-      toast.success(isEdit ? "Proposta atualizada." : "Proposta criada.");
-      router.push("/propostas");
+    if (propostaId) {
+      const result = await updatePropostaAction(propostaId, values);
+      if (result.success) {
+        form.reset(values);
+        toast.success("Proposta atualizada.");
+        router.push(`/propostas/${propostaId}`); // volta ao workspace
+      } else {
+        setSaving(false);
+        toast.error(result.error);
+      }
     } else {
-      setSaving(false);
-      toast.error(result.error);
+      const result = await createPropostaAction(values);
+      if (result.success) {
+        form.reset(values);
+        toast.success("Proposta criada.");
+        router.push(`/propostas/${result.data.id}`); // abre o workspace
+      } else {
+        setSaving(false);
+        toast.error(result.error);
+      }
     }
   }
 
@@ -105,7 +114,9 @@ export function PropostaForm({
       description={description}
       form={form}
       onSubmit={onSubmit}
-      onCancel={() => router.push("/propostas")}
+      onCancel={() =>
+        router.push(propostaId ? `/propostas/${propostaId}` : "/propostas")
+      }
       submitting={saving}
       readOnly={readOnly}
       headerActions={headerActions}

@@ -138,5 +138,29 @@ ADRs, problemas, soluções, lições e o hash do commit.
 
 ---
 
+## Sprint 2.2 — Seções + Produtos na Revisão (workspace)
+
+- **Versão:** 0.5.0
+- **Data:** 2026-07-07
+- **Objetivo:** montar o conteúdo comercial (seções + produtos) dentro da revisão
+  atual; transformar a proposta em workspace. Sem serviços/totais/PDF.
+- **Principais entregas:** workspace `/propostas/[id]` + cabeçalho em `/editar`;
+  seções e produtos (snapshot + `produtoId` + quantidade fracionária) com
+  reordenação; cópia profunda em nova revisão e duplicação; produto `unidade` +
+  exclusão bloqueada (ADR-0104 ativa); `tipo` de item preparado; auditoria
+  granular; seed com conteúdo; smoke test do workspace.
+- **ADRs criadas:** ADR-0207 (item snapshot/vínculo/tipo + exclusão), ADR-0208
+  (cópia profunda + ordenação). ADR-0104 marcada como ativa.
+- **Problemas encontrados:** arquivo `"use server"` exige exports como `async
+  function` (arrows const falharam no build).
+- **Como foram resolvidos:** converter as actions de conteúdo para `async
+  function`.
+- **Lições aprendidas:** em `"use server"`, exportar sempre `async function`;
+  usar `router.refresh()` + página `force-dynamic` mantém o servidor como fonte
+  da verdade do conteúdo, minimizando estado no cliente.
+- **Hash do commit:** `__HASH_SPRINT_2_2__`
+
+---
+
 > Próximas Sprints: adicionar uma nova seção ao final, seguindo este mesmo
 > formato, ao concluir cada Sprint.
