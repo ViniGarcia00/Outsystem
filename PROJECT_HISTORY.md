@@ -108,7 +108,7 @@ ADRs, problemas, soluções, lições e o hash do commit.
   rótulo.
 - **Lições aprendidas:** ao alternar campos condicionais em formulários, evitar
   persistir o campo não usado; normalizar chaves únicas antes de validar.
-- **Hash do commit:** `__HASH_SPRINT_1_5_1__`
+- **Hash do commit:** `275c9b9`
 
 ---
 
