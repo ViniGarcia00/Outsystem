@@ -503,7 +503,7 @@ ADRs, problemas, soluções, lições e o hash do commit.
   PDF), smoke **7/7** (endpoint PDF 200 `application/pdf` + botão "Abrir PDF"),
   `/api/health` 200 (db up). Renderização validada em propostas pequenas e
   grandes (contagem de páginas).
-- **Hash do commit:** `PENDENTE`
+- **Hash do commit:** `b4e3c04`
 - **Próxima:** **2.8 homologação geral**.
 
 ---
