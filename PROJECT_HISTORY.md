@@ -158,7 +158,7 @@ ADRs, problemas, soluções, lições e o hash do commit.
 - **Lições aprendidas:** em `"use server"`, exportar sempre `async function`;
   usar `router.refresh()` + página `force-dynamic` mantém o servidor como fonte
   da verdade do conteúdo, minimizando estado no cliente.
-- **Hash do commit:** `__HASH_SPRINT_2_2__`
+- **Hash do commit:** `3aea3ac`
 
 ---
 
