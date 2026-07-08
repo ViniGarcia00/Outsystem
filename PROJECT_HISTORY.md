@@ -633,7 +633,7 @@ ADRs, problemas, soluções, lições e o hash do commit.
   `/api/health` 200 (db up, versão 1.0.0), `/dev/diagnostics` 200.
 - **Versionamento:** `VERSION` e `package.json` → **1.0.0**.
 - **ADRs criadas:** ADR-0228.
-- **Hash do commit:** `PENDENTE`
+- **Hash do commit:** `58127b6`
 - **Status do módulo:** ✔ Homologado · ✔ Estável · ✔ Pronto para produção.
 - **Próximo:** novo módulo independente **"PDF Projeto"** (escopo/arquitetura
   próprios; fora deste módulo).
