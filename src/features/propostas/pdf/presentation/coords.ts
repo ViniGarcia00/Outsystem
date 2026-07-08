@@ -29,7 +29,7 @@ export const CAPA = {
   // `maxLines`), garantindo que o bloco NUNCA transborde a página → 10 páginas.
   // Calibrado para o pior caso (caracteres largos). Nomes mais longos recebem "…".
   cliente: { fontSize: 14, weight: 500 as const, maxChars: 46 },
-  projeto: { fontSize: 15, weight: 700 as const, marginTop: 3, maxChars: 42 },
+  projeto: { fontSize: 15, weight: 500 as const, marginTop: 3, maxChars: 42 },
 };
 
 /** Página 6 — itens: coluna esquerda (lista de seções + produtos, sem qtd/preço).
