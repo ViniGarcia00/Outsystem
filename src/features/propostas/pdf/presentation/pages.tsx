@@ -218,11 +218,11 @@ export function PaginaInvestimento({ dto, bg }: Dyn) {
             fontFamily: FONTE,
             fontSize: INVESTIMENTO.prazo.fontSize,
             fontWeight: INVESTIMENTO.prazo.weight,
-            color: CORES.azul,
+            color: CORES.branco,
             textAlign: "center",
           }}
         >
-          {dto.previsaoInstalacao?.trim() || "A combinar"}
+          {`Prazo de Instalação: ${dto.previsaoInstalacao?.trim() || "a combinar"}`}
         </Text>
       </View>
     </PresentationPage>

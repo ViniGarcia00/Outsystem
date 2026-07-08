@@ -52,11 +52,11 @@ export const ITENS = {
   },
 };
 
-/** Página 8 — investimento: caixa do valor total + caixa do prazo.
- * Caixas cinza centradas (pixel: valor y~390–590; prazo y~660–900). */
+/** Página 8 — investimento: valor (caixa cinza, fonte grande) + prazo (linha
+ * "Prazo de Instalação: X" em branco, sobre a área preta abaixo da caixa). */
 export const INVESTIMENTO = {
-  valor: { left: 205, top: 224, width: 550, fontSize: 42, weight: 700 as const },
-  prazo: { left: 205, top: 378, width: 550, fontSize: 20, weight: 600 as const },
+  valor: { left: 205, top: 227, width: 550, fontSize: 62, weight: 700 as const },
+  prazo: { left: 205, top: 390, width: 550, fontSize: 20, weight: 600 as const },
 };
 
 /** Página 9 — pagamento: caixa central cinza (pixel x300–1620, y470–810). */
