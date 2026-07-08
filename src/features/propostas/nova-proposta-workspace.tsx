@@ -34,7 +34,7 @@ const CABECALHO_INICIAL: CabecalhoValores = {
   obsInternas: "",
   obsProposta: "",
   // Valores padrão (o usuário pode alterar normalmente) — ADR-0224.
-  formaPagamento: "• 3x no Cartão de Crédito\n• 5% de Desconto no PIX",
+  formaPagamento: "● 3x no Cartão de Crédito\n● 5% de Desconto no PIX",
   previsaoInstalacao: "3 dias",
   obsComerciais: "",
   obsTecnicas: "",
