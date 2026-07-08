@@ -16,11 +16,19 @@ import { PresentationPage } from "./page-shell";
 type Dyn = { dto: PropostaPdfDTO; bg: string };
 type Fixed = { bg: string };
 
+/** Limita o texto a `max` caracteres (com reticências) — evita 3ª linha/overflow. */
+function truncar(texto: string, max: number): string {
+  const s = texto.trim();
+  return s.length > max ? `${s.slice(0, max - 1).trimEnd()}…` : s;
+}
+
 // ── Página 1 — DINÂMICA: Nome do Projeto + Nome do Cliente (bloco inf. esquerdo).
 export function PaginaCapa({ dto, bg }: Dyn) {
   return (
     <PresentationPage background={bg}>
       <View style={{ position: "absolute", ...CAPA.bloco }}>
+        {/* Truncamento (~2 linhas) garante altura limitada → nunca transborda a
+            página (10 páginas) nem invade a arte; nomes longos recebem "…". */}
         <Text
           style={{
             fontFamily: FONTE,
@@ -29,7 +37,7 @@ export function PaginaCapa({ dto, bg }: Dyn) {
             color: CORES.azul,
           }}
         >
-          {dto.nomeProjeto?.trim() || "—"}
+          {truncar(dto.nomeProjeto || "—", CAPA.projeto.maxChars)}
         </Text>
         <Text
           style={{
@@ -40,7 +48,7 @@ export function PaginaCapa({ dto, bg }: Dyn) {
             marginTop: CAPA.cliente.marginTop,
           }}
         >
-          {dto.cliente.nome}
+          {truncar(dto.cliente.nome, CAPA.cliente.maxChars)}
         </Text>
       </View>
     </PresentationPage>

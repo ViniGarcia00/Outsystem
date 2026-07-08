@@ -17,12 +17,17 @@ export const CORES = {
 
 export const FONTE = "Inter";
 
-/** Página 1 — capa: bloco inferior-esquerdo (Nome do Projeto + Nome do Cliente).
- * Alinhado ao bloco "Projeto / Marcos Borges" do template (pixel ~468×825/890). */
+/** Página 1 — capa: bloco inferior-esquerdo.
+ * "Projeto" é FIXO no template (base ~y437 pt). O overlay começa ABAIXO dele:
+ * Nome do Projeto (azul) e, abaixo, Nome do Cliente (branco). `top` ajustado de
+ * 414→446 para não sobrepor a palavra "Projeto"; espaçamento cliente 8→10. */
 export const CAPA = {
-  bloco: { left: 234, top: 414, width: 230 },
-  projeto: { fontSize: 15, weight: 700 as const },
-  cliente: { fontSize: 14, weight: 400 as const, marginTop: 8 },
+  bloco: { left: 234, top: 446, width: 230 },
+  // `maxChars`: limita cada campo a no máximo 2 linhas (o @react-pdf 4.x não tem
+  // `maxLines`), garantindo que o bloco NUNCA transborde a página → 10 páginas.
+  // Calibrado para o pior caso (caracteres largos). Nomes mais longos recebem "…".
+  projeto: { fontSize: 15, weight: 700 as const, maxChars: 42 },
+  cliente: { fontSize: 14, weight: 400 as const, marginTop: 10, maxChars: 46 },
 };
 
 /** Página 6 — itens: coluna esquerda (lista de seções + produtos, sem qtd/preço).
