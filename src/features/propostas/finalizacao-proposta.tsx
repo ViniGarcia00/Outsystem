@@ -49,11 +49,12 @@ export function FinalizacaoProposta({
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="fin-forma-pagamento">Forma de pagamento</Label>
-              <Input
+              <Textarea
                 id="fin-forma-pagamento"
+                rows={2}
                 defaultValue={valores.formaPagamento}
                 disabled={readOnly}
-                placeholder="Ex.: PIX, à vista, entrada + saldo na instalação"
+                placeholder="Ex.: 3x no Cartão de Crédito / 5% de Desconto no PIX"
                 onBlur={(e) => {
                   const v = e.target.value;
                   if (v !== ultimaFormaPagamento.current) {

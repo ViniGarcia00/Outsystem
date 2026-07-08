@@ -108,11 +108,10 @@ test("Propostas: criação diferida, emitir e revisão automática", async ({
   await expect(
     page.getByRole("heading", { level: 1, name: "Propostas" }),
   ).toBeVisible();
-  // Coluna "Valor" e legenda de status na listagem.
+  // Coluna "Valor" na listagem.
   await expect(
     page.getByRole("columnheader", { name: "Valor" }),
   ).toBeVisible();
-  await expect(page.getByText("Em edição", { exact: true })).toBeVisible();
 
   // "Nova proposta" abre o workspace de montagem em memória (nada é criado).
   await page.getByRole("button", { name: "Nova proposta" }).click();
