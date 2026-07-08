@@ -299,6 +299,7 @@ export function PaginaPagamento({ dto, bg }: Dyn) {
             fontFamily: FONTE,
             fontSize: PAGAMENTO.box.fontSize,
             fontWeight: PAGAMENTO.box.weight,
+            lineHeight: PAGAMENTO.box.lineHeight,
             color: CORES.azul,
             textAlign: "center",
           }}

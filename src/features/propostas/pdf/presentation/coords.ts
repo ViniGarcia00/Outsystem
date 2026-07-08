@@ -74,8 +74,15 @@ export const INVESTIMENTO = {
 
 /** Página 9 — pagamento: caixa central cinza (pixel x300–1620, y470–810 → pts
  * x150–810, y235–405; centro vertical ≈ 320). Texto CENTRALIZADO na caixa (h/v),
- * fonte grande (40) e peso forte (700). `top` calculado p/ centrar o bloco de
- * 2 linhas (~96 pt) na vertical: 320 − 48 ≈ 272. */
+ * fonte grande (40), peso forte (700) e `lineHeight` folgado p/ separar as 2
+ * linhas. `top` centra o bloco: h ≈ 2 × 40 × 1.6 ≈ 128 pt → 320 − 64 ≈ 256. */
 export const PAGAMENTO = {
-  box: { left: 150, top: 272, width: 660, fontSize: 40, weight: 700 as const },
+  box: {
+    left: 150,
+    top: 256,
+    width: 660,
+    fontSize: 40,
+    weight: 700 as const,
+    lineHeight: 1.6,
+  },
 };
