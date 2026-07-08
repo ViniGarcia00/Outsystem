@@ -3,201 +3,156 @@ import { Text, View } from "@react-pdf/renderer";
 import type { PropostaPdfDTO } from "@/services/proposta-pdf.mapper";
 
 import { formatCurrency } from "../format";
-import type { Tema } from "../theme";
-import { PlaceholderInstitucional, PresentationPage } from "./page-shell";
+import { CAPA, CORES, FONTE, INVESTIMENTO, ITENS, PAGAMENTO } from "./coords";
+import { PresentationPage } from "./page-shell";
 
 /**
- * As 10 páginas do PDF Apresentação. Páginas DINÂMICAS consomem exatamente o
- * mesmo `PropostaPdfDTO` do PDF Comercial (sem consultas/regra paralelas); as
- * páginas FIXAS trazem placeholders — o design premium será detalhado na Sprint
- * 3.1. A ordem é fixada em `PresentationDocument`.
+ * As 10 páginas do PDF Apresentação. Cada uma usa o respectivo template como
+ * PLANO DE FUNDO (nenhuma é redesenhada). As páginas FIXAS (2,3,4,5,7,10) são
+ * só o fundo; as DINÂMICAS (1,6,8,9) sobrepõem os campos variáveis, reutilizando
+ * exatamente o `PropostaPdfDTO` (mesmos dados do PDF Comercial).
  */
 
-type PageProps = { dto: PropostaPdfDTO; tema: Tema };
+type Dyn = { dto: PropostaPdfDTO; bg: string };
+type Fixed = { bg: string };
 
-const rotulo = (tema: Tema) =>
-  ({
-    fontSize: tema.tamanho.xs,
-    fontWeight: tema.pesos.semibold,
-    color: tema.cores.textoSuave,
-    textTransform: "uppercase",
-    letterSpacing: 0.8,
-  }) as const;
-
-// Página 1 — DINÂMICA: Nome do Cliente + Nome do Projeto.
-export function PaginaCapa({ dto, tema }: PageProps) {
+// ── Página 1 — DINÂMICA: Nome do Projeto + Nome do Cliente (bloco inf. esquerdo).
+export function PaginaCapa({ dto, bg }: Dyn) {
   return (
-    <PresentationPage tema={tema}>
-      <View style={{ flexGrow: 1, justifyContent: "center" }}>
+    <PresentationPage background={bg}>
+      <View style={{ position: "absolute", ...CAPA.bloco }}>
         <Text
           style={{
-            fontSize: tema.tamanho.sm,
-            fontWeight: tema.pesos.semibold,
-            color: tema.cores.primaria,
-            letterSpacing: 1.5,
-            textTransform: "uppercase",
+            fontFamily: FONTE,
+            fontSize: CAPA.projeto.fontSize,
+            fontWeight: CAPA.projeto.weight,
+            color: CORES.azul,
           }}
         >
-          {dto.empresa.nome} · Proposta Comercial
+          {dto.nomeProjeto?.trim() || "—"}
         </Text>
         <Text
           style={{
-            fontSize: 34,
-            fontWeight: tema.pesos.bold,
-            color: tema.cores.texto,
-            marginTop: tema.espaco(4),
+            fontFamily: FONTE,
+            fontSize: CAPA.cliente.fontSize,
+            fontWeight: CAPA.cliente.weight,
+            color: CORES.branco,
+            marginTop: CAPA.cliente.marginTop,
           }}
         >
-          {dto.nomeProjeto?.trim() || "Proposta"}
-        </Text>
-        <Text
-          style={{
-            fontSize: tema.tamanho.lg,
-            color: tema.cores.textoSuave,
-            marginTop: tema.espaco(2),
-          }}
-        >
-          Preparado para {dto.cliente.nome}
-        </Text>
-        <View
-          style={{
-            marginTop: tema.espaco(6),
-            width: 60,
-            height: 3,
-            backgroundColor: tema.cores.primaria,
-          }}
-        />
-        <Text
-          style={{
-            fontSize: tema.tamanho.sm,
-            color: tema.cores.textoClaro,
-            marginTop: tema.espaco(3),
-          }}
-        >
-          {`Nº ${dto.numero}${dto.revisao != null ? ` · Rev.${dto.revisao}` : ""}`}
+          {dto.cliente.nome}
         </Text>
       </View>
     </PresentationPage>
   );
 }
 
-// Página 2 — FIXA: Quem Somos.
-export function PaginaQuemSomos({ tema }: PageProps) {
-  return (
-    <PresentationPage tema={tema} titulo="Quem Somos">
-      <PlaceholderInstitucional tema={tema} />
-    </PresentationPage>
-  );
+// ── Página 2 — FIXA: Quem Somos.
+export function PaginaQuemSomos({ bg }: Fixed) {
+  return <PresentationPage background={bg} />;
 }
 
-// Página 3 — FIXA: Por que Automatizar.
-export function PaginaPorQueAutomatizar({ tema }: PageProps) {
-  return (
-    <PresentationPage tema={tema} titulo="Por que Automatizar">
-      <PlaceholderInstitucional tema={tema} />
-    </PresentationPage>
-  );
+// ── Página 3 — FIXA: Por que Automatizar.
+export function PaginaBeneficios({ bg }: Fixed) {
+  return <PresentationPage background={bg} />;
 }
 
-// Página 4 — FIXA: Cases / Projetos.
-export function PaginaCases({ tema }: PageProps) {
-  return (
-    <PresentationPage tema={tema} titulo="Cases / Projetos">
-      <PlaceholderInstitucional tema={tema} />
-    </PresentationPage>
-  );
+// ── Página 4 — FIXA: Cases / Projetos.
+export function PaginaCases({ bg }: Fixed) {
+  return <PresentationPage background={bg} />;
 }
 
-// Página 5 — FIXA: Como Trabalhamos.
-export function PaginaComoTrabalhamos({ tema }: PageProps) {
-  return (
-    <PresentationPage tema={tema} titulo="Como Trabalhamos">
-      <PlaceholderInstitucional tema={tema} />
-    </PresentationPage>
-  );
+// ── Página 5 — FIXA: Como Trabalhamos.
+export function PaginaProcesso({ bg }: Fixed) {
+  return <PresentationPage background={bg} />;
 }
 
-// Página 6 — DINÂMICA: Itens do Projeto (só nome da seção + lista de produtos;
-// sem preço/quantidade/subtotal/desconto/frete).
-export function PaginaItens({ dto, tema }: PageProps) {
+// ── Página 6 — DINÂMICA: Itens agrupados por seção (nome da seção + produtos).
+// Sem preço/subtotal/desconto/frete (e sem quantidade — conforme o formato pedido).
+export function PaginaItens({ dto, bg }: Dyn) {
   return (
-    <PresentationPage tema={tema} titulo="Itens do Projeto">
-      {dto.secoes.length === 0 ? (
-        <Text style={{ color: tema.cores.textoSuave }}>
-          Nenhum item cadastrado.
-        </Text>
-      ) : (
-        dto.secoes.map((secao, si) => (
-          <View
-            key={si}
-            wrap={false}
-            style={{ marginBottom: tema.espaco(4) }}
-          >
+    <PresentationPage background={bg}>
+      <View style={{ position: "absolute", ...ITENS.area }}>
+        {dto.secoes.map((secao, si) => (
+          <View key={si} wrap={false}>
             <Text
               style={{
-                fontSize: tema.tamanho.md,
-                fontWeight: tema.pesos.semibold,
-                color: tema.cores.primaria,
-                marginBottom: tema.espaco(1.5),
+                fontFamily: FONTE,
+                fontSize: ITENS.secao.fontSize,
+                fontWeight: ITENS.secao.weight,
+                color: CORES.azul,
+                marginTop: si === 0 ? 0 : ITENS.secao.marginTop,
+                marginBottom: ITENS.secao.marginBottom,
               }}
             >
               {secao.nome}
             </Text>
             {secao.itens.map((item, ii) => (
-              <View
+              <Text
                 key={ii}
-                style={{ flexDirection: "row", marginBottom: 3 }}
+                style={{
+                  fontFamily: FONTE,
+                  fontSize: ITENS.produto.fontSize,
+                  fontWeight: ITENS.produto.weight,
+                  color: CORES.branco,
+                  marginBottom: ITENS.produto.marginBottom,
+                }}
               >
-                <Text
-                  style={{ color: tema.cores.primaria, marginRight: tema.espaco(1.5) }}
-                >
-                  •
-                </Text>
-                <Text style={{ flexGrow: 1, flexBasis: 0, color: tema.cores.texto }}>
-                  {item.descricao}
-                </Text>
-              </View>
+                {`•  ${item.descricao}`}
+              </Text>
             ))}
           </View>
-        ))
-      )}
+        ))}
+      </View>
     </PresentationPage>
   );
 }
 
-// Página 7 — FIXA: Serviços / Diferenciais.
-export function PaginaServicos({ tema }: PageProps) {
-  return (
-    <PresentationPage tema={tema} titulo="Serviços / Diferenciais">
-      <PlaceholderInstitucional tema={tema} />
-    </PresentationPage>
-  );
+// ── Página 7 — FIXA: Serviços / Diferenciais.
+export function PaginaServicos({ bg }: Fixed) {
+  return <PresentationPage background={bg} />;
 }
 
-// Página 8 — DINÂMICA: Investimento (Valor Total + prazo de instalação).
-export function PaginaInvestimento({ dto, tema }: PageProps) {
+// ── Página 8 — DINÂMICA: Valor Total + Prazo estimado de instalação.
+export function PaginaInvestimento({ dto, bg }: Dyn) {
   return (
-    <PresentationPage tema={tema} titulo="Investimento">
-      <View style={{ marginTop: tema.espaco(4) }}>
-        <Text style={rotulo(tema)}>Valor Total</Text>
+    <PresentationPage background={bg}>
+      <View
+        style={{
+          position: "absolute",
+          left: INVESTIMENTO.valor.left,
+          top: INVESTIMENTO.valor.top,
+          width: INVESTIMENTO.valor.width,
+          alignItems: "center",
+        }}
+      >
         <Text
           style={{
-            fontSize: 30,
-            fontWeight: tema.pesos.bold,
-            color: tema.cores.primaria,
-            marginTop: tema.espaco(1),
+            fontFamily: FONTE,
+            fontSize: INVESTIMENTO.valor.fontSize,
+            fontWeight: INVESTIMENTO.valor.weight,
+            color: CORES.azul,
           }}
         >
           {formatCurrency(dto.totais.totalProposta)}
         </Text>
       </View>
-      <View style={{ marginTop: tema.espaco(6) }}>
-        <Text style={rotulo(tema)}>Prazo estimado de instalação</Text>
+      <View
+        style={{
+          position: "absolute",
+          left: INVESTIMENTO.prazo.left,
+          top: INVESTIMENTO.prazo.top,
+          width: INVESTIMENTO.prazo.width,
+          alignItems: "center",
+        }}
+      >
         <Text
           style={{
-            fontSize: tema.tamanho.lg,
-            color: tema.cores.texto,
-            marginTop: tema.espaco(1),
+            fontFamily: FONTE,
+            fontSize: INVESTIMENTO.prazo.fontSize,
+            fontWeight: INVESTIMENTO.prazo.weight,
+            color: CORES.azul,
+            textAlign: "center",
           }}
         >
           {dto.previsaoInstalacao?.trim() || "A combinar"}
@@ -207,36 +162,36 @@ export function PaginaInvestimento({ dto, tema }: PageProps) {
   );
 }
 
-// Página 9 — DINÂMICA: Forma de Pagamento (campo da proposta).
-export function PaginaPagamento({ dto, tema }: PageProps) {
+// ── Página 9 — DINÂMICA: Forma de Pagamento (campo da proposta).
+export function PaginaPagamento({ dto, bg }: Dyn) {
   return (
-    <PresentationPage tema={tema} titulo="Forma de Pagamento">
-      <Text style={{ fontSize: tema.tamanho.lg, color: tema.cores.texto }}>
-        {dto.formaPagamento?.trim() || "A combinar"}
-      </Text>
+    <PresentationPage background={bg}>
+      <View
+        style={{
+          position: "absolute",
+          left: PAGAMENTO.box.left,
+          top: PAGAMENTO.box.top,
+          width: PAGAMENTO.box.width,
+          alignItems: "center",
+        }}
+      >
+        <Text
+          style={{
+            fontFamily: FONTE,
+            fontSize: PAGAMENTO.box.fontSize,
+            fontWeight: PAGAMENTO.box.weight,
+            color: CORES.azul,
+            textAlign: "center",
+          }}
+        >
+          {dto.formaPagamento?.trim() || "A combinar"}
+        </Text>
+      </View>
     </PresentationPage>
   );
 }
 
-// Página 10 — FIXA: Obrigado (usa o texto de fechamento e contatos da empresa).
-export function PaginaObrigado({ dto, tema }: PageProps) {
-  const contato = [dto.empresa.site, dto.empresa.telefone, dto.empresa.email]
-    .filter(Boolean)
-    .join("  ·  ");
-  return (
-    <PresentationPage tema={tema} titulo="Obrigado">
-      <PlaceholderInstitucional tema={tema} texto={dto.empresa.textoFinal} />
-      {contato && (
-        <Text
-          style={{
-            marginTop: tema.espaco(8),
-            fontSize: tema.tamanho.sm,
-            color: tema.cores.textoSuave,
-          }}
-        >
-          {contato}
-        </Text>
-      )}
-    </PresentationPage>
-  );
+// ── Página 10 — FIXA: Obrigado.
+export function PaginaObrigado({ bg }: Fixed) {
+  return <PresentationPage background={bg} />;
 }

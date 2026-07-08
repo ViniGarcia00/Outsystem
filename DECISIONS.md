@@ -878,3 +878,31 @@ Sprint de refinamento (escopo estrito):
     capa); não altera a saída do PDF Comercial.
 - **Consequência:** arquitetura pronta para a **Sprint 3.1** detalhar o design
   premium de cada página. Versão inalterada (1.0.0) até o recurso concluir.
+
+---
+
+## Sprint 3.1 — Implementação do PDF Apresentação
+
+### ADR-0301 — Templates gráficos como plano de fundo (landscape 16:9)
+
+- **Decisão:** o PDF Apresentação usa os **templates PNG fornecidos**
+  (`public/templates/presentation/`, 1920×1080) como **plano de fundo de página
+  inteira**; **nenhuma página é redesenhada**. Página em **landscape 16:9**
+  (`size=[960, 540]` pt = padrão PowerPoint); escala template→página = **0.5**.
+  Os templates são lidos do disco e embutidos como **data URI** (o @react-pdf
+  embute imagem de forma confiável por data URI; sem cache, para refletir a troca
+  das imagens).
+- **Campos variáveis:** só as 4 páginas dinâmicas sobrepõem dados, por
+  posicionamento **absoluto** (capa: Nome do Projeto + Cliente; itens: seções +
+  produtos sem preço/quantidade; investimento: Valor Total + prazo; pagamento:
+  forma de pagamento). Reutiliza o mesmo `PropostaPdfDTO` (ADR-0300). Cores dos
+  overlays casadas com a identidade dos templates. Coordenadas centralizadas em
+  `coords.ts`.
+- **Estrutura:** `presentation/templates.ts` (loader), `page-shell.tsx` (página
+  landscape com Image de fundo), `coords.ts`, `pages.tsx` (10 páginas),
+  `presentation-document.tsx`, `render.tsx`.
+- **Pendência conhecida:** os templates das 4 páginas dinâmicas ainda contêm
+  **conteúdo de exemplo embutido** nas áreas reservadas; ao receber as versões
+  **em branco** (mesmos nomes/caminho), os overlays caem nas áreas limpas — só as
+  coordenadas de `coords.ts` podem precisar de ajuste fino. **PDF Comercial
+  intacto**; sem banco/migration/Prisma. Homologação após a troca das imagens.

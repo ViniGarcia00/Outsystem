@@ -3,47 +3,50 @@ import { Document } from "@react-pdf/renderer";
 import type { PropostaPdfDTO } from "@/services/proposta-pdf.mapper";
 
 import { registrarFontes } from "../fonts";
-import { criarTema } from "../theme";
 import {
+  PaginaBeneficios,
   PaginaCapa,
   PaginaCases,
-  PaginaComoTrabalhamos,
   PaginaInvestimento,
   PaginaItens,
   PaginaObrigado,
   PaginaPagamento,
-  PaginaPorQueAutomatizar,
+  PaginaProcesso,
   PaginaQuemSomos,
   PaginaServicos,
 } from "./pages";
+import type { Templates } from "./templates";
 
 /**
- * Documento comercial institucional (PDF Apresentação) — versão premium para
- * envio ao cliente. Consome exatamente o mesmo {@link PropostaPdfDTO} do PDF
- * Comercial (mesma carga de dados/cálculos; nenhuma consulta ou regra paralela).
- *
- * Estrutura fixa de **10 páginas** (dinâmicas 1, 6, 8, 9; fixas 2, 3, 4, 5, 7,
- * 10). O layout premium de cada página será detalhado na Sprint 3.1.
+ * Documento comercial institucional (PDF Apresentação) — 10 páginas em 16:9
+ * (landscape), cada uma usando o respectivo template como plano de fundo.
+ * Consome exatamente o mesmo {@link PropostaPdfDTO} do PDF Comercial (nenhuma
+ * consulta/regra paralela). Páginas dinâmicas: 1, 6, 8, 9; fixas: 2,3,4,5,7,10.
  */
-export function PresentationDocument({ dto }: { dto: PropostaPdfDTO }) {
+export function PresentationDocument({
+  dto,
+  templates,
+}: {
+  dto: PropostaPdfDTO;
+  templates: Templates;
+}) {
   registrarFontes();
-  const tema = criarTema(dto.empresa.corPrimaria, dto.empresa.corSecundaria);
 
   return (
     <Document
       title={`Apresentação — Proposta ${dto.numero}`}
       author={dto.empresa.nome}
     >
-      <PaginaCapa dto={dto} tema={tema} />
-      <PaginaQuemSomos dto={dto} tema={tema} />
-      <PaginaPorQueAutomatizar dto={dto} tema={tema} />
-      <PaginaCases dto={dto} tema={tema} />
-      <PaginaComoTrabalhamos dto={dto} tema={tema} />
-      <PaginaItens dto={dto} tema={tema} />
-      <PaginaServicos dto={dto} tema={tema} />
-      <PaginaInvestimento dto={dto} tema={tema} />
-      <PaginaPagamento dto={dto} tema={tema} />
-      <PaginaObrigado dto={dto} tema={tema} />
+      <PaginaCapa dto={dto} bg={templates["page-01-cover"]} />
+      <PaginaQuemSomos bg={templates["page-02-about"]} />
+      <PaginaBeneficios bg={templates["page-03-benefits"]} />
+      <PaginaCases bg={templates["page-04-projects"]} />
+      <PaginaProcesso bg={templates["page-05-process"]} />
+      <PaginaItens dto={dto} bg={templates["page-06-project"]} />
+      <PaginaServicos bg={templates["page-07-services"]} />
+      <PaginaInvestimento dto={dto} bg={templates["page-08-investment"]} />
+      <PaginaPagamento dto={dto} bg={templates["page-09-payment"]} />
+      <PaginaObrigado bg={templates["page-10-thanks"]} />
     </Document>
   );
 }

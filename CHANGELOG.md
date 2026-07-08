@@ -6,6 +6,20 @@ projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ## [Não lançado]
 
+### Sprint 3.1 — Implementação do PDF Apresentação (templates gráficos). Ver ADR-0301.
+
+- **PDF Apresentação passou a usar os templates gráficos** (`public/templates/
+  presentation/page-01..10.png`) como **plano de fundo de página inteira**, em
+  **landscape 16:9** (960×540 pt). Nenhuma página é redesenhada.
+- **Páginas fixas** (2,3,4,5,7,10): apenas o template de fundo.
+- **Páginas dinâmicas** (1,6,8,9): o template de fundo + **sobreposição só dos
+  campos variáveis** — capa (Nome do Projeto + Nome do Cliente), itens (seções +
+  produtos, sem preço/quantidade), investimento (Valor Total + prazo) e forma de
+  pagamento. Reutiliza o mesmo `PropostaPdfDTO`.
+- Coordenadas dos campos centralizadas em `coords.ts` (provisórias — ajuste fino
+  quando os templates com áreas em branco forem recebidos). PDF Comercial
+  inalterado; sem banco/migration/Prisma.
+
 ### Sprint 3.0 — Fundação do PDF Apresentação. Ver ADR-0300.
 
 Recurso **estrutural** (novo formato de exportação). O módulo de Propostas
