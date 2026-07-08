@@ -6,6 +6,20 @@ import { z } from "zod";
  */
 export const modeloEnum = z.enum(["COMERCIAL", "SIMPLIFICADA"]);
 export const tipoDescontoEnum = z.enum(["VALOR", "PERCENTUAL"]);
+export const tipoServicoEnum = z.enum(["SOM", "WIFI"]);
+
+/**
+ * Serviço complementar (Sprint 2.9.1). `valorTotal` NÃO vem do cliente — é
+ * derivado no servidor (produtos + serviços). Não entra em cálculo da proposta.
+ */
+export const servicoSchema = z.object({
+  tipo: tipoServicoEnum,
+  descricao: z.string().max(5000).nullable(),
+  valorProdutos: z.number().nonnegative(),
+  valorServicos: z.number().nonnegative(),
+});
+
+export type ServicoValues = z.infer<typeof servicoSchema>;
 
 /** Patch parcial do cabeçalho (auto-save por campo). */
 export const cabecalhoPatchSchema = z
@@ -67,6 +81,14 @@ export const novaPropostaSchema = z.object({
       ),
     }),
   ),
+  // Serviços complementares (Sprint 2.9.1). Opcional; no máximo um por tipo.
+  servicos: z
+    .array(servicoSchema)
+    .refine(
+      (arr) => new Set(arr.map((s) => s.tipo)).size === arr.length,
+      "Cada serviço complementar pode ser adicionado apenas uma vez.",
+    )
+    .optional(),
 });
 
 export type NovaPropostaValues = z.infer<typeof novaPropostaSchema>;

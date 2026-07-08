@@ -215,6 +215,20 @@ export interface NovaPropostaPayload {
   descontoValor?: number;
   frete?: number;
   secoes: NovaPropostaSecao[];
+  /**
+   * Serviços complementares (Sprint 2.9.1). Independentes do conteúdo/revisão;
+   * NÃO entram em cálculo da proposta nesta Sprint. `valorTotal` é derivado no
+   * servidor. Quando ausente (undefined), o conjunto atual é preservado.
+   */
+  servicos?: NovaPropostaServico[];
+}
+
+/** Serviço complementar montado no cliente antes do salvamento. */
+export interface NovaPropostaServico {
+  tipo: "SOM" | "WIFI";
+  descricao: string | null;
+  valorProdutos: number;
+  valorServicos: number;
 }
 
 /**
@@ -426,6 +440,28 @@ export async function salvarProposta(
             valorServico: linha.valorServico ?? prod.valorServico,
             quantidade: linha.quantidade,
             ordem: ii,
+          },
+        });
+      }
+    }
+
+    // Serviços complementares (Sprint 2.9.1): substitui o conjunto atual pelo
+    // estado enviado. Pertencem à Proposta (não à revisão) e NÃO entram em
+    // cálculo. `valorTotal` é derivado aqui (produtos + serviços). Ausência do
+    // campo (undefined) preserva o conjunto atual.
+    if (payload.servicos) {
+      await tx.propostaServico.deleteMany({ where: { propostaId } });
+      for (let si = 0; si < payload.servicos.length; si++) {
+        const sv = payload.servicos[si];
+        await tx.propostaServico.create({
+          data: {
+            propostaId,
+            tipo: sv.tipo,
+            descricao: trimOrNull(sv.descricao),
+            valorProdutos: sv.valorProdutos,
+            valorServicos: sv.valorServicos,
+            valorTotal: sv.valorProdutos + sv.valorServicos,
+            ordem: si,
           },
         });
       }

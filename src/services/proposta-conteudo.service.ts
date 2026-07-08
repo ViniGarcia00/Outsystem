@@ -37,6 +37,20 @@ export interface SecaoDTO {
   itens: ItemDTO[];
 }
 
+/** Tipo do serviço complementar (Sprint 2.9.1). */
+export type TipoServico = "SOM" | "WIFI";
+
+/** Serviço complementar da proposta (Sprint 2.9.1). Não entra em cálculo nesta Sprint. */
+export interface ServicoDTO {
+  id: string;
+  tipo: TipoServico;
+  descricao: string;
+  valorProdutos: number;
+  valorServicos: number;
+  valorTotal: number;
+  ordem: number;
+}
+
 export interface WorkspaceDTO {
   id: string;
   proposalNumber: number;
@@ -72,6 +86,8 @@ export interface WorkspaceDTO {
   revisaoEmitidaAt: Date | null; // emissão da revisão exibida
   updatedAt: Date;
   secoes: SecaoDTO[];
+  /** Serviços complementares (Sprint 2.9.1) — paralelos ao Conteúdo. */
+  servicos: ServicoDTO[];
 }
 
 const clienteDisplay = (c: {
@@ -110,6 +126,18 @@ export async function getWorkspace(
       vendedorId: true,
       cliente: { select: { tipoPessoa: true, nome: true, empresa: true } },
       vendedor: { select: { nome: true } },
+      servicos: {
+        orderBy: { ordem: "asc" },
+        select: {
+          id: true,
+          tipo: true,
+          descricao: true,
+          valorProdutos: true,
+          valorServicos: true,
+          valorTotal: true,
+          ordem: true,
+        },
+      },
       currentRevision: {
         select: {
           revisionNumber: true,
@@ -186,6 +214,15 @@ export async function getWorkspace(
         quantidade: toNumber(i.quantidade),
         ordem: i.ordem,
       })),
+    })),
+    servicos: p.servicos.map((s) => ({
+      id: s.id,
+      tipo: s.tipo,
+      descricao: s.descricao ?? "",
+      valorProdutos: toNumber(s.valorProdutos),
+      valorServicos: toNumber(s.valorServicos),
+      valorTotal: toNumber(s.valorTotal),
+      ordem: s.ordem,
     })),
   };
 }

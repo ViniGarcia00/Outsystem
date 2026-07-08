@@ -33,6 +33,8 @@ import {
   type CabecalhoValores,
 } from "./proposta-cabecalho";
 import type { CabecalhoPatchValues, CancelarFormValues } from "./schema";
+import { ServicosComplementares } from "./servicos-complementares";
+import { useServicosMemoria } from "./servicos-memoria";
 import type { Desconto } from "./totais";
 
 interface Option {
@@ -75,6 +77,10 @@ export function PropostaWorkspace({
 
   const marcarSujo = useCallback(() => setDirty(true), []);
   const { secoes, actions } = useConteudoMemoria(data.secoes, marcarSujo);
+  const { servicos, actions: servicosActions } = useServicosMemoria(
+    data.servicos,
+    marcarSujo,
+  );
 
   const onDesconto = (d: Desconto) => {
     setDirty(true);
@@ -148,6 +154,12 @@ export function PropostaWorkspace({
           valorProduto: it.valorProduto,
           valorServico: it.valorServico,
         })),
+      })),
+      servicos: servicos.map((s) => ({
+        tipo: s.tipo,
+        descricao: s.descricao || null,
+        valorProdutos: s.valorProdutos,
+        valorServicos: s.valorServicos,
       })),
     });
     if (result.success) {
@@ -307,6 +319,14 @@ export function PropostaWorkspace({
         onDescontoChange={onDesconto}
         frete={frete}
         onFreteChange={onFrete}
+      />
+
+      {/* Serviços Complementares (Sprint 2.9.1) — paralelos ao Conteúdo;
+          NÃO entram nos cálculos da proposta nesta Sprint. */}
+      <ServicosComplementares
+        servicos={servicos}
+        actions={servicosActions}
+        readOnly={readOnly}
       />
 
       {/* Finalização — informações comerciais finais (ADR-0222) */}

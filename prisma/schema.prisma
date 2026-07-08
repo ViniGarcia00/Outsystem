@@ -78,6 +78,14 @@ enum TipoDesconto {
   PERCENTUAL
 }
 
+/// Tipo do serviço complementar da proposta (Sprint 2.9.1). Estrutura preparada
+/// para receber novos tipos no futuro SEM alteração de banco. NÃO representa o
+/// "Projeto de Automação" (que é o Conteúdo/Revisão) — é uma entidade paralela.
+enum TipoServicoProposta {
+  SOM
+  WIFI
+}
+
 // ---------------------------------------------------------------------------
 // Cadastros base
 // ---------------------------------------------------------------------------
@@ -230,6 +238,10 @@ model Proposta {
   revisoes   PropostaRevisao[]   @relation("PropostaRevisoes")
   auditorias PropostaAuditoria[]
 
+  /// Serviços complementares (Sprint 2.9.1). Pertencem à Proposta (não à
+  /// revisão) e NÃO entram nos cálculos da proposta nesta Sprint.
+  servicos PropostaServico[]
+
   @@index([clienteId])
   @@index([vendedorId])
   @@index([status])
@@ -331,6 +343,36 @@ model PropostaItem {
   @@index([secaoId])
   @@index([produtoId])
   @@map("proposta_itens")
+}
+
+/// Serviço complementar da proposta (Sprint 2.9.1). Entidade única e genérica
+/// para qualquer tipo de serviço (hoje SOM e WIFI); novos tipos entram só no
+/// enum, sem mudança estrutural. Independente do Conteúdo/Automação e do PDF.
+/// Nesta Sprint NÃO entra em subtotal/desconto/frete/total (isso fica p/ 2.9.2).
+/// `valorTotal` é gravado (produtos + serviços), calculado no servidor.
+/// Único por (proposta, tipo): no máximo um SOM e um WIFI por proposta.
+model PropostaServico {
+  id String @id @default(cuid())
+
+  propostaId String
+  proposta   Proposta @relation(fields: [propostaId], references: [id], onDelete: Cascade)
+
+  tipo      TipoServicoProposta
+  descricao String?             @db.Text
+
+  valorProdutos Decimal @default(0) @db.Decimal(12, 2)
+  valorServicos Decimal @default(0) @db.Decimal(12, 2)
+  /// Derivado (produtos + serviços); persistido por decisão da Sprint 2.9.1.
+  valorTotal    Decimal @default(0) @db.Decimal(12, 2)
+
+  /// Ordem contígua (0,1,2…) de exibição dentro da proposta.
+  ordem     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([propostaId, tipo])
+  @@index([propostaId])
+  @@map("proposta_servicos")
 }
 
 // ---------------------------------------------------------------------------
