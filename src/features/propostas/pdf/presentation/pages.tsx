@@ -291,7 +291,7 @@ export function PaginaPagamento({ dto, bg }: Dyn) {
           left: PAGAMENTO.box.left,
           top: PAGAMENTO.box.top,
           width: PAGAMENTO.box.width,
-          alignItems: "center",
+          alignItems: "flex-start",
         }}
       >
         <Text
@@ -300,7 +300,7 @@ export function PaginaPagamento({ dto, bg }: Dyn) {
             fontSize: PAGAMENTO.box.fontSize,
             fontWeight: PAGAMENTO.box.weight,
             color: CORES.azul,
-            textAlign: "center",
+            textAlign: "left",
           }}
         >
           {dto.formaPagamento?.trim() || "A combinar"}

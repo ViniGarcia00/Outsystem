@@ -72,7 +72,9 @@ export const INVESTIMENTO = {
   prazo: { left: 205, top: 390, width: 550, fontSize: 20, weight: 600 as const },
 };
 
-/** Página 9 — pagamento: caixa central cinza (pixel x300–1620, y470–810). */
+/** Página 9 — pagamento: caixa central cinza (pixel x300–1620, y470–810).
+ * Texto alinhado à ESQUERDA (bullets empilhados), com recuo interno para não
+ * encostar na borda da caixa. Fonte maior (32) para destaque. */
 export const PAGAMENTO = {
-  box: { left: 150, top: 307, width: 660, fontSize: 22, weight: 600 as const },
+  box: { left: 190, top: 300, width: 590, fontSize: 32, weight: 600 as const },
 };
