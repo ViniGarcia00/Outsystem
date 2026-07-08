@@ -16,27 +16,30 @@ export const CORES = {
 
 export const FONTE = "Inter";
 
-/** Página 1 — capa: bloco inferior-esquerdo (Nome do Projeto + Nome do Cliente). */
+/** Página 1 — capa: bloco inferior-esquerdo (Nome do Projeto + Nome do Cliente).
+ * Alinhado ao bloco "Projeto / Marcos Borges" do template (pixel ~468×825/890). */
 export const CAPA = {
-  bloco: { left: 234, top: 404, width: 330 },
+  bloco: { left: 234, top: 414, width: 340 },
   projeto: { fontSize: 15, weight: 700 as const },
-  cliente: { fontSize: 12, weight: 400 as const, marginTop: 5 },
+  cliente: { fontSize: 13, weight: 400 as const, marginTop: 8 },
 };
 
-/** Página 6 — itens: coluna esquerda (lista de seções + produtos, sem qtd/preço). */
+/** Página 6 — itens: coluna esquerda (lista de seções + produtos, sem qtd/preço).
+ * Área da tabela do template (pixel x110–790, y190–950). */
 export const ITENS = {
-  area: { left: 55, top: 100, width: 345 },
+  area: { left: 56, top: 96, width: 340 },
   secao: { fontSize: 11, weight: 700 as const, marginBottom: 3, marginTop: 8 },
   produto: { fontSize: 9, weight: 400 as const, marginBottom: 2 },
 };
 
-/** Página 8 — investimento: caixa do valor total + caixa do prazo. */
+/** Página 8 — investimento: caixa do valor total + caixa do prazo.
+ * Caixas cinza centradas (pixel: valor y~390–590; prazo y~660–900). */
 export const INVESTIMENTO = {
-  valor: { left: 205, top: 212, width: 550, fontSize: 36, weight: 700 as const },
-  prazo: { left: 205, top: 362, width: 550, fontSize: 18, weight: 600 as const },
+  valor: { left: 205, top: 220, width: 550, fontSize: 42, weight: 700 as const },
+  prazo: { left: 205, top: 378, width: 550, fontSize: 20, weight: 600 as const },
 };
 
-/** Página 9 — pagamento: caixa central. */
+/** Página 9 — pagamento: caixa central cinza (pixel x300–1620, y470–810). */
 export const PAGAMENTO = {
-  box: { left: 150, top: 300, width: 660, fontSize: 18, weight: 600 as const },
+  box: { left: 150, top: 307, width: 660, fontSize: 22, weight: 600 as const },
 };
