@@ -27,28 +27,29 @@ export function PaginaCapa({ dto, bg }: Dyn) {
   return (
     <PresentationPage background={bg}>
       <View style={{ position: "absolute", ...CAPA.bloco }}>
-        {/* Truncamento (~2 linhas) garante altura limitada → nunca transborda a
-            página (10 páginas) nem invade a arte; nomes longos recebem "…". */}
-        <Text
-          style={{
-            fontFamily: FONTE,
-            fontSize: CAPA.projeto.fontSize,
-            fontWeight: CAPA.projeto.weight,
-            color: CORES.azul,
-          }}
-        >
-          {truncar(dto.nomeProjeto || "—", CAPA.projeto.maxChars)}
-        </Text>
+        {/* Linha 1: Cliente (branco, um pouco mais grosso). Linha 2: Nome do
+            Projeto (branco, colado abaixo). Truncamento (~2 linhas) garante que o
+            bloco nunca transborde a página (10 páginas) nem invada a arte. */}
         <Text
           style={{
             fontFamily: FONTE,
             fontSize: CAPA.cliente.fontSize,
             fontWeight: CAPA.cliente.weight,
             color: CORES.branco,
-            marginTop: CAPA.cliente.marginTop,
           }}
         >
           {truncar(dto.cliente.nome, CAPA.cliente.maxChars)}
+        </Text>
+        <Text
+          style={{
+            fontFamily: FONTE,
+            fontSize: CAPA.projeto.fontSize,
+            fontWeight: CAPA.projeto.weight,
+            color: CORES.branco,
+            marginTop: CAPA.projeto.marginTop,
+          }}
+        >
+          {truncar(dto.nomeProjeto || "—", CAPA.projeto.maxChars)}
         </Text>
       </View>
     </PresentationPage>

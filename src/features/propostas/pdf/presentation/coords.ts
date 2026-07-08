@@ -23,11 +23,13 @@ export const FONTE = "Inter";
  * 414→446 para não sobrepor a palavra "Projeto"; espaçamento cliente 8→10. */
 export const CAPA = {
   bloco: { left: 234, top: 446, width: 230 },
+  // Ordem de exibição no bloco: Cliente (linha 1, peso um pouco maior) e, logo
+  // abaixo e mais próximo, o Nome do Projeto (linha 2). Ambos em branco.
   // `maxChars`: limita cada campo a no máximo 2 linhas (o @react-pdf 4.x não tem
   // `maxLines`), garantindo que o bloco NUNCA transborde a página → 10 páginas.
   // Calibrado para o pior caso (caracteres largos). Nomes mais longos recebem "…".
-  projeto: { fontSize: 15, weight: 700 as const, maxChars: 42 },
-  cliente: { fontSize: 14, weight: 400 as const, marginTop: 10, maxChars: 46 },
+  cliente: { fontSize: 14, weight: 500 as const, maxChars: 46 },
+  projeto: { fontSize: 15, weight: 700 as const, marginTop: 3, maxChars: 42 },
 };
 
 /** Página 6 — itens: coluna esquerda (lista de seções + produtos, sem qtd/preço).
