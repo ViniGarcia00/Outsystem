@@ -7,8 +7,13 @@ import path from "node:path";
  * convertidos em data URI (base64) — data URI é o que o @react-pdf embute de
  * forma confiável (evita ambiguidade de caminho no Windows).
  *
- * Sem cache: assim, ao substituir as imagens em `public/templates/presentation/`
- * (ex.: enviar as versões em branco), a próxima geração já reflete a troca.
+ * Sem cache: assim, ao substituir as imagens em `public/templates/presentation/`,
+ * a próxima geração já reflete a troca — basta copiar o arquivo, sem mudar código.
+ *
+ * Nomenclatura OFICIAL (Sprint 2.9.3): 13 templates, incluindo os slides de
+ * Serviços Complementares (09 Som, 10 Wi-Fi) e o 11 Investimento Total. Os
+ * slides 09/10/11 são RENDERIZADOS condicionalmente (ver presentation-document),
+ * mas o template é sempre carregado.
  */
 
 const DIR = path.join(process.cwd(), "public", "templates", "presentation");
@@ -19,11 +24,14 @@ export const TEMPLATE_FILES = [
   "page-03-benefits",
   "page-04-projects",
   "page-05-process",
-  "page-06-project",
-  "page-07-services",
-  "page-08-investment",
-  "page-09-payment",
-  "page-10-thanks",
+  "page-06-automation-project",
+  "page-07-automation-services",
+  "page-08-automation-investment",
+  "page-09-sound-project",
+  "page-10-wifi-premium",
+  "page-11-total-investment",
+  "page-12-payment",
+  "page-13-thank-you",
 ] as const;
 
 export type TemplateKey = (typeof TEMPLATE_FILES)[number];

@@ -8,20 +8,29 @@ import {
   PaginaCapa,
   PaginaCases,
   PaginaInvestimento,
+  PaginaInvestimentoTotal,
   PaginaItens,
   PaginaObrigado,
   PaginaPagamento,
   PaginaProcesso,
   PaginaQuemSomos,
+  PaginaServicoComplementar,
   PaginaServicos,
 } from "./pages";
 import type { Templates } from "./templates";
 
 /**
- * Documento comercial institucional (PDF Apresentação) — 10 páginas em 16:9
- * (landscape), cada uma usando o respectivo template como plano de fundo.
+ * Documento comercial institucional (PDF Apresentação) — 13 slides oficiais em
+ * 16:9 (landscape), cada um usando o respectivo template como plano de fundo.
  * Consome exatamente o mesmo {@link PropostaPdfDTO} do PDF Comercial (nenhuma
- * consulta/regra paralela). Páginas dinâmicas: 1, 6, 8, 9; fixas: 2,3,4,5,7,10.
+ * consulta/regra paralela).
+ *
+ * Slides CONDICIONAIS (Sprint 2.9.3):
+ * - 09 Projeto Som Ambiente  → só quando existe serviço SOM;
+ * - 10 Projeto Wi-Fi Premium → só quando existe serviço WIFI;
+ * - 11 Investimento Total    → só quando existe ≥1 Serviço Complementar.
+ * O slide 08 (Investimento da Automação) é SEMPRE renderizado e NUNCA inclui
+ * Som/Wi-Fi. Contagens: Automação=10; +Som=12; +Wi-Fi=12; +ambos=13.
  */
 export function PresentationDocument({
   dto,
@@ -31,6 +40,10 @@ export function PresentationDocument({
   templates: Templates;
 }) {
   registrarFontes();
+
+  const som = dto.servicos.find((s) => s.tipo === "SOM");
+  const wifi = dto.servicos.find((s) => s.tipo === "WIFI");
+  const temServicos = dto.servicos.length > 0;
 
   return (
     <Document
@@ -42,11 +55,29 @@ export function PresentationDocument({
       <PaginaBeneficios bg={templates["page-03-benefits"]} />
       <PaginaCases bg={templates["page-04-projects"]} />
       <PaginaProcesso bg={templates["page-05-process"]} />
-      <PaginaItens dto={dto} bg={templates["page-06-project"]} />
-      <PaginaServicos bg={templates["page-07-services"]} />
-      <PaginaInvestimento dto={dto} bg={templates["page-08-investment"]} />
-      <PaginaPagamento dto={dto} bg={templates["page-09-payment"]} />
-      <PaginaObrigado bg={templates["page-10-thanks"]} />
+      <PaginaItens dto={dto} bg={templates["page-06-automation-project"]} />
+      <PaginaServicos bg={templates["page-07-automation-services"]} />
+      <PaginaInvestimento dto={dto} bg={templates["page-08-automation-investment"]} />
+      {som && (
+        <PaginaServicoComplementar
+          servico={som}
+          bg={templates["page-09-sound-project"]}
+        />
+      )}
+      {wifi && (
+        <PaginaServicoComplementar
+          servico={wifi}
+          bg={templates["page-10-wifi-premium"]}
+        />
+      )}
+      {temServicos && (
+        <PaginaInvestimentoTotal
+          dto={dto}
+          bg={templates["page-11-total-investment"]}
+        />
+      )}
+      <PaginaPagamento dto={dto} bg={templates["page-12-payment"]} />
+      <PaginaObrigado bg={templates["page-13-thank-you"]} />
     </Document>
   );
 }

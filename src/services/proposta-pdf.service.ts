@@ -54,6 +54,12 @@ export async function getPropostaPdfData(
           },
         },
         vendedor: { select: { nome: true } },
+        // Serviços complementares (Sprint 2.9.3) — para os slides Som/Wi-Fi do
+        // PDF Apresentação. `valorTotal` já persistido (produtos + serviços).
+        servicos: {
+          orderBy: { ordem: "asc" },
+          select: { tipo: true, descricao: true, valorTotal: true },
+        },
         currentRevision: {
           select: {
             revisionNumber: true,

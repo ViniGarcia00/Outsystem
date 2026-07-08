@@ -1,9 +1,11 @@
 import {
+  calcularInvestimento,
   calcularTotais,
   totalProdutoLinha,
   totalServicoLinha,
   totalLinha,
   type Desconto,
+  type InvestimentoProposta,
   type TotaisProposta,
 } from "@/features/propostas/totais";
 
@@ -62,6 +64,17 @@ export interface PdfSecao {
   itens: PdfItem[];
 }
 
+/**
+ * Serviço complementar para o PDF Apresentação (Sprint 2.9.3). Só o necessário
+ * para o slide: tipo, descrição e o `valorTotal` JÁ calculado (produtos +
+ * serviços) — nada é recalculado no PDF. O PDF Comercial ignora este campo.
+ */
+export interface PdfServico {
+  tipo: "SOM" | "WIFI";
+  descricao: string | null;
+  valorTotal: number;
+}
+
 export interface PropostaPdfDTO {
   numero: number;
   /** Nome do projeto (campo da Proposta). Usado pelo PDF Apresentação. */
@@ -78,6 +91,17 @@ export interface PropostaPdfDTO {
   consultor: string | null;
   secoes: PdfSecao[];
   totais: TotaisProposta;
+  /**
+   * Serviços complementares (Sprint 2.9.3) — Som/Wi-Fi, na ordem de exibição.
+   * Usados APENAS pelo PDF Apresentação; o PDF Comercial não os consome.
+   */
+  servicos: PdfServico[];
+  /**
+   * Investimento consolidado (Sprint 2.9.2/2.9.3) = Automação (totalProposta) +
+   * Serviços Complementares. Já calculado pela fonte única (`calcularInvestimento`);
+   * o slide de Investimento apenas exibe. NÃO altera `totais.totalProposta`.
+   */
+  investimento: InvestimentoProposta;
   /** Modelagem do desconto (para anotar % na linha, quando aplicável). */
   desconto: Desconto;
   formaPagamento: string | null;
@@ -132,6 +156,11 @@ export interface FontePropostaPdf {
   obsTecnicas: string | null;
   cliente: FonteCliente | null;
   vendedor: { nome: string } | null;
+  /**
+   * Serviços complementares (Sprint 2.9.3). Opcional para compatibilidade com
+   * chamadores/testes anteriores; ausência = sem serviços.
+   */
+  servicos?: { tipo: "SOM" | "WIFI"; descricao: string | null; valorTotal: Numerico }[];
   currentRevision: {
     revisionNumber: number;
     emittedAt: Date | null;
@@ -203,6 +232,16 @@ export function montarPropostaPdfDTO(
   const itensCalc = secoes.flatMap((s) => s.itens);
   const totais = calcularTotais(itensCalc, simplificada, desconto, frete);
 
+  // Serviços complementares (Sprint 2.9.3) — na ordem recebida; `valorTotal` já
+  // vem calculado (não recalculado aqui). Investimento = Automação
+  // (totalProposta) + Σ serviços, via a fonte única `calcularInvestimento`.
+  const servicos: PdfServico[] = (p.servicos ?? []).map((s) => ({
+    tipo: s.tipo,
+    descricao: nn(s.descricao),
+    valorTotal: toNumber(s.valorTotal),
+  }));
+  const investimento = calcularInvestimento(totais.totalProposta, servicos);
+
   const empresa: PdfEmpresa = {
     nome: nn(config.nomeEmpresa) || nn(config.razaoSocial) || "Outmat",
     site: nn(config.site),
@@ -236,6 +275,8 @@ export function montarPropostaPdfDTO(
     consultor: nn(p.vendedor?.nome ?? null),
     secoes,
     totais,
+    servicos,
+    investimento,
     desconto,
     formaPagamento: nn(p.formaPagamento),
     previsaoInstalacao: nn(p.previsaoInstalacao),

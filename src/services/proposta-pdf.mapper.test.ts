@@ -136,4 +136,34 @@ describe("montarPropostaPdfDTO", () => {
     expect(dto.empresa.corPrimaria).toBe("#0A84FF");
     expect(dto.empresa.corSecundaria).toBe("#6B7280"); // fallback
   });
+
+  // Serviços Complementares no PDF Apresentação (Sprint 2.9.3). O total da
+  // Automação (fonteBase) é 260; os serviços NÃO alteram `totais.totalProposta`.
+  it("sem serviços: servicos vazio e investimento = só Automação", () => {
+    const dto = montarPropostaPdfDTO(fonteBase(), CONFIG_VAZIA);
+    expect(dto.servicos).toEqual([]);
+    expect(dto.investimento.automacao).toBe(260);
+    expect(dto.investimento.complementar).toBe(0);
+    expect(dto.investimento.total).toBe(260);
+    expect(dto.totais.totalProposta).toBe(260); // inalterado
+  });
+
+  it("com Som + Wi-Fi: mapeia serviços na ordem e soma no investimento", () => {
+    const dto = montarPropostaPdfDTO(
+      fonteBase({
+        servicos: [
+          { tipo: "SOM", descricao: "Som na sala", valorTotal: 2500 },
+          { tipo: "WIFI", descricao: null, valorTotal: 1800 },
+        ],
+      }),
+      CONFIG_VAZIA,
+    );
+    expect(dto.servicos.map((s) => s.tipo)).toEqual(["SOM", "WIFI"]);
+    expect(dto.servicos[0].descricao).toBe("Som na sala");
+    expect(dto.servicos[1].descricao).toBeNull();
+    expect(dto.investimento.automacao).toBe(260);
+    expect(dto.investimento.complementar).toBe(4300); // 2500 + 1800
+    expect(dto.investimento.total).toBe(4560); // 260 + 4300
+    expect(dto.totais.totalProposta).toBe(260); // Automação/PDF Comercial intacto
+  });
 });

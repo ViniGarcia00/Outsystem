@@ -3,8 +3,23 @@ import { Text, View } from "@react-pdf/renderer";
 import type { PropostaPdfDTO } from "@/services/proposta-pdf.mapper";
 
 import { formatCurrency, formatQuantidade } from "../format";
-import { CAPA, CORES, FONTE, INVESTIMENTO, ITENS, PAGAMENTO } from "./coords";
+import {
+  CAPA,
+  CORES,
+  FONTE,
+  INVESTIMENTO,
+  INVESTIMENTO_TOTAL,
+  ITENS,
+  PAGAMENTO,
+  SERVICO,
+} from "./coords";
 import { PresentationPage } from "./page-shell";
+
+/** Rótulo dos serviços complementares no PDF (Sprint 2.9.3). */
+const PROJETO_LABEL: Record<PropostaPdfDTO["servicos"][number]["tipo"], string> = {
+  SOM: "Projeto Som Ambiente",
+  WIFI: "Projeto Wi-Fi Premium",
+};
 
 /**
  * As 10 páginas do PDF Apresentação. Cada uma usa o respectivo template como
@@ -232,7 +247,96 @@ export function PaginaServicos({ bg }: Fixed) {
   return <PresentationPage background={bg} />;
 }
 
-// ── Página 8 — DINÂMICA: Valor Total + Prazo estimado de instalação.
+// ── Slides de Serviços Complementares (Sprint 2.9.3) — Som e Wi-Fi. Só existem
+// quando há o serviço correspondente (ver presentation-document.tsx). Layout
+// único: Título + Descrição + rodapé "Investimento R$ …" (sem tabela/produtos).
+export function PaginaServicoComplementar({
+  servico,
+  bg,
+}: {
+  servico: PropostaPdfDTO["servicos"][number];
+  bg: string;
+}) {
+  return (
+    <PresentationPage background={bg}>
+      <View
+        style={{
+          position: "absolute",
+          left: SERVICO.titulo.left,
+          top: SERVICO.titulo.top,
+          width: SERVICO.titulo.width,
+        }}
+      >
+        <Text
+          style={{
+            fontFamily: FONTE,
+            fontSize: SERVICO.titulo.fontSize,
+            fontWeight: SERVICO.titulo.weight,
+            color: CORES.azul,
+          }}
+        >
+          {PROJETO_LABEL[servico.tipo]}
+        </Text>
+      </View>
+
+      <View
+        style={{
+          position: "absolute",
+          left: SERVICO.descricao.left,
+          top: SERVICO.descricao.top,
+          width: SERVICO.descricao.width,
+        }}
+      >
+        <Text
+          style={{
+            fontFamily: FONTE,
+            fontSize: SERVICO.descricao.fontSize,
+            fontWeight: SERVICO.descricao.weight,
+            color: CORES.texto,
+            lineHeight: SERVICO.descricao.lineHeight,
+          }}
+        >
+          {truncar(servico.descricao?.trim() || "—", SERVICO.descricao.maxChars)}
+        </Text>
+      </View>
+
+      <View
+        style={{
+          position: "absolute",
+          left: SERVICO.investimento.left,
+          top: SERVICO.investimento.top,
+          width: SERVICO.investimento.width,
+        }}
+      >
+        <Text
+          style={{
+            fontFamily: FONTE,
+            fontSize: SERVICO.investimento.rotuloFontSize,
+            fontWeight: SERVICO.investimento.rotuloWeight,
+            color: CORES.azul,
+          }}
+        >
+          Investimento
+        </Text>
+        <Text
+          style={{
+            fontFamily: FONTE,
+            fontSize: SERVICO.investimento.valorFontSize,
+            fontWeight: SERVICO.investimento.valorWeight,
+            color: CORES.azul,
+            marginTop: SERVICO.investimento.valorMarginTop,
+          }}
+        >
+          {formatCurrency(servico.valorTotal)}
+        </Text>
+      </View>
+    </PresentationPage>
+  );
+}
+
+// ── Página 8 — DINÂMICA: **Investimento da Automação** (valor único) + Prazo de
+// instalação. Representa EXCLUSIVAMENTE a Automação — nunca inclui Som/Wi-Fi.
+// Consome `totais.totalProposta` (= Investimento da Automação); nada recalculado.
 export function PaginaInvestimento({ dto, bg }: Dyn) {
   return (
     <PresentationPage background={bg}>
@@ -281,7 +385,105 @@ export function PaginaInvestimento({ dto, bg }: Dyn) {
   );
 }
 
-// ── Página 9 — DINÂMICA: Forma de Pagamento (campo da proposta). Cada linha é
+// ── Página 11 — DINÂMICA: **Investimento Total** (só quando há ≥1 Serviço
+// Complementar). Detalha Projeto Automação + Som/Wi-Fi (os que existirem),
+// divisor, e a linha Investimento Total. Todos os valores vêm do DTO
+// (`calcularInvestimento`, Sprint 2.9.2) — nunca recalculados aqui.
+export function PaginaInvestimentoTotal({ dto, bg }: Dyn) {
+  return (
+    <PresentationPage background={bg}>
+      <View
+        style={{
+          position: "absolute",
+          left: INVESTIMENTO_TOTAL.area.left,
+          top: INVESTIMENTO_TOTAL.area.top,
+          width: INVESTIMENTO_TOTAL.area.width,
+          gap: INVESTIMENTO_TOTAL.gap,
+        }}
+      >
+        <LinhaInvestimento
+          label="Projeto Automação"
+          valor={dto.investimento.automacao}
+        />
+        {dto.servicos.map((s) => (
+          <LinhaInvestimento
+            key={s.tipo}
+            label={PROJETO_LABEL[s.tipo]}
+            valor={s.valorTotal}
+          />
+        ))}
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "baseline",
+            borderTopWidth: 1,
+            borderTopColor: INVESTIMENTO_TOTAL.divisorColor,
+            marginTop: INVESTIMENTO_TOTAL.divisorMarginTop,
+            paddingTop: INVESTIMENTO_TOTAL.divisorPaddingTop,
+          }}
+        >
+          <Text
+            style={{
+              fontFamily: FONTE,
+              fontSize: INVESTIMENTO_TOTAL.totalFontSize,
+              fontWeight: INVESTIMENTO_TOTAL.totalWeight,
+              color: CORES.azul,
+            }}
+          >
+            Investimento Total
+          </Text>
+          <Text
+            style={{
+              fontFamily: FONTE,
+              fontSize: INVESTIMENTO_TOTAL.totalFontSize,
+              fontWeight: INVESTIMENTO_TOTAL.totalWeight,
+              color: CORES.azul,
+            }}
+          >
+            {formatCurrency(dto.investimento.total)}
+          </Text>
+        </View>
+      </View>
+    </PresentationPage>
+  );
+}
+
+/** Linha rótulo→valor do detalhamento do Investimento Total (slide 11). */
+function LinhaInvestimento({ label, valor }: { label: string; valor: number }) {
+  return (
+    <View
+      style={{
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "baseline",
+      }}
+    >
+      <Text
+        style={{
+          fontFamily: FONTE,
+          fontSize: INVESTIMENTO_TOTAL.rotuloFontSize,
+          fontWeight: INVESTIMENTO_TOTAL.rotuloWeight,
+          color: CORES.azul,
+        }}
+      >
+        {label}
+      </Text>
+      <Text
+        style={{
+          fontFamily: FONTE,
+          fontSize: INVESTIMENTO_TOTAL.valorFontSize,
+          fontWeight: INVESTIMENTO_TOTAL.valorWeight,
+          color: CORES.azul,
+        }}
+      >
+        {formatCurrency(valor)}
+      </Text>
+    </View>
+  );
+}
+
+// ── Slide 12 — DINÂMICA: Forma de Pagamento (campo da proposta). Cada linha é
 // renderizada como [marcador menor] + [texto], para o bullet (●/•) não sair do
 // tamanho gigante da fonte do texto. Linhas sem marcador saem só como texto.
 export function PaginaPagamento({ dto, bg }: Dyn) {
@@ -341,7 +543,7 @@ export function PaginaPagamento({ dto, bg }: Dyn) {
   );
 }
 
-// ── Página 10 — FIXA: Obrigado.
+// ── Slide 13 — FIXA: Obrigado.
 export function PaginaObrigado({ bg }: Fixed) {
   return <PresentationPage background={bg} />;
 }

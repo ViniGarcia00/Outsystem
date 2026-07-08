@@ -19,6 +19,7 @@ export function PresentationPage({
   background,
   children,
 }: {
+  /** Data URI do template gráfico (plano de fundo da página). */
   background: string;
   children?: ReactNode;
 }) {
