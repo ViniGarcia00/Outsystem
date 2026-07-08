@@ -107,6 +107,12 @@ About é voltada ao usuário final e existirá também em produção.
 
 ## Próximas Sprints (visão)
 
+> **Estado atual (2026-07-08):** o **módulo de Propostas está encerrado em
+> 1.0.0** — homologado e pronto para produção (ver PROJECT_HISTORY.md, CHANGELOG
+> e DECISIONS.md ADR-0228). As próximas evoluções ocorrem em **módulos
+> independentes**, a começar por **"PDF Projeto"** (escopo/arquitetura próprios).
+> A visão abaixo é histórica. Melhorias registradas em `BACKLOG.md`.
+
 - ✅ **Sprint 1 — Cadastros base:** Configuração, Clientes, Produtos, Vendedores
   (CRUD, forms, tabelas, validação). **Concluída.**
 - **Sprint 2 — Propostas (núcleo):** Proposta → Revisão → Seção → Item; modelos

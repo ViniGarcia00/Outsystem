@@ -821,3 +821,28 @@ Sprint de refinamento (escopo estrito):
   mantendo a responsividade; cores e badges inalterados.
 - **PDF — tabela:** **Código em negrito**, Descrição em peso normal; demais
   colunas inalteradas.
+
+---
+
+## Sprint 2.8 — Homologação final e encerramento
+
+### ADR-0228 — Módulo de Propostas encerrado em 1.0.0 (homologado, produção)
+
+- **Decisão:** o desenvolvimento inicial do **módulo de Propostas** está
+  **encerrado** e a versão passa a **1.0.0** — **primeira versão homologada para
+  produção**. A Sprint 2.8 foi de **validação, estabilização e documentação**:
+  **não** adicionou funcionalidades, telas, campos, regras, migrations, nem
+  alterou arquitetura/UX/layout/PDF/banco.
+- **Homologação:** todos os fluxos revisados (Configurações, Clientes, Produtos,
+  Vendedores, criação de proposta, Completa/Simplificada, seções, produtos,
+  serviços, totais, desconto, frete, informações comerciais, revisões, emissão,
+  cancelamento, PDF Comercial). **Quality Gate:** ESLint 0, Typecheck 0, Build 0,
+  unit 17/17, smoke 7/7, `/api/health` 200 (db up).
+- **Revisão técnica:** sem TODOs/`console`/`debugger`, sem `.only` em testes, sem
+  código morto/temporário; imports e `eslint-disable` justificados. **Nenhuma
+  correção de comportamento foi necessária** (nenhum bug encontrado).
+- **Consequência:** nenhuma nova funcionalidade será adicionada a este módulo. As
+  próximas evoluções ocorrem em **módulos independentes** (a começar por **"PDF
+  Projeto"**, que usará os dados da Proposta com arquitetura/roadmap próprios).
+  Oportunidades de melhoria ficam registradas em `BACKLOG.md` (**Backlog
+  Futuro**), sem implementação nesta versão.

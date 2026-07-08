@@ -612,5 +612,33 @@ ADRs, problemas, soluções, lições e o hash do commit.
 
 ---
 
+## Sprint 2.8 — Homologação final e encerramento do módulo de Propostas
+
+- **Versão:** 1.0.0 — **primeira versão homologada para produção**
+- **Data:** 2026-07-08
+- **Objetivo:** validar, estabilizar, documentar e **encerrar oficialmente** o
+  módulo de Propostas. **Sem** novas funcionalidades/telas/campos/regras/
+  migrations e sem alterações de arquitetura/UX/layout/PDF/banco.
+- **Homologação funcional:** revisados todos os fluxos — Configurações, Clientes,
+  Produtos, Vendedores, criação de proposta, Completa/Simplificada, seções,
+  produtos, serviços, totais, desconto, frete, informações comerciais, revisões,
+  emissão, cancelamento e PDF Comercial. Tudo funcionando como homologado.
+- **Revisão técnica:** sem TODOs/`console`/`debugger`, sem `.only`, sem código
+  morto/temporário/duplicações a remover; imports e `eslint-disable`
+  justificados. **Nenhum bug encontrado → nenhuma correção necessária.**
+- **Documentação:** CHANGELOG, PROJECT_HISTORY, DECISIONS (ADR-0228) e VERSION
+  revisados; criado o **Backlog Futuro** (`BACKLOG.md`) com as oportunidades de
+  melhoria (não implementadas).
+- **Quality Gate:** ESLint 0, Typecheck 0, Build 0, **unit 17/17**, smoke **7/7**,
+  `/api/health` 200 (db up, versão 1.0.0), `/dev/diagnostics` 200.
+- **Versionamento:** `VERSION` e `package.json` → **1.0.0**.
+- **ADRs criadas:** ADR-0228.
+- **Hash do commit:** `PENDENTE`
+- **Status do módulo:** ✔ Homologado · ✔ Estável · ✔ Pronto para produção.
+- **Próximo:** novo módulo independente **"PDF Projeto"** (escopo/arquitetura
+  próprios; fora deste módulo).
+
+---
+
 > Próximas Sprints: adicionar uma nova seção ao final, seguindo este mesmo
 > formato, ao concluir cada Sprint.

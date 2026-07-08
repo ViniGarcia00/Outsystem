@@ -1,6 +1,54 @@
 # BACKLOG
 
-> Vazio por design ao final da Sprint 0. Será preenchido nas próximas Sprints.
+> Vazio por design ao final da Sprint 0. Preenchido ao longo das Sprints.
+
+## Backlog Futuro (Homologação v1.0.0 — Sprint 2.8)
+
+Oportunidades de melhoria **identificadas durante a homologação** do módulo de
+Propostas. **Nada aqui foi implementado** (a Sprint 2.8 não adiciona
+funcionalidades) — são sugestões para versões/módulos posteriores. O módulo de
+Propostas está encerrado em **1.0.0**; as próximas evoluções ocorrem em módulos
+independentes (a começar por **"PDF Projeto"**).
+
+### UX / Interface
+
+- **Barra de ações fixa (sticky) no workspace da proposta** — os botões ficam na
+  parte inferior; em propostas longas é preciso rolar até o fim para salvar.
+  (Identificado na 2.7.7.)
+- **Contraste do placeholder nos Selects (tema escuro)** — a regra global cobre
+  `input`/`textarea`; o placeholder do `Select` (Radix) não foi ajustado.
+  (Identificado na 2.7.6.)
+- **Recálculo do total do desconto em tempo real** — a interpretação já é
+  ao vivo, mas o total só recalcula no blur. (Identificado na 2.7.7/2.7.8.)
+
+### PDF Comercial
+
+- **Cabeçalho compacto a partir da página 2** — hoje o cabeçalho (com logo) é
+  estático e repete igual; um compacto exigiria pré-carregar a imagem de outra
+  forma (o @react-pdf não embute imagem dentro de `render`). (Identificado na
+  2.7.6.)
+- **Formatos de logo** — o PDF embute apenas **PNG/JPG** (limitação do
+  @react-pdf); SVG/WebP exigiriam conversão no upload. (Identificado na 2.7.5.)
+- **Nome do Projeto no PDF** — o campo existe na Proposta (2.7.8) mas não é
+  exibido no documento.
+
+### Dados / Operação
+
+- **Seed idempotente por entidade** — o seed é global-idempotente (ADR-0209); se
+  só um cadastro faltar no dev, `db:seed` não o repovoa (tudo-ou-nada).
+  (Identificado na 2.7.5.)
+
+### Já entregues (dos itens abaixo, durante as Sprints 2.x)
+
+- **Upload real do logo da Configuração** — entregue na 2.7.5 (ADR-0224).
+- **Preview/geração do documento comercial** — entregue como **PDF Comercial**
+  via `@react-pdf/renderer` na 2.7 (ADR-0223), no lugar do preview HTML sobre
+  `print.css`.
+- **Relação Produto × Proposta + regra de exclusão** — item de proposta passou a
+  referenciar `produtoId` com `onDelete: Restrict` (produto usado não é
+  excluído).
+
+---
 
 ## Como usar
 

@@ -4,6 +4,36 @@ Todas as mudanças relevantes deste projeto são documentadas aqui.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o
 projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [1.0.0] — 2026-07-08
+
+### Sprint 2.8 — Homologação final e encerramento do módulo de Propostas. Ver ADR-0228.
+
+**Primeira versão homologada para produção** do módulo de Propostas.
+
+Esta Sprint **não adicionou funcionalidades** nem alterou UX/layout/PDF/banco de
+dados: foi de validação, estabilização e documentação. O módulo é considerado
+**homologado, estável e pronto para produção**.
+
+#### Homologado
+
+- **Fluxos validados:** Configurações · Clientes · Produtos · Vendedores ·
+  criação de proposta · Proposta Completa · Proposta Simplificada · Seções ·
+  Produtos · Serviços · Totais · Desconto · Frete · Informações Comerciais ·
+  Revisões · Emissão · Cancelamento · PDF Comercial.
+- **Quality Gate:** ESLint 0 · Typecheck 0 · Build 0 · Testes unitários 17/17 ·
+  Smoke 7/7 · `/api/health` 200 (db up).
+- **Revisão técnica:** sem TODOs/`console`/`debugger`, sem `.only` em testes, sem
+  código morto/temporário a remover; imports e diretivas `eslint-disable`
+  justificados. Nenhuma correção de comportamento foi necessária.
+
+#### Versionamento
+
+- `VERSION` e `package.json`: **0.12.4 → 1.0.0**.
+
+> As próximas evoluções ocorrerão em **novos módulos independentes** (a começar
+> por "PDF Projeto"). Oportunidades de melhoria estão registradas em
+> [`BACKLOG.md`](BACKLOG.md) — **Backlog Futuro** (não implementadas nesta versão).
+
 ## [0.12.4] — 2026-07-07
 
 ### Sprint 2.7.8 — Refinamentos de UX e PDF. Ver ADR-0227.
