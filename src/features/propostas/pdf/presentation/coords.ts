@@ -12,6 +12,7 @@
 export const CORES = {
   azul: "#3E7EB8",
   branco: "#FFFFFF",
+  suave: "#9AA6B2",
 } as const;
 
 export const FONTE = "Inter";
@@ -19,23 +20,35 @@ export const FONTE = "Inter";
 /** Página 1 — capa: bloco inferior-esquerdo (Nome do Projeto + Nome do Cliente).
  * Alinhado ao bloco "Projeto / Marcos Borges" do template (pixel ~468×825/890). */
 export const CAPA = {
-  bloco: { left: 234, top: 414, width: 340 },
+  bloco: { left: 234, top: 414, width: 230 },
   projeto: { fontSize: 15, weight: 700 as const },
-  cliente: { fontSize: 13, weight: 400 as const, marginTop: 8 },
+  cliente: { fontSize: 14, weight: 400 as const, marginTop: 8 },
 };
 
 /** Página 6 — itens: coluna esquerda (lista de seções + produtos, sem qtd/preço).
  * Área da tabela do template (pixel x110–790, y190–950). */
 export const ITENS = {
   area: { left: 56, top: 96, width: 340 },
-  secao: { fontSize: 11, weight: 700 as const, marginBottom: 3, marginTop: 8 },
-  produto: { fontSize: 9, weight: 400 as const, marginBottom: 2 },
+  secao: { fontSize: 11, weight: 700 as const, marginBottom: 3, marginTop: 5 },
+  produto: { fontSize: 8, weight: 400 as const, marginBottom: 1 },
+  mais: { fontSize: 8 },
+  /**
+   * Orçamento de altura (pt) para a lista NÃO estourar a área e NÃO gerar
+   * páginas extras. Quando não cabe, trunca e exibe "... + X itens adicionais".
+   * Alturas estimadas por linha (levemente conservadoras — evitam overflow).
+   */
+  layout: {
+    alturaMax: 354,
+    alturaProduto: 11,
+    alturaSecao: 22,
+    alturaSecaoPrimeira: 17,
+  },
 };
 
 /** Página 8 — investimento: caixa do valor total + caixa do prazo.
  * Caixas cinza centradas (pixel: valor y~390–590; prazo y~660–900). */
 export const INVESTIMENTO = {
-  valor: { left: 205, top: 220, width: 550, fontSize: 42, weight: 700 as const },
+  valor: { left: 205, top: 224, width: 550, fontSize: 42, weight: 700 as const },
   prazo: { left: 205, top: 378, width: 550, fontSize: 20, weight: 600 as const },
 };
 
