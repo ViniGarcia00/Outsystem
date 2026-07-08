@@ -32,10 +32,11 @@ import {
   PropostaCabecalho,
   type CabecalhoValores,
 } from "./proposta-cabecalho";
+import { ResumoInvestimento } from "./resumo-investimento";
 import type { CabecalhoPatchValues, CancelarFormValues } from "./schema";
 import { ServicosComplementares } from "./servicos-complementares";
 import { useServicosMemoria } from "./servicos-memoria";
-import type { Desconto } from "./totais";
+import { calcularInvestimento, calcularTotais, type Desconto } from "./totais";
 
 interface Option {
   value: string;
@@ -232,6 +233,22 @@ export function PropostaWorkspace({
   const temItens = secoes.some((s) => s.itens.length > 0);
   const podeEmitir =
     data.status === "RASCUNHO" && !dirty && !semCliente && temItens;
+
+  // Investimento Geral (Sprint 2.9.2): Automação (Total da Proposta) + Serviços
+  // Complementares. Derivado em tempo real pela fonte única (`totais.ts`); nada
+  // é persistido e o Total da Proposta/PDF permanece inalterado.
+  const itensProposta = secoes.flatMap((s) => s.itens);
+  const totaisAutomacao = calcularTotais(
+    itensProposta,
+    header.modelo === "SIMPLIFICADA",
+    desconto,
+    frete,
+  );
+  const investimento = calcularInvestimento(
+    totaisAutomacao.totalProposta,
+    servicos,
+  );
+  const mostrarResumo = itensProposta.length > 0 || servicos.length > 0;
   const horaSalvo = formatDate(data.updatedAt, {
     hour: "2-digit",
     minute: "2-digit",
@@ -328,6 +345,10 @@ export function PropostaWorkspace({
         actions={servicosActions}
         readOnly={readOnly}
       />
+
+      {/* Resumo do Investimento (Sprint 2.9.2) — Automação + Serviços
+          Complementares. Derivado; não altera Total da Proposta/PDF. */}
+      {mostrarResumo && <ResumoInvestimento investimento={investimento} />}
 
       {/* Finalização — informações comerciais finais (ADR-0222) */}
       <FinalizacaoProposta

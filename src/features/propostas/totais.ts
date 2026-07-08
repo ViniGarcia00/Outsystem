@@ -94,3 +94,49 @@ export function calcularTotais(
     totalProposta: Math.max(0, subtotal - descontoAplicado + freteAplicado),
   };
 }
+
+// ---------------------------------------------------------------------------
+// Investimento Geral (Sprint 2.9.2) — Automação + Serviços Complementares
+// ---------------------------------------------------------------------------
+//
+// Camada ADITIVA sobre `calcularTotais`: NÃO altera o Total da Proposta (que
+// segue alimentando PDF e listagem — só a Automação). Os Serviços
+// Complementares (Som + Wi-Fi) entram AQUI, no nível da proposta, sem desconto
+// nem frete (valores próprios, `valorTotal = produtos + serviços`, Sprint 2.9.1).
+
+/** Serviço mínimo para o cálculo do investimento (estrutural — serve ao ServicoDTO). */
+export interface ServicoCalculavel {
+  valorTotal: number;
+}
+
+/**
+ * Investimento dos Serviços Complementares = **soma de todos os `valorTotal`
+ * existentes** (Som e/ou Wi-Fi). Fonte ÚNICA; 0 quando não há serviços.
+ */
+export function calcularInvestimentoComplementar(
+  servicos: ReadonlyArray<ServicoCalculavel>,
+): number {
+  return servicos.reduce((soma, s) => soma + s.valorTotal, 0);
+}
+
+export interface InvestimentoProposta {
+  /** Investimento da Automação = Total da Proposta (conteúdo − desconto + frete). */
+  automacao: number;
+  /** Investimento dos Serviços Complementares = Σ valorTotal (0 se não houver). */
+  complementar: number;
+  /** Investimento Total = Automação + Serviços Complementares. */
+  total: number;
+}
+
+/**
+ * Consolida o Investimento Geral: Automação + Serviços Complementares. `automacao`
+ * é o `totalProposta` já derivado por `calcularTotais` (não recalculado aqui),
+ * garantindo lógica financeira em um só lugar e sem regra paralela.
+ */
+export function calcularInvestimento(
+  automacao: number,
+  servicos: ReadonlyArray<ServicoCalculavel>,
+): InvestimentoProposta {
+  const complementar = calcularInvestimentoComplementar(servicos);
+  return { automacao, complementar, total: automacao + complementar };
+}
