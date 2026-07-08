@@ -6,7 +6,42 @@ projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ## [Não lançado]
 
-### Sprint 3.1 — Implementação do PDF Apresentação (templates gráficos). Ver ADR-0301.
+### Sprint 3.2.1 — Correção da build de produção (Windows Server). Ver ADR-0321.
+
+Correção **exclusiva de build** — nenhuma regra de negócio, banco, Prisma, API,
+cálculo, PDF ou tela foi alterada.
+
+#### Corrigido
+
+- **`npm run build` falhava no Windows Server 2019** na etapa de *prerender*
+  (`Error occurred prerendering page "/clientes/novo"` →
+  `Invariant: Expected workStore to be initialized` — bug interno do Next.js,
+  código `E1068`), enquanto passava na máquina de desenvolvimento.
+- **Causa raiz:** as páginas estáticas de formulário (`/clientes/novo`,
+  `/produtos/novo`, `/vendedores/novo`, `/dashboard`, `/`) eram **pré-renderadas
+  em build**. A resolução de metadados durante o prerender lê o `workStore`
+  (`AsyncLocalStorage`) do Next; sob a configuração de **worker único** derivada
+  de `experimental.cpus = max(1, nº de núcleos − 1)` — 1 no servidor (1–2 vCPU),
+  11 na máquina de dev (12 núcleos) — o Next entra num caminho de geração
+  estática em que esse contexto não é inicializado e lança a *invariant*. Por
+  isso o erro só aparecia no servidor.
+- **Correção (mínima e definitiva):** `export const dynamic = "force-dynamic"`
+  no **layout raiz** (`src/app/layout.tsx`). Todas as páginas passam a ser
+  renderizadas **sob demanda** (`ƒ`) em vez de pré-renderadas (`○`); o caminho de
+  prerender que dispara o bug do Next deixa de ser executado — em qualquer nº de
+  núcleos ou sistema operacional. As páginas renderizam exatamente o mesmo HTML;
+  apenas a estratégia de renderização muda (apropriado para uma ferramenta
+  interna, orientada a dados e sem SEO). Nenhuma outra alteração.
+- **Por que no layout e não página a página:** a abordagem por página deixa a
+  rota sintética `/_not-found` (gerada pelo Next, sem arquivo próprio) ainda
+  **pré-renderada** sob o mesmo layout+metadados — exatamente o caminho que
+  falha. Cobri-la exigiria um `not-found.tsx` custom, que **troca o 404 padrão do
+  Next** (mudança de comportamento) e adiciona arquivos. O `force-dynamic` no
+  layout neutraliza `/_not-found` junto, em **1 linha**, sem alterar
+  comportamento. Verificado por build: sobram estáticas apenas `/_global-error` e
+  `/favicon.ico` (internas, sem resolução de metadados → sem risco).
+
+
 
 - **PDF Apresentação passou a usar os templates gráficos** (`public/templates/
   presentation/page-01..10.png`) como **plano de fundo de página inteira**, em

@@ -906,3 +906,58 @@ Sprint de refinamento (escopo estrito):
   **em branco** (mesmos nomes/caminho), os overlays caem nas áreas limpas — só as
   coordenadas de `coords.ts` podem precisar de ajuste fino. **PDF Comercial
   intacto**; sem banco/migration/Prisma. Homologação após a troca das imagens.
+
+---
+
+## Sprint 3.2.1 — Correção da build de produção (Windows Server)
+
+### ADR-0321 — `force-dynamic` no layout raiz para eliminar a falha de prerender
+
+- **Contexto:** `npm run build` falhava **apenas no Windows Server 2019**, na
+  etapa de *prerender*, com `Invariant: Expected workStore to be initialized`
+  (bug interno do Next.js, código **E1068**), enquanto passava na máquina de dev
+  — mesmo commit, mesmo `package-lock`, mesmo Next 16.2.10. As páginas estáticas
+  de formulário (`/clientes/novo`, `/produtos/novo`, `/vendedores/novo`,
+  `/dashboard`, `/`) eram **pré-renderadas** em build; a resolução de metadados no
+  prerender lê o `workStore` (`AsyncLocalStorage`) e, sob a configuração de
+  **worker único**, esse contexto não é inicializado e a *invariant* é lançada.
+- **Causa da diferença dev × servidor:** o nº de workers de geração estática vem
+  de `experimental.cpus`, cujo default é `Math.max(1, os.cpus().length - 1)`
+  (`config-shared.js`). Dev/CI (12 núcleos) → **11 workers**; servidor (1–2 vCPU)
+  → **1 worker**. Só o caminho de worker único do servidor dispara o bug. É um bug
+  **interno do Next** (a própria mensagem diz *"This is a bug in Next.js"*), não da
+  aplicação.
+- **Decisão:** `export const dynamic = "force-dynamic"` no **layout raiz**
+  (`src/app/layout.tsx`). Todas as páginas passam a `ƒ` (renderizadas sob
+  demanda); o caminho de prerender que dispara o bug deixa de existir, em qualquer
+  nº de núcleos/SO. Mesmo HTML; só a estratégia de renderização muda.
+- **Análise comparativa (por página × layout raiz)** — validada por build real:
+
+  | Abordagem | Arquivos | Sobra estática (○) | Confiável? |
+  | --- | --- | --- | --- |
+  | Por página (4 forms + dashboard) | 4 | `/`, **`/_not-found`**, `/_global-error`, `/favicon.ico` | ❌ deixa `/_not-found` no caminho que falha |
+  | Por página + `/` + `not-found.tsx` custom | 6 (+1 novo) | `/_global-error`, `/favicon.ico` | ⚠️ só completa **trocando o 404 padrão** (muda comportamento) |
+  | **`force-dynamic` no layout raiz** | **1** | `/_global-error`, `/favicon.ico` | ✅ mesmo estado final, sem alterar comportamento |
+
+  A rota **`/_not-found` é sintética** (o Next a gera; não há arquivo para anotar)
+  e **renderiza sob o layout raiz** — comprovado: ao aplicar `dynamic` no layout
+  ela vira `ƒ`. Logo percorre **o mesmo caminho de prerender+metadados** que
+  estoura em `/clientes/novo`. Como a falha é disparada pelo ambiente (worker
+  único) e independe do conteúdo, a via por página deixa `/_not-found` exposta;
+  cobri-la exigiria um `not-found.tsx` custom, que **substitui o 404 padrão do
+  Next** (mudança de comportamento) e ainda não cobre `/_global-error`. Portanto o
+  layout é, ao mesmo tempo, a **menor** correção (1 linha) e a **única** confiável
+  sem alterar comportamento. As estáticas remanescentes (`/_global-error`,
+  `/favicon.ico`) são internas do Next e **não resolvem metadados** → fora do
+  caminho da *invariant*.
+- **Consequência:** build determinístico em qualquer ambiente
+  (typecheck/lint/test/build verdes; `npm start` serve `/clientes/novo` → 200). O
+  app passa a ser uniformemente *server-rendered on demand* — coerente com sua
+  natureza (interno, orientado a dados, sem SEO); 15 das 20 rotas já eram `ƒ`.
+- **Reavaliar em futuras atualizações do Next.js:** a correção contorna um **bug
+  interno do Next** (E1068) presente na 16.2.10. Ao atualizar o Next, revisar se a
+  *invariant* de prerender foi corrigida (changelog/issues); se sim, pode-se
+  **remover o `force-dynamic` do layout** e reavaliar se voltar a pré-renderar as
+  páginas estáticas compensa — validando o `npm run build` em ambiente de poucos
+  núcleos (1 vCPU) **antes** de reverter. Enquanto o bug existir no Next, a decisão
+  permanece.
