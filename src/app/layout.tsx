@@ -22,7 +22,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR" suppressHydrationWarning className="h-full antialiased">
-      <body className="min-h-svh">
+      {/* suppressHydrationWarning: extensões do navegador injetam classes no
+          <body> (ex.: `vsc-initialized`) antes da hidratação — aviso benigno. */}
+      <body suppressHydrationWarning className="min-h-svh">
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
