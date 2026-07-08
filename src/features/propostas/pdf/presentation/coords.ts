@@ -72,15 +72,17 @@ export const INVESTIMENTO = {
   prazo: { left: 205, top: 390, width: 550, fontSize: 20, weight: 600 as const },
 };
 
-/** Página 9 — pagamento: caixa central cinza (pixel x300–1620, y470–810 → pts
- * x150–810, y235–405; centro vertical ≈ 320). Texto CENTRALIZADO na caixa (h/v),
- * fonte grande (40), peso forte (700) e `lineHeight` folgado p/ separar as 2
- * linhas. `top` centra o bloco: h ≈ 2 × 40 × 1.6 ≈ 128 pt → 320 − 64 ≈ 256. */
+/** Página 9 — pagamento: caixa cinza medida no template (page-09-payment.png):
+ * px left=297 right=1622 top=455 bottom=818 → pts left≈149 top≈228 w≈662 h≈181.
+ * O container recebe EXATAMENTE essa caixa e centraliza o texto por flexbox
+ * (justifyContent+alignItems center) — centragem h/v robusta, independente da
+ * altura do bloco/`lineHeight`. Fonte grande (40), peso 700, linhas folgadas. */
 export const PAGAMENTO = {
   box: {
-    left: 150,
-    top: 256,
-    width: 660,
+    left: 149,
+    top: 228,
+    width: 662,
+    height: 181,
     fontSize: 40,
     weight: 700 as const,
     lineHeight: 1.6,

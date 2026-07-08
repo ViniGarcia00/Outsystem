@@ -291,7 +291,9 @@ export function PaginaPagamento({ dto, bg }: Dyn) {
           left: PAGAMENTO.box.left,
           top: PAGAMENTO.box.top,
           width: PAGAMENTO.box.width,
+          height: PAGAMENTO.box.height,
           alignItems: "center",
+          justifyContent: "center",
         }}
       >
         <Text
