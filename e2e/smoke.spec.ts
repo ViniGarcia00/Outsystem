@@ -226,8 +226,19 @@ test("Propostas: criação diferida, emitir e revisão automática", async ({
   expect(pdfResp.headers()["content-type"]).toContain("application/pdf");
   expect((await pdfResp.body()).byteLength).toBeGreaterThan(1000);
 
+  // PDF Apresentação (novo endpoint — Sprint 3.0) responde application/pdf.
+  const apresResp = await page.request.get(`${propostaPath}/presentation`);
+  expect(apresResp.status()).toBe(200);
+  expect(apresResp.headers()["content-type"]).toContain("application/pdf");
+  expect((await apresResp.body()).byteLength).toBeGreaterThan(1000);
+  // Botão "Gerar PDF Apresentação" presente ao lado do PDF Comercial.
+  await expect(
+    page.getByRole("button", { name: "Gerar PDF Apresentação" }),
+  ).toBeVisible();
+
   // "Gerar PDF" emite a proposta (RASCUNHO → EMITIDA).
-  await page.getByRole("button", { name: "Gerar PDF" }).click();
+  // (exact: evita casar com "Gerar PDF Apresentação".)
+  await page.getByRole("button", { name: "Gerar PDF", exact: true }).click();
   await expect(page.getByText("Emitida", { exact: true })).toBeVisible();
   // Após emitir, o botão "Abrir PDF" fica disponível.
   await expect(page.getByRole("button", { name: "Abrir PDF" })).toBeVisible();

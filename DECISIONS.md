@@ -846,3 +846,35 @@ Sprint de refinamento (escopo estrito):
   Projeto"**, que usará os dados da Proposta com arquitetura/roadmap próprios).
   Oportunidades de melhoria ficam registradas em `BACKLOG.md` (**Backlog
   Futuro**), sem implementação nesta versão.
+
+---
+
+## Sprint 3.0 — Fundação do PDF Apresentação
+
+### ADR-0300 — PDF Apresentação: segundo formato, mesma proposta (só o layout muda)
+
+- **Contexto:** além do **PDF Comercial** (documento atual), a proposta passará a
+  ter um **PDF Apresentação** — versão comercial institucional (premium) para
+  envio ao cliente. **Ambos usam a mesma proposta cadastrada**; não há novo
+  cadastro, tela ou módulo de proposta. A única diferença é o **layout**.
+- **Decisão (fundação — Sprint 3.0, estrutural):**
+  - **Reuso total dos dados:** o gerador consome exatamente o mesmo
+    `getPropostaPdfData` → `PropostaPdfDTO` do PDF Comercial (proposta, cliente,
+    produtos, serviços, cálculo de totais). **Sem consultas ou regras paralelas**;
+    nenhuma migration/alteração de banco/Prisma/entidade/campo.
+  - **Estrutura espelhando o PDF Comercial:** novo pacote
+    `src/features/propostas/pdf/presentation/` (`presentation-document.tsx`,
+    `pages.tsx` com as 10 páginas, `page-shell.tsx`, `render.tsx`, `index.ts`),
+    reutilizando a fundação compartilhada (`theme`, `fonts`, `format`). O PDF
+    Comercial **não foi tocado** (arquivos intactos).
+  - **Endpoint** `GET /propostas/[id]/presentation` (mesmo padrão do
+    `/propostas/[id]/pdf`: runtime Node, `force-dynamic`, `application/pdf`).
+  - **Interface:** botão **"Gerar PDF Apresentação"** ao lado do PDF Comercial.
+  - **10 páginas fixas:** dinâmicas (1 capa, 6 itens, 8 investimento, 9
+    pagamento) já ligadas aos dados reais; fixas (2,3,4,5,7,10) com placeholders.
+    A página 6 mostra **apenas** seção + lista de produtos (sem preço/quantidade/
+    subtotal/desconto/frete).
+  - **DTO:** acréscimo aditivo de `nomeProjeto` ao `PropostaPdfDTO` (necessário à
+    capa); não altera a saída do PDF Comercial.
+- **Consequência:** arquitetura pronta para a **Sprint 3.1** detalhar o design
+  premium de cada página. Versão inalterada (1.0.0) até o recurso concluir.

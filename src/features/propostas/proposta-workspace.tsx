@@ -170,6 +170,11 @@ export function PropostaWorkspace({
     window.open(`/propostas/${data.id}/pdf`, "_blank", "noopener");
   };
 
+  // PDF Apresentação (institucional) — mesma proposta, outro layout.
+  const abrirApresentacao = () => {
+    window.open(`/propostas/${data.id}/presentation`, "_blank", "noopener");
+  };
+
   const gerarPdf = async () => {
     setSaving(true);
     const result = await emitirPropostaAction(data.id);
@@ -336,6 +341,12 @@ export function PropostaWorkspace({
           <Button variant="outline" onClick={abrirPdf}>
             <FileDown className="h-4 w-4" />
             Abrir PDF
+          </Button>
+        )}
+        {!readOnly && (
+          <Button variant="outline" onClick={abrirApresentacao}>
+            <FileDown className="h-4 w-4" />
+            Gerar PDF Apresentação
           </Button>
         )}
         {!readOnly && (

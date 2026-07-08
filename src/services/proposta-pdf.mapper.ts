@@ -64,6 +64,8 @@ export interface PdfSecao {
 
 export interface PropostaPdfDTO {
   numero: number;
+  /** Nome do projeto (campo da Proposta). Usado pelo PDF Apresentação. */
+  nomeProjeto: string | null;
   revisao: number | null;
   /** Data de referência: emissão da revisão → emissão da proposta → criação. */
   data: Date;
@@ -115,6 +117,7 @@ interface FonteItem {
 
 export interface FontePropostaPdf {
   proposalNumber: number;
+  nomeProjeto: string | null;
   modelo: ModeloProposta;
   validadeDias: number;
   createdAt: Date;
@@ -223,6 +226,7 @@ export function montarPropostaPdfDTO(
 
   return {
     numero: p.proposalNumber,
+    nomeProjeto: nn(p.nomeProjeto),
     revisao: p.currentRevision?.revisionNumber ?? null,
     data: p.currentRevision?.emittedAt ?? p.emitidaAt ?? p.createdAt,
     validadeDias: p.validadeDias,

@@ -29,6 +29,7 @@ const CONFIG_VAZIA: ConfiguracaoValues = {
 function fonteBase(over: Partial<FontePropostaPdf> = {}): FontePropostaPdf {
   return {
     proposalNumber: 1042,
+    nomeProjeto: "Projeto Exemplo",
     modelo: "COMERCIAL",
     validadeDias: 15,
     createdAt: new Date("2026-07-07T12:00:00Z"),

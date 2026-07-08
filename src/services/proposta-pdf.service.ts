@@ -23,6 +23,7 @@ export async function getPropostaPdfData(
       where: { id: propostaId },
       select: {
         proposalNumber: true,
+        nomeProjeto: true,
         modelo: true,
         validadeDias: true,
         createdAt: true,

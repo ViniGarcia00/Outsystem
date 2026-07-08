@@ -4,6 +4,31 @@ Todas as mudanças relevantes deste projeto são documentadas aqui.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o
 projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [Não lançado]
+
+### Sprint 3.0 — Fundação do PDF Apresentação. Ver ADR-0300.
+
+Recurso **estrutural** (novo formato de exportação). O módulo de Propostas
+permanece em 1.0.0; a versão só será incrementada quando o recurso estiver
+concluído (Sprint 3.1). Nada do PDF Comercial, do banco ou do Prisma foi
+alterado.
+
+#### Adicionado
+
+- **PDF Apresentação** (fundação): novo gerador em
+  `src/features/propostas/pdf/presentation/` (10 páginas) + endpoint
+  `GET /propostas/[id]/presentation` (`application/pdf`), no mesmo padrão do PDF
+  Comercial. **Reutiliza exatamente** o carregamento de dados existente
+  (`getPropostaPdfData` → `PropostaPdfDTO`; mesma proposta/cliente/produtos/
+  serviços/totais) — sem consultas nem regras paralelas.
+- Botão **"Gerar PDF Apresentação"** ao lado do PDF Comercial no workspace.
+- Páginas **dinâmicas** ligadas aos dados reais: capa (cliente + nome do
+  projeto), itens do projeto (seções + produtos, sem preços/quantidades),
+  investimento (valor total + prazo) e forma de pagamento. Páginas **fixas**
+  (Quem Somos, Por que Automatizar, Cases, Como Trabalhamos, Serviços,
+  Obrigado) com placeholders — layout premium a ser detalhado na Sprint 3.1.
+- `PropostaPdfDTO` ganhou `nomeProjeto` (aditivo; não altera o PDF Comercial).
+
 ## [1.0.0] — 2026-07-08
 
 ### Sprint 2.8 — Homologação final e encerramento do módulo de Propostas. Ver ADR-0228.
