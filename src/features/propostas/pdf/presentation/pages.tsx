@@ -2,7 +2,7 @@ import { Text, View } from "@react-pdf/renderer";
 
 import type { PropostaPdfDTO } from "@/services/proposta-pdf.mapper";
 
-import { formatCurrency } from "../format";
+import { formatCurrency, formatQuantidade } from "../format";
 import { CAPA, CORES, FONTE, INVESTIMENTO, ITENS, PAGAMENTO } from "./coords";
 import { PresentationPage } from "./page-shell";
 
@@ -76,95 +76,147 @@ export function PaginaProcesso({ bg }: Fixed) {
   return <PresentationPage background={bg} />;
 }
 
-// ── Página 6 — DINÂMICA: Itens agrupados por seção (nome da seção + produtos).
-// Sem preço/subtotal/desconto/frete (e sem quantidade — conforme o formato pedido).
-//
-// Para NUNCA gerar página extra nem quebrar o template, a lista é limitada por um
-// orçamento de altura (`ITENS.layout`). Quando o conteúdo não cabe, a listagem é
-// interrompida e exibe "... + X itens adicionais" (X = produtos que não couberam).
-type GrupoItens = { nome: string; itens: string[] };
+// ── Página 6 — DINÂMICA: Itens em ATÉ 3 COLUNAS (cartões de fundo). Cada linha é
+// um cabeçalho de seção OU um produto (quantidade + descrição). Máx. de 13 linhas
+// por coluna; o excedente vira "... + X itens adicionais". Nunca estoura a página.
+type LinhaSecao = { tipo: "secao"; nome: string };
+type LinhaProduto = { tipo: "produto"; qtd: string; desc: string };
+type Linha = LinhaSecao | LinhaProduto;
 
-function distribuirItens(secoes: PropostaPdfDTO["secoes"]): {
-  grupos: GrupoItens[];
+/**
+ * Distribui seções/produtos em até `maxColunas` colunas (no máx. `maxLinhas`
+ * linhas cada). Evita cabeçalho de seção órfão no fim da coluna. `restantes` =
+ * produtos que não couberam (viram "... + X itens adicionais").
+ */
+function distribuirColunas(secoes: PropostaPdfDTO["secoes"]): {
+  colunas: Linha[][];
   restantes: number;
 } {
-  const L = ITENS.layout;
-  const grupos: GrupoItens[] = [];
-  let usado = 0;
-  let restantes = 0;
-  let cortou = false;
+  const { maxColunas, maxLinhasColuna } = ITENS;
+  const linhas: Linha[] = [];
+  for (const s of secoes) {
+    linhas.push({ tipo: "secao", nome: s.nome });
+    for (const it of s.itens) {
+      linhas.push({
+        tipo: "produto",
+        qtd: formatQuantidade(it.quantidade),
+        desc: it.descricao,
+      });
+    }
+  }
 
-  secoes.forEach((secao, idx) => {
-    if (cortou) {
-      restantes += secao.itens.length;
-      return;
-    }
-    const alturaHeader = idx === 0 ? L.alturaSecaoPrimeira : L.alturaSecao;
-    // Só inclui a seção se couber ao menos o cabeçalho + 1 produto.
-    if (usado + alturaHeader + L.alturaProduto > L.alturaMax) {
-      cortou = true;
-      restantes += secao.itens.length;
-      return;
-    }
-    usado += alturaHeader;
-    const itens: string[] = [];
-    for (const item of secao.itens) {
-      if (usado + L.alturaProduto > L.alturaMax) {
-        cortou = true;
+  const colunas: Linha[][] = [[]];
+  let ci = 0;
+  let restantes = 0;
+  for (let i = 0; i < linhas.length; i++) {
+    const linha = linhas[i];
+    const espaco = maxLinhasColuna - colunas[ci].length;
+    const proximoProduto = linhas[i + 1]?.tipo === "produto";
+    const orfao = linha.tipo === "secao" && espaco < 2 && proximoProduto;
+    if (espaco <= 0 || orfao) {
+      if (ci + 1 >= maxColunas) {
+        restantes = linhas.slice(i).filter((l) => l.tipo === "produto").length;
         break;
       }
-      itens.push(item.descricao);
-      usado += L.alturaProduto;
+      ci += 1;
+      colunas.push([]);
     }
-    restantes += secao.itens.length - itens.length;
-    grupos.push({ nome: secao.nome, itens });
-  });
+    colunas[ci].push(linha);
+  }
 
-  return { grupos, restantes };
+  return { colunas, restantes };
 }
 
 export function PaginaItens({ dto, bg }: Dyn) {
-  const { grupos, restantes } = distribuirItens(dto.secoes);
+  const { colunas, restantes } = distribuirColunas(dto.secoes);
   return (
     <PresentationPage background={bg}>
       <View style={{ position: "absolute", ...ITENS.area }}>
-        {grupos.map((secao, si) => (
-          <View key={si}>
-            <Text
+        <View style={{ flexDirection: "row", gap: ITENS.gapColuna }}>
+          {colunas.map((coluna, ci) => (
+            <View
+              key={ci}
               style={{
-                fontFamily: FONTE,
-                fontSize: ITENS.secao.fontSize,
-                fontWeight: ITENS.secao.weight,
-                color: CORES.azul,
-                marginTop: si === 0 ? 0 : ITENS.secao.marginTop,
-                marginBottom: ITENS.secao.marginBottom,
+                flexGrow: 1,
+                flexBasis: 0,
+                backgroundColor: ITENS.painel.bg,
+                borderRadius: ITENS.painel.radius,
+                padding: ITENS.painel.padding,
               }}
             >
-              {secao.nome}
-            </Text>
-            {secao.itens.map((descricao, ii) => (
-              <Text
-                key={ii}
-                style={{
-                  fontFamily: FONTE,
-                  fontSize: ITENS.produto.fontSize,
-                  fontWeight: ITENS.produto.weight,
-                  color: CORES.branco,
-                  marginBottom: ITENS.produto.marginBottom,
-                }}
-              >
-                {`•  ${descricao}`}
-              </Text>
-            ))}
-          </View>
-        ))}
+              {coluna.map((linha, li) =>
+                linha.tipo === "secao" ? (
+                  <View
+                    key={li}
+                    style={{
+                      backgroundColor: ITENS.secao.bg,
+                      paddingVertical: ITENS.secao.padY,
+                      paddingHorizontal: ITENS.secao.padX,
+                      borderRadius: 3,
+                      marginTop: li === 0 ? 0 : ITENS.secao.marginTop,
+                      marginBottom: 3,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontFamily: FONTE,
+                        fontSize: ITENS.secao.fontSize,
+                        fontWeight: ITENS.secao.weight,
+                        color: ITENS.secao.cor,
+                      }}
+                    >
+                      {linha.nome}
+                    </Text>
+                  </View>
+                ) : (
+                  <View
+                    key={li}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "flex-start",
+                      paddingVertical: ITENS.produto.padY,
+                      borderBottomWidth: 0.5,
+                      borderBottomColor: ITENS.produto.divisor,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        width: ITENS.produto.qtdWidth,
+                        marginRight: 6,
+                        textAlign: "right",
+                        fontFamily: FONTE,
+                        fontSize: ITENS.produto.fontSize,
+                        fontWeight: 700,
+                        color: ITENS.produto.cor,
+                      }}
+                    >
+                      {linha.qtd}
+                    </Text>
+                    <Text
+                      style={{
+                        flexGrow: 1,
+                        flexBasis: 0,
+                        fontFamily: FONTE,
+                        fontSize: ITENS.produto.fontSize,
+                        fontWeight: ITENS.produto.weight,
+                        color: ITENS.produto.cor,
+                      }}
+                    >
+                      {linha.desc}
+                    </Text>
+                  </View>
+                ),
+              )}
+            </View>
+          ))}
+        </View>
         {restantes > 0 && (
           <Text
             style={{
               fontFamily: FONTE,
               fontSize: ITENS.mais.fontSize,
-              color: CORES.suave,
-              marginTop: 4,
+              color: ITENS.mais.cor,
+              marginTop: 6,
             }}
           >
             {`... + ${restantes} ${restantes === 1 ? "item adicional" : "itens adicionais"}`}

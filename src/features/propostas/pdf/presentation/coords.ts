@@ -32,24 +32,37 @@ export const CAPA = {
   projeto: { fontSize: 15, weight: 500 as const, marginTop: 3, maxChars: 42 },
 };
 
-/** Página 6 — itens: coluna esquerda (lista de seções + produtos, sem qtd/preço).
- * Área da tabela do template (pixel x110–790, y190–950). */
+/** Página 6 — itens em ATÉ 3 COLUNAS (cartões de fundo). Cada linha é um
+ * cabeçalho de seção OU um produto (quantidade + descrição). Máximo de 13 linhas
+ * por coluna; o excedente vira "... + X itens adicionais". Área ampla abaixo do
+ * cabeçalho do template. */
 export const ITENS = {
-  area: { left: 56, top: 96, width: 340 },
-  secao: { fontSize: 11, weight: 700 as const, marginBottom: 3, marginTop: 5 },
-  produto: { fontSize: 8, weight: 400 as const, marginBottom: 1 },
-  mais: { fontSize: 8 },
-  /**
-   * Orçamento de altura (pt) para a lista NÃO estourar a área e NÃO gerar
-   * páginas extras. Quando não cabe, trunca e exibe "... + X itens adicionais".
-   * Alturas estimadas por linha (levemente conservadoras — evitam overflow).
-   */
-  layout: {
-    alturaMax: 354,
-    alturaProduto: 11,
-    alturaSecao: 22,
-    alturaSecaoPrimeira: 17,
+  area: { left: 30, top: 116, width: 900 },
+  maxColunas: 3,
+  maxLinhasColuna: 13,
+  gapColuna: 16,
+  /** Cartão (fundo) de cada coluna. */
+  painel: { bg: "#F2F4F7", radius: 6, padding: 8 },
+  /** Cabeçalho de seção (faixa de fundo + texto). */
+  secao: {
+    fontSize: 11,
+    weight: 700 as const,
+    bg: "#CBD2DA",
+    cor: "#14324B",
+    padY: 3,
+    padX: 6,
+    marginTop: 6,
   },
+  /** Produto: quantidade + descrição. */
+  produto: {
+    fontSize: 10,
+    weight: 400 as const,
+    cor: "#1F2937",
+    qtdWidth: 22,
+    padY: 3,
+    divisor: "#E1E5EA",
+  },
+  mais: { fontSize: 9, cor: "#6B7280" },
 };
 
 /** Página 8 — investimento: valor (caixa cinza, fonte grande) + prazo (linha
