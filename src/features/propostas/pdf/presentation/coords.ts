@@ -74,17 +74,15 @@ export const INVESTIMENTO = {
 
 /** Página 9 — pagamento: caixa cinza medida no template (page-09-payment.png):
  * px left=297 right=1622 top=455 bottom=818 → pts left≈149 top≈228 w≈662 h≈181.
- * O container recebe EXATAMENTE essa caixa e centraliza o texto por flexbox
- * (justifyContent+alignItems center) — centragem h/v robusta, independente da
- * altura do bloco/`lineHeight`. Fonte grande (40), peso 700, linhas folgadas. */
+ * O container recebe EXATAMENTE essa caixa e centraliza o conteúdo por flexbox
+ * (justifyContent+alignItems center) — centragem h/v robusta.
+ * Cada linha é renderizada como [bullet menor] + [texto], para o marcador (●)
+ * não ficar do mesmo tamanho gigante da fonte do texto. */
 export const PAGAMENTO = {
-  box: {
-    left: 149,
-    top: 228,
-    width: 662,
-    height: 181,
-    fontSize: 40,
-    weight: 700 as const,
-    lineHeight: 1.6,
-  },
+  box: { left: 149, top: 228, width: 662, height: 181 },
+  texto: { fontSize: 40, weight: 700 as const },
+  /** Marcador de lista (●/•): bem menor que o texto e com folga até a palavra. */
+  bullet: { fontSize: 16, gap: 12 },
+  /** Espaço vertical entre as linhas. */
+  gapLinhas: 16,
 };

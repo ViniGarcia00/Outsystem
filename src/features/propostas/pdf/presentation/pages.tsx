@@ -281,8 +281,14 @@ export function PaginaInvestimento({ dto, bg }: Dyn) {
   );
 }
 
-// ── Página 9 — DINÂMICA: Forma de Pagamento (campo da proposta).
+// ── Página 9 — DINÂMICA: Forma de Pagamento (campo da proposta). Cada linha é
+// renderizada como [marcador menor] + [texto], para o bullet (●/•) não sair do
+// tamanho gigante da fonte do texto. Linhas sem marcador saem só como texto.
 export function PaginaPagamento({ dto, bg }: Dyn) {
+  const linhas = (dto.formaPagamento?.trim() || "A combinar")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
   return (
     <PresentationPage background={bg}>
       <View
@@ -294,20 +300,42 @@ export function PaginaPagamento({ dto, bg }: Dyn) {
           height: PAGAMENTO.box.height,
           alignItems: "center",
           justifyContent: "center",
+          gap: PAGAMENTO.gapLinhas,
         }}
       >
-        <Text
-          style={{
-            fontFamily: FONTE,
-            fontSize: PAGAMENTO.box.fontSize,
-            fontWeight: PAGAMENTO.box.weight,
-            lineHeight: PAGAMENTO.box.lineHeight,
-            color: CORES.azul,
-            textAlign: "center",
-          }}
-        >
-          {dto.formaPagamento?.trim() || "A combinar"}
-        </Text>
+        {linhas.map((linha, i) => {
+          const m = /^([●•])\s*(.*)$/.exec(linha);
+          return (
+            <View
+              key={i}
+              style={{ flexDirection: "row", alignItems: "center" }}
+            >
+              {m && (
+                <Text
+                  style={{
+                    fontFamily: FONTE,
+                    fontSize: PAGAMENTO.bullet.fontSize,
+                    fontWeight: PAGAMENTO.texto.weight,
+                    color: CORES.azul,
+                    marginRight: PAGAMENTO.bullet.gap,
+                  }}
+                >
+                  {m[1]}
+                </Text>
+              )}
+              <Text
+                style={{
+                  fontFamily: FONTE,
+                  fontSize: PAGAMENTO.texto.fontSize,
+                  fontWeight: PAGAMENTO.texto.weight,
+                  color: CORES.azul,
+                }}
+              >
+                {m ? m[2] : linha}
+              </Text>
+            </View>
+          );
+        })}
       </View>
     </PresentationPage>
   );
