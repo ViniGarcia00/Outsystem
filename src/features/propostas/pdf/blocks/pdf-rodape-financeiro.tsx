@@ -13,8 +13,9 @@ import type { Tema } from "../theme";
  * - **Detalhado** (Sprint 2.10.1): Produtos → Serviços da Automação (só Completa)
  *   → Som/Wi-Fi → Desconto → Frete → **TOTAL DA PROPOSTA**.
  * - **Contratual** (Sprint 2.10.2): subtotais dos projetos contratados —
- *   Projeto de Automação → Som → Wi-Fi → (Subtotal Geral) → Desconto → Frete →
- *   **TOTAL DA PROPOSTA**. Sem preço por produto; nunca esconde linhas.
+ *   Projeto de Automação → Som → Wi-Fi → **TOTAL DA PROPOSTA**. Sem preço por
+ *   produto. Desconto/Frete só aparecem quando > 0; havendo ajuste, entram sob
+ *   um "Subtotal Geral"; sem ajuste, vai direto dos projetos ao total.
  */
 
 function Linha({
@@ -83,6 +84,10 @@ export function PdfRodapeFinanceiro({
     resumo.descontoAplicado > 0
       ? `− ${formatCurrency(resumo.descontoAplicado)}`
       : formatCurrency(0);
+  // Contratual: Desconto/Frete só aparecem quando > 0; sem nenhum ajuste, o
+  // Total já é o Subtotal — some também o "Subtotal Geral" (e o divisor) e vai
+  // direto ao TOTAL DA PROPOSTA.
+  const temAjusteContratual = resumo.descontoAplicado > 0 || resumo.frete > 0;
 
   return (
     <View
@@ -116,25 +121,37 @@ export function PdfRodapeFinanceiro({
               rotulo="Projeto Wi-Fi Premium"
               valor={formatCurrency(wifi?.valorTotal ?? 0)}
             />
-            <View
-              style={{
-                marginVertical: tema.espaco(0.75),
-                borderBottomWidth: 0.5,
-                borderBottomColor: tema.cores.linha,
-              }}
-            />
-            <Linha
-              tema={tema}
-              rotulo="Subtotal Geral"
-              valor={formatCurrency(resumo.total)}
-              forte
-            />
-            <Linha tema={tema} rotulo={descontoLabel} valor={descontoValor} />
-            <Linha
-              tema={tema}
-              rotulo="Frete"
-              valor={formatCurrency(resumo.frete)}
-            />
+            {temAjusteContratual && (
+              <>
+                <View
+                  style={{
+                    marginVertical: tema.espaco(0.75),
+                    borderBottomWidth: 0.5,
+                    borderBottomColor: tema.cores.linha,
+                  }}
+                />
+                <Linha
+                  tema={tema}
+                  rotulo="Subtotal Geral"
+                  valor={formatCurrency(resumo.total)}
+                  forte
+                />
+                {resumo.descontoAplicado > 0 && (
+                  <Linha
+                    tema={tema}
+                    rotulo={descontoLabel}
+                    valor={descontoValor}
+                  />
+                )}
+                {resumo.frete > 0 && (
+                  <Linha
+                    tema={tema}
+                    rotulo="Frete"
+                    valor={formatCurrency(resumo.frete)}
+                  />
+                )}
+              </>
+            )}
           </>
         ) : (
           // Detalhado (Sprint 2.10.1): Produtos → Serviços → Som/Wi-Fi →
