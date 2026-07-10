@@ -190,8 +190,13 @@ export function PropostaWorkspace({
     window.open(`/propostas/${data.id}/presentation`, "_blank", "noopener");
   };
 
+  // PDF Contratual (anexo ao contrato) — sem preços por item (Sprint 2.10.2).
+  const abrirContratual = () => {
+    window.open(`/propostas/${data.id}/contratual`, "_blank", "noopener");
+  };
+
   // Emite a proposta (mesma lógica/método) e abre o PDF solicitado. Reutilizado
-  // pelo "Gerar PDF Comercial" e pelo "Gerar PDF Apresentação".
+  // pelos "Gerar PDF Detalhado", "Gerar PDF Apresentação" e "Gerar PDF Contratual".
   const emitirEAbrir = async (abrir: () => void) => {
     setSaving(true);
     const result = await emitirPropostaAction(data.id);
@@ -207,6 +212,7 @@ export function PropostaWorkspace({
 
   const gerarPdf = () => emitirEAbrir(abrirPdf);
   const gerarApresentacao = () => emitirEAbrir(abrirApresentacao);
+  const gerarContratual = () => emitirEAbrir(abrirContratual);
 
   const cancelarProposta = () => {
     if (dirty && !confirmDiscardChanges()) return;
@@ -424,6 +430,29 @@ export function PropostaWorkspace({
           <Button variant="outline" onClick={abrirApresentacao}>
             <FileDown className="h-4 w-4" />
             Abrir PDF Apresentação
+          </Button>
+        )}
+        {data.status === "RASCUNHO" && (
+          <Button
+            variant="outline"
+            onClick={gerarContratual}
+            disabled={!podeEmitir || saving}
+            title={
+              dirty
+                ? "Salve as alterações antes de gerar o PDF."
+                : podeEmitir
+                  ? undefined
+                  : "Informe o cliente e adicione ao menos um item para emitir."
+            }
+          >
+            <FileDown className="h-4 w-4" />
+            Gerar PDF Contratual
+          </Button>
+        )}
+        {data.status === "EMITIDA" && (
+          <Button variant="outline" onClick={abrirContratual}>
+            <FileDown className="h-4 w-4" />
+            Abrir PDF Contratual
           </Button>
         )}
         {!readOnly && (

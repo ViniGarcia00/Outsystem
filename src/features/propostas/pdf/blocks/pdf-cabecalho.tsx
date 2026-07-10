@@ -55,12 +55,15 @@ export function PdfCabecalho({
   numero,
   revisao,
   dataLabel,
+  titulo = "PROPOSTA COMERCIAL",
 }: {
   tema: Tema;
   empresa: PdfEmpresa;
   numero: number;
   revisao: number | null;
   dataLabel: string;
+  /** Título principal do documento. PDF Contratual usa "ANEXO CONTRATUAL". */
+  titulo?: string;
 }) {
   const refLabel = `Nº ${numero}${revisao != null ? ` · Rev.${revisao}` : ""}`;
 
@@ -93,7 +96,7 @@ export function PdfCabecalho({
               letterSpacing: 1.2,
             }}
           >
-            PROPOSTA COMERCIAL
+            {titulo}
           </Text>
           <Text
             style={{

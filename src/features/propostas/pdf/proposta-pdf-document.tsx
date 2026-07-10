@@ -17,25 +17,43 @@ import { formatDate } from "./format";
 import { criarTema } from "./theme";
 
 /**
- * Documento comercial (PDF Detalhado) — composição do template a partir do
- * {@link PropostaPdfDTO}. É um "template": uma ORDEM de blocos + tema. Inclui as
- * seções dos Serviços Complementares (Som/Wi-Fi), quando existirem (Sprint 2.10.1).
+ * Documento comercial (PDF) — composição do template a partir do
+ * {@link PropostaPdfDTO}. É um "template": uma ORDEM de blocos + tema.
+ *
+ * A MESMA composição serve a dois documentos (Sprint 2.10.2), via `variante`:
+ * - **detalhado**: com todos os valores (PDF Detalhado);
+ * - **contratual**: sem preços por item — tabela só Código/Descrição/Qtd/UN,
+ *   seções Som/Wi-Fi sem valor e Resumo Financeiro apenas Desconto/Frete/Total
+ *   (anexo ao contrato). Cabeçalho, rodapé, cliente, observações e assinaturas
+ *   são compartilhados; só a tabela, as seções e o financeiro mudam.
  *
  * Cabeçalho e rodapé do documento são FIXOS (repetem em todas as páginas); o
  * cabeçalho da tabela repete a cada página; blocos de totais/observações/
  * assinaturas não quebram entre páginas.
  */
-export function PropostaPdfDocument({ dto }: { dto: PropostaPdfDTO }) {
+export type VariantePdf = "detalhado" | "contratual";
+
+export function PropostaPdfDocument({
+  dto,
+  variante = "detalhado",
+}: {
+  dto: PropostaPdfDTO;
+  variante?: VariantePdf;
+}) {
   registrarFontes();
   const tema = criarTema(dto.empresa.corPrimaria, dto.empresa.corSecundaria);
   const dataLabel = formatDate(dto.data);
+  const contratual = variante === "contratual";
   // Serviços Complementares (Sprint 2.10.1) — seções próprias.
   // Na Simplificada `dto.servicos` é vazio, então nada é renderizado.
   const som = dto.servicos.find((s) => s.tipo === "SOM");
   const wifi = dto.servicos.find((s) => s.tipo === "WIFI");
 
   return (
-    <Document title={`Proposta ${dto.numero}`} author={dto.empresa.nome}>
+    <Document
+      title={`${contratual ? "Contrato — Proposta" : "Proposta"} ${dto.numero}`}
+      author={dto.empresa.nome}
+    >
       <Page
         size="A4"
         style={{
@@ -55,6 +73,7 @@ export function PropostaPdfDocument({ dto }: { dto: PropostaPdfDTO }) {
           numero={dto.numero}
           revisao={dto.revisao}
           dataLabel={dataLabel}
+          titulo={contratual ? "ANEXO CONTRATUAL" : "PROPOSTA COMERCIAL"}
         />
         <PdfRodapeDocumento tema={tema} empresa={dto.empresa} />
 
@@ -71,6 +90,7 @@ export function PropostaPdfDocument({ dto }: { dto: PropostaPdfDTO }) {
           tema={tema}
           secoes={dto.secoes}
           simplificada={dto.simplificada}
+          contratual={contratual}
         />
 
         {som && (
@@ -78,6 +98,7 @@ export function PropostaPdfDocument({ dto }: { dto: PropostaPdfDTO }) {
             tema={tema}
             titulo="Projeto Som Ambiente"
             servico={som}
+            mostrarValor={!contratual}
           />
         )}
         {wifi && (
@@ -85,10 +106,11 @@ export function PropostaPdfDocument({ dto }: { dto: PropostaPdfDTO }) {
             tema={tema}
             titulo="Projeto Wi-Fi Premium"
             servico={wifi}
+            mostrarValor={!contratual}
           />
         )}
 
-        <PdfRodapeFinanceiro tema={tema} dto={dto} />
+        <PdfRodapeFinanceiro tema={tema} dto={dto} contratual={contratual} />
 
         <PdfObservacaoProposta tema={tema} texto={dto.obsProposta} />
 

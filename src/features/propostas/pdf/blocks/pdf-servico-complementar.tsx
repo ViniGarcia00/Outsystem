@@ -15,10 +15,13 @@ export function PdfServicoComplementar({
   tema,
   titulo,
   servico,
+  mostrarValor = true,
 }: {
   tema: Tema;
   titulo: string;
   servico: PdfServico;
+  /** Sprint 2.10.2 — false no PDF Contratual (oculta "Valor do Projeto"). */
+  mostrarValor?: boolean;
 }) {
   return (
     <View minPresenceAhead={70} style={{ marginTop: tema.espaco(3) }}>
@@ -57,38 +60,40 @@ export function PdfServicoComplementar({
             {servico.descricao}
           </Text>
         )}
-        <View
-          wrap={false}
-          style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            marginTop: tema.espaco(1.5),
-            borderTopWidth: 0.5,
-            borderTopColor: tema.cores.linha,
-            paddingTop: tema.espaco(1),
-          }}
-        >
-          <Text
+        {mostrarValor && (
+          <View
+            wrap={false}
             style={{
-              fontFamily: tema.fonte,
-              fontSize: tema.tamanho.base,
-              fontWeight: tema.pesos.semibold,
-              color: tema.cores.textoSuave,
+              flexDirection: "row",
+              justifyContent: "space-between",
+              marginTop: tema.espaco(1.5),
+              borderTopWidth: 0.5,
+              borderTopColor: tema.cores.linha,
+              paddingTop: tema.espaco(1),
             }}
           >
-            Valor do Projeto
-          </Text>
-          <Text
-            style={{
-              fontFamily: tema.fonte,
-              fontSize: tema.tamanho.base,
-              fontWeight: tema.pesos.semibold,
-              color: tema.cores.texto,
-            }}
-          >
-            {formatCurrency(servico.valorTotal)}
-          </Text>
-        </View>
+            <Text
+              style={{
+                fontFamily: tema.fonte,
+                fontSize: tema.tamanho.base,
+                fontWeight: tema.pesos.semibold,
+                color: tema.cores.textoSuave,
+              }}
+            >
+              Valor do Projeto
+            </Text>
+            <Text
+              style={{
+                fontFamily: tema.fonte,
+                fontSize: tema.tamanho.base,
+                fontWeight: tema.pesos.semibold,
+                color: tema.cores.texto,
+              }}
+            >
+              {formatCurrency(servico.valorTotal)}
+            </Text>
+          </View>
+        )}
       </View>
     </View>
   );

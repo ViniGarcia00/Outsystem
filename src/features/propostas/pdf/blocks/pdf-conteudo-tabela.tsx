@@ -21,7 +21,17 @@ interface Coluna {
   align: "left" | "right" | "center";
 }
 
-function colunas(simplificada: boolean): Coluna[] {
+function colunas(simplificada: boolean, contratual: boolean): Coluna[] {
+  // Contratual (Sprint 2.10.2): sem nenhuma coluna financeira — só o que será
+  // entregue (Código, Descrição, Quantidade, Unidade).
+  if (contratual) {
+    return [
+      { chave: "codigo", titulo: "Código", largura: 50, align: "left" },
+      { chave: "descricao", titulo: "Descrição", flex: true, align: "left" },
+      { chave: "qtd", titulo: "Qtd", largura: 46, align: "right" },
+      { chave: "un", titulo: "UN", largura: 40, align: "center" },
+    ];
+  }
   if (simplificada) {
     return [
       { chave: "codigo", titulo: "Código", largura: 44, align: "left" },
@@ -78,12 +88,15 @@ export function PdfConteudoTabela({
   tema,
   secoes,
   simplificada,
+  contratual = false,
 }: {
   tema: Tema;
   secoes: PdfSecao[];
   simplificada: boolean;
+  /** Sprint 2.10.2 — oculta todas as colunas financeiras (PDF Contratual). */
+  contratual?: boolean;
 }) {
-  const cols = colunas(simplificada);
+  const cols = colunas(simplificada, contratual);
 
   return (
     <View style={{ marginTop: tema.espaco(2) }}>

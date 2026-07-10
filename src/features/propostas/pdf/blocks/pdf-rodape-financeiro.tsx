@@ -60,9 +60,12 @@ function Linha({
 export function PdfRodapeFinanceiro({
   tema,
   dto,
+  contratual = false,
 }: {
   tema: Tema;
   dto: PropostaPdfDTO;
+  /** Sprint 2.10.2 — PDF Contratual: só Desconto/Frete/TOTAL (oculta os itens). */
+  contratual?: boolean;
 }) {
   const { resumo, servicos, simplificada, desconto } = dto;
   const som = servicos.find((s) => s.tipo === "SOM");
@@ -83,33 +86,38 @@ export function PdfRodapeFinanceiro({
       }}
     >
       <View style={{ width: 268 }}>
-        <Linha
-          tema={tema}
-          rotulo="Produtos"
-          valor={formatCurrency(resumo.produtos)}
-        />
-        {!simplificada && (
-          <Linha
-            tema={tema}
-            rotulo="Serviços da Automação"
-            valor={formatCurrency(resumo.servicos)}
-          />
-        )}
-        {/* Linhas Som/Wi-Fi SEMPRE visíveis no Comercial (R$ 0,00 quando o
-            serviço não existe); ocultas apenas na Simplificada. */}
-        {!simplificada && (
-          <Linha
-            tema={tema}
-            rotulo="Projeto Som Ambiente"
-            valor={formatCurrency(som?.valorTotal ?? 0)}
-          />
-        )}
-        {!simplificada && (
-          <Linha
-            tema={tema}
-            rotulo="Projeto Wi-Fi Premium"
-            valor={formatCurrency(wifi?.valorTotal ?? 0)}
-          />
+        {/* Itens do orçamento — ocultos no Contratual (cliente vê só o Total). */}
+        {!contratual && (
+          <>
+            <Linha
+              tema={tema}
+              rotulo="Produtos"
+              valor={formatCurrency(resumo.produtos)}
+            />
+            {!simplificada && (
+              <Linha
+                tema={tema}
+                rotulo="Serviços da Automação"
+                valor={formatCurrency(resumo.servicos)}
+              />
+            )}
+            {/* Linhas Som/Wi-Fi SEMPRE visíveis no Comercial (R$ 0,00 quando o
+                serviço não existe); ocultas apenas na Simplificada. */}
+            {!simplificada && (
+              <Linha
+                tema={tema}
+                rotulo="Projeto Som Ambiente"
+                valor={formatCurrency(som?.valorTotal ?? 0)}
+              />
+            )}
+            {!simplificada && (
+              <Linha
+                tema={tema}
+                rotulo="Projeto Wi-Fi Premium"
+                valor={formatCurrency(wifi?.valorTotal ?? 0)}
+              />
+            )}
+          </>
         )}
         {/* Desconto e Frete SEMPRE visíveis (R$ 0,00 quando zerados) — estrutura
             fixa do orçamento. Desconto mostra "−" apenas quando há valor. */}
