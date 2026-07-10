@@ -11,15 +11,15 @@ import { PdfObservacaoProposta } from "./blocks/pdf-observacao-proposta";
 import { PdfObservacoes } from "./blocks/pdf-observacoes";
 import { PdfRodapeDocumento } from "./blocks/pdf-rodape-documento";
 import { PdfRodapeFinanceiro } from "./blocks/pdf-rodape-financeiro";
+import { PdfServicoComplementar } from "./blocks/pdf-servico-complementar";
 import { registrarFontes } from "./fonts";
 import { formatDate } from "./format";
 import { criarTema } from "./theme";
 
 /**
- * Documento comercial (PDF) — composição do template a partir do
- * {@link PropostaPdfDTO}. É um "template": uma ORDEM de blocos + tema. Módulos
- * futuros (Projeto de Som/Wi-Fi, fotos, novos templates) entram como novos
- * blocos aqui, reaproveitando cabeçalho/rodapé/financeiro/paginação.
+ * Documento comercial (PDF Detalhado) — composição do template a partir do
+ * {@link PropostaPdfDTO}. É um "template": uma ORDEM de blocos + tema. Inclui as
+ * seções dos Serviços Complementares (Som/Wi-Fi), quando existirem (Sprint 2.10.1).
  *
  * Cabeçalho e rodapé do documento são FIXOS (repetem em todas as páginas); o
  * cabeçalho da tabela repete a cada página; blocos de totais/observações/
@@ -29,6 +29,10 @@ export function PropostaPdfDocument({ dto }: { dto: PropostaPdfDTO }) {
   registrarFontes();
   const tema = criarTema(dto.empresa.corPrimaria, dto.empresa.corSecundaria);
   const dataLabel = formatDate(dto.data);
+  // Serviços Complementares (Sprint 2.10.1) — seções próprias.
+  // Na Simplificada `dto.servicos` é vazio, então nada é renderizado.
+  const som = dto.servicos.find((s) => s.tipo === "SOM");
+  const wifi = dto.servicos.find((s) => s.tipo === "WIFI");
 
   return (
     <Document title={`Proposta ${dto.numero}`} author={dto.empresa.nome}>
@@ -68,6 +72,21 @@ export function PropostaPdfDocument({ dto }: { dto: PropostaPdfDTO }) {
           secoes={dto.secoes}
           simplificada={dto.simplificada}
         />
+
+        {som && (
+          <PdfServicoComplementar
+            tema={tema}
+            titulo="Projeto Som Ambiente"
+            servico={som}
+          />
+        )}
+        {wifi && (
+          <PdfServicoComplementar
+            tema={tema}
+            titulo="Projeto Wi-Fi Premium"
+            servico={wifi}
+          />
+        )}
 
         <PdfRodapeFinanceiro tema={tema} dto={dto} />
 

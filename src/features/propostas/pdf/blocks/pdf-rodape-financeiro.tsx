@@ -6,10 +6,12 @@ import { formatCurrency, formatPercent } from "../format";
 import type { Tema } from "../theme";
 
 /**
- * Rodapé financeiro. Mesma lógica/ordem da aplicação (via `totais`): Total
- * Produtos → Total Serviços (só Completa) → Subtotal → Desconto → Frete →
- * **TOTAL DA PROPOSTA** (elemento de maior destaque). Alinhado à direita; não
- * quebra entre páginas.
+ * Rodapé financeiro do PDF Detalhado (Sprint 2.10.1). Consome o Resumo
+ * Financeiro homologado (`dto.resumo`, `calcularResumoFinanceiro` — desconto
+ * sobre o Total combinado): Produtos → Serviços da Automação (só Completa) →
+ * Projeto Som Ambiente / Projeto Wi-Fi Premium (quando existirem) → Desconto →
+ * Frete → **TOTAL DA PROPOSTA** (= Total Geral). Nada é recalculado aqui.
+ * Alinhado à direita; não quebra entre páginas.
  */
 
 function Linha({
@@ -62,7 +64,9 @@ export function PdfRodapeFinanceiro({
   tema: Tema;
   dto: PropostaPdfDTO;
 }) {
-  const { totais, simplificada, desconto } = dto;
+  const { resumo, servicos, simplificada, desconto } = dto;
+  const som = servicos.find((s) => s.tipo === "SOM");
+  const wifi = servicos.find((s) => s.tipo === "WIFI");
   // Anota o percentual quando o desconto é percentual (ex.: "Desconto (10%)").
   const descontoLabel =
     desconto.tipo === "PERCENTUAL" && desconto.valor > 0
@@ -81,16 +85,44 @@ export function PdfRodapeFinanceiro({
       <View style={{ width: 268 }}>
         <Linha
           tema={tema}
-          rotulo="Total Produtos"
-          valor={formatCurrency(totais.totalProdutos)}
+          rotulo="Produtos"
+          valor={formatCurrency(resumo.produtos)}
         />
         {!simplificada && (
           <Linha
             tema={tema}
-            rotulo="Total Serviços"
-            valor={formatCurrency(totais.totalServicos)}
+            rotulo="Serviços da Automação"
+            valor={formatCurrency(resumo.servicos)}
           />
         )}
+        {/* Linhas Som/Wi-Fi SEMPRE visíveis no Comercial (R$ 0,00 quando o
+            serviço não existe); ocultas apenas na Simplificada. */}
+        {!simplificada && (
+          <Linha
+            tema={tema}
+            rotulo="Projeto Som Ambiente"
+            valor={formatCurrency(som?.valorTotal ?? 0)}
+          />
+        )}
+        {!simplificada && (
+          <Linha
+            tema={tema}
+            rotulo="Projeto Wi-Fi Premium"
+            valor={formatCurrency(wifi?.valorTotal ?? 0)}
+          />
+        )}
+        {/* Desconto e Frete SEMPRE visíveis (R$ 0,00 quando zerados) — estrutura
+            fixa do orçamento. Desconto mostra "−" apenas quando há valor. */}
+        <Linha
+          tema={tema}
+          rotulo={descontoLabel}
+          valor={
+            resumo.descontoAplicado > 0
+              ? `− ${formatCurrency(resumo.descontoAplicado)}`
+              : formatCurrency(0)
+          }
+        />
+        <Linha tema={tema} rotulo="Frete" valor={formatCurrency(resumo.frete)} />
 
         <View
           style={{
@@ -99,24 +131,6 @@ export function PdfRodapeFinanceiro({
             borderBottomColor: tema.cores.linha,
           }}
         />
-
-        <Linha
-          tema={tema}
-          rotulo="Subtotal"
-          valor={formatCurrency(totais.subtotal)}
-          forte
-        />
-        {totais.descontoAplicado > 0 && (
-          <Linha
-            tema={tema}
-            rotulo={descontoLabel}
-            valor={`− ${formatCurrency(totais.descontoAplicado)}`}
-          />
-        )}
-        {/* Frete só aparece quando houver valor (> 0). */}
-        {totais.frete > 0 && (
-          <Linha tema={tema} rotulo="Frete" valor={formatCurrency(totais.frete)} />
-        )}
 
         {/* TOTAL — faixa de destaque. */}
         <View
@@ -154,7 +168,7 @@ export function PdfRodapeFinanceiro({
               textAlign: "right",
             }}
           >
-            {formatCurrency(totais.totalProposta)}
+            {formatCurrency(resumo.totalGeral)}
           </Text>
         </View>
       </View>

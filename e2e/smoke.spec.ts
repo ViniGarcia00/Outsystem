@@ -235,12 +235,15 @@ test("Propostas: criação diferida, emitir e revisão automática", async ({
     page.getByRole("button", { name: "Gerar PDF Apresentação" }),
   ).toBeVisible();
 
-  // "Gerar PDF" emite a proposta (RASCUNHO → EMITIDA).
-  // (exact: evita casar com "Gerar PDF Apresentação".)
-  await page.getByRole("button", { name: "Gerar PDF", exact: true }).click();
+  // "Gerar PDF Detalhado" emite a proposta (RASCUNHO → EMITIDA).
+  await page
+    .getByRole("button", { name: "Gerar PDF Detalhado", exact: true })
+    .click();
   await expect(page.getByText("Emitida", { exact: true })).toBeVisible();
-  // Após emitir, o botão "Abrir PDF" fica disponível.
-  await expect(page.getByRole("button", { name: "Abrir PDF" })).toBeVisible();
+  // Após emitir, o botão "Abrir PDF Detalhado" fica disponível.
+  await expect(
+    page.getByRole("button", { name: "Abrir PDF Detalhado" }),
+  ).toBeVisible();
 
   // Alteração pós-emissão + Salvar cria automaticamente a Rev.1 e volta a Rascunho.
   await page

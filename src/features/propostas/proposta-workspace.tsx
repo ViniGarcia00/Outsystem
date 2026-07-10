@@ -394,13 +394,13 @@ export function PropostaWorkspace({
             }
           >
             <FileDown className="h-4 w-4" />
-            Gerar PDF
+            Gerar PDF Detalhado
           </Button>
         )}
         {data.status === "EMITIDA" && (
           <Button variant="outline" onClick={abrirPdf}>
             <FileDown className="h-4 w-4" />
-            Abrir PDF
+            Abrir PDF Detalhado
           </Button>
         )}
         {data.status === "RASCUNHO" && !simplificada && (
@@ -423,7 +423,7 @@ export function PropostaWorkspace({
         {data.status === "EMITIDA" && !simplificada && (
           <Button variant="outline" onClick={abrirApresentacao}>
             <FileDown className="h-4 w-4" />
-            Abrir Apresentação
+            Abrir PDF Apresentação
           </Button>
         )}
         {!readOnly && (

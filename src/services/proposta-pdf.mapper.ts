@@ -236,11 +236,15 @@ export function montarPropostaPdfDTO(
   // Serviços complementares (Sprint 2.9.3/2.9.4) — na ordem recebida; `valorTotal`
   // já vem calculado (não recalculado aqui). O Resumo Financeiro (Automação +
   // Serviços, desconto sobre o Total) vem da fonte única `calcularResumoFinanceiro`.
-  const servicos: PdfServico[] = (p.servicos ?? []).map((s) => ({
-    tipo: s.tipo,
-    descricao: nn(s.descricao),
-    valorTotal: toNumber(s.valorTotal),
-  }));
+  // Simplificada não exibe Serviços Complementares (Som/Wi-Fi) — força vazio,
+  // garantindo que nenhuma seção/linha apareça no PDF (Sprint 2.10.1).
+  const servicos: PdfServico[] = simplificada
+    ? []
+    : (p.servicos ?? []).map((s) => ({
+        tipo: s.tipo,
+        descricao: nn(s.descricao),
+        valorTotal: toNumber(s.valorTotal),
+      }));
   const resumo = calcularResumoFinanceiro(
     itensCalc,
     servicos,
