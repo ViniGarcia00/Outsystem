@@ -25,12 +25,14 @@ import type { Templates } from "./templates";
  * Consome exatamente o mesmo {@link PropostaPdfDTO} do PDF Comercial (nenhuma
  * consulta/regra paralela).
  *
- * Slides CONDICIONAIS (Sprint 2.9.3):
+ * Slides CONDICIONAIS (Sprint 2.9.3 / ajuste 2.10):
+ * - 08 Investimento da Automação → só quando há serviços (senão seria redundante
+ *   com o 11); na automação-pura, só o slide 11 representa o investimento.
  * - 09 Projeto Som Ambiente  → só quando existe serviço SOM;
  * - 10 Projeto Wi-Fi Premium → só quando existe serviço WIFI;
- * - 11 Investimento Total    → só quando existe ≥1 Serviço Complementar.
- * O slide 08 (Investimento da Automação) é SEMPRE renderizado e NUNCA inclui
- * Som/Wi-Fi. Contagens: Automação=10; +Som=12; +Wi-Fi=12; +ambos=13.
+ * - 11 Investimento Total    → SEMPRE (Total Geral com desconto/frete + prazo).
+ * O slide 08, quando aparece, mostra o subtotal da automação e NUNCA inclui
+ * Som/Wi-Fi. Contagens: Automação pura=10; +Som=12; +Wi-Fi=12; +ambos=13.
  */
 export function PresentationDocument({
   dto,
@@ -44,6 +46,12 @@ export function PresentationDocument({
   const som = dto.servicos.find((s) => s.tipo === "SOM");
   const wifi = dto.servicos.find((s) => s.tipo === "WIFI");
   const temServicos = dto.servicos.length > 0;
+  // Slide 08 (Investimento da Automação) = subtotal BRUTO da automação. Só faz
+  // sentido quando há serviços (aí ele mostra a parte da automação e o slide 11
+  // mostra o Total Geral). Sem serviços (automação-pura), os dois seriam
+  // redundantes — mantém-se só o slide 11 (Investimento Total), que já reflete
+  // desconto/frete e traz o prazo.
+  const mostrarInvestimentoAutomacao = temServicos;
 
   return (
     <Document
@@ -57,7 +65,12 @@ export function PresentationDocument({
       <PaginaProcesso bg={templates["page-05-process"]} />
       <PaginaItens dto={dto} bg={templates["page-06-automation-project"]} />
       <PaginaServicos bg={templates["page-07-automation-services"]} />
-      <PaginaInvestimento dto={dto} bg={templates["page-08-automation-investment"]} />
+      {mostrarInvestimentoAutomacao && (
+        <PaginaInvestimento
+          dto={dto}
+          bg={templates["page-08-automation-investment"]}
+        />
+      )}
       {som && (
         <PaginaServicoComplementar
           servico={som}
@@ -70,12 +83,10 @@ export function PresentationDocument({
           bg={templates["page-10-wifi-premium"]}
         />
       )}
-      {temServicos && (
-        <PaginaInvestimentoTotal
-          dto={dto}
-          bg={templates["page-11-total-investment"]}
-        />
-      )}
+      <PaginaInvestimentoTotal
+        dto={dto}
+        bg={templates["page-11-total-investment"]}
+      />
       <PaginaPagamento dto={dto} bg={templates["page-12-payment"]} />
       <PaginaObrigado bg={templates["page-13-thank-you"]} />
     </Document>
