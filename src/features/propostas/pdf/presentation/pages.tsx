@@ -15,12 +15,6 @@ import {
 } from "./coords";
 import { PresentationPage } from "./page-shell";
 
-/** Rótulo dos serviços complementares no PDF (Sprint 2.9.3). */
-const PROJETO_LABEL: Record<PropostaPdfDTO["servicos"][number]["tipo"], string> = {
-  SOM: "Projeto Som Ambiente",
-  WIFI: "Projeto Wi-Fi Premium",
-};
-
 /**
  * As 10 páginas do PDF Apresentação. Cada uma usa o respectivo template como
  * PLANO DE FUNDO (nenhuma é redesenhada). As páginas FIXAS (2,3,4,5,7,10) são
@@ -259,72 +253,68 @@ export function PaginaServicoComplementar({
 }) {
   return (
     <PresentationPage background={bg}>
-      <View
-        style={{
-          position: "absolute",
-          left: SERVICO.titulo.left,
-          top: SERVICO.titulo.top,
-          width: SERVICO.titulo.width,
-        }}
-      >
-        <Text
-          style={{
-            fontFamily: FONTE,
-            fontSize: SERVICO.titulo.fontSize,
-            fontWeight: SERVICO.titulo.weight,
-            color: CORES.azul,
-          }}
-        >
-          {PROJETO_LABEL[servico.tipo]}
-        </Text>
-      </View>
-
+      {/* Descrição — quadrado azul à direita, branco. Cada linha (split por \n)
+          vira um item com bullet pequeno. Título NÃO é renderizado (vem no template). */}
       <View
         style={{
           position: "absolute",
           left: SERVICO.descricao.left,
           top: SERVICO.descricao.top,
           width: SERVICO.descricao.width,
+          gap: SERVICO.descricao.gapLinhas,
         }}
       >
-        <Text
-          style={{
-            fontFamily: FONTE,
-            fontSize: SERVICO.descricao.fontSize,
-            fontWeight: SERVICO.descricao.weight,
-            color: CORES.texto,
-            lineHeight: SERVICO.descricao.lineHeight,
-          }}
-        >
-          {truncar(servico.descricao?.trim() || "—", SERVICO.descricao.maxChars)}
-        </Text>
+        {truncar(servico.descricao?.trim() || "—", SERVICO.descricao.maxChars)
+          .split("\n")
+          .map((l) => l.trim())
+          .filter(Boolean)
+          .map((linha, i) => (
+            <View key={i} style={{ flexDirection: "row", alignItems: "flex-start" }}>
+              <Text
+                style={{
+                  fontFamily: FONTE,
+                  fontSize: SERVICO.descricao.bulletFontSize,
+                  color: CORES.branco,
+                  marginRight: SERVICO.descricao.bulletGap,
+                  marginTop: SERVICO.descricao.bulletMarginTop,
+                }}
+              >
+                ●
+              </Text>
+              <Text
+                style={{
+                  flexGrow: 1,
+                  flexBasis: 0,
+                  fontFamily: FONTE,
+                  fontSize: SERVICO.descricao.fontSize,
+                  fontWeight: SERVICO.descricao.weight,
+                  color: CORES.branco,
+                  lineHeight: SERVICO.descricao.lineHeight,
+                }}
+              >
+                {linha}
+              </Text>
+            </View>
+          ))}
       </View>
 
+      {/* Investimento — apenas o VALOR (rótulo removido); bloco azul à direita,
+          centralizado, branco. */}
       <View
         style={{
           position: "absolute",
           left: SERVICO.investimento.left,
           top: SERVICO.investimento.top,
           width: SERVICO.investimento.width,
+          alignItems: "center",
         }}
       >
         <Text
           style={{
             fontFamily: FONTE,
-            fontSize: SERVICO.investimento.rotuloFontSize,
-            fontWeight: SERVICO.investimento.rotuloWeight,
-            color: CORES.azul,
-          }}
-        >
-          Investimento
-        </Text>
-        <Text
-          style={{
-            fontFamily: FONTE,
             fontSize: SERVICO.investimento.valorFontSize,
             fontWeight: SERVICO.investimento.valorWeight,
-            color: CORES.azul,
-            marginTop: SERVICO.investimento.valorMarginTop,
+            color: CORES.branco,
           }}
         >
           {formatCurrency(servico.valorTotal)}
@@ -334,9 +324,10 @@ export function PaginaServicoComplementar({
   );
 }
 
-// ── Página 8 — DINÂMICA: **Investimento da Automação** (valor único) + Prazo de
-// instalação. Representa EXCLUSIVAMENTE a Automação — nunca inclui Som/Wi-Fi.
-// Consome `totais.totalProposta` (= Investimento da Automação); nada recalculado.
+// ── Slide 08 — DINÂMICA: **Investimento da Automação** = Subtotal da Automação
+// (produtos + serviços). Nunca inclui Som/Wi-Fi nem o desconto/frete globais
+// (esses entram no Total Geral, slide 11). O prazo de instalação foi movido para
+// o slide 11. Consome `resumo.subtotalAutomacao`.
 export function PaginaInvestimento({ dto, bg }: Dyn) {
   return (
     <PresentationPage background={bg}>
@@ -357,9 +348,64 @@ export function PaginaInvestimento({ dto, bg }: Dyn) {
             color: CORES.azul,
           }}
         >
-          {formatCurrency(dto.totais.totalProposta)}
+          {formatCurrency(dto.resumo.subtotalAutomacao)}
         </Text>
       </View>
+    </PresentationPage>
+  );
+}
+
+// ── Slide 11 — DINÂMICA: **Investimento Total** (só quando há ≥1 Serviço
+// Complementar). Mostra o valor total (Total Geral, já com o desconto) no bloco;
+// e, quando houver desconto, o valor inicial (sem desconto) RISCADO acima do
+// bloco. Consome `resumo` — nunca recalculado.
+export function PaginaInvestimentoTotal({ dto, bg }: Dyn) {
+  return (
+    <PresentationPage background={bg}>
+      {dto.resumo.descontoAplicado > 0 && (
+        <View
+          style={{
+            position: "absolute",
+            left: INVESTIMENTO_TOTAL.original.left,
+            top: INVESTIMENTO_TOTAL.original.top,
+            width: INVESTIMENTO_TOTAL.original.width,
+            alignItems: "center",
+          }}
+        >
+          <Text
+            style={{
+              fontFamily: FONTE,
+              fontSize: INVESTIMENTO_TOTAL.original.fontSize,
+              fontWeight: INVESTIMENTO_TOTAL.original.weight,
+              color: CORES.branco,
+              textDecoration: "line-through",
+            }}
+          >
+            {formatCurrency(dto.resumo.totalGeral + dto.resumo.descontoAplicado)}
+          </Text>
+        </View>
+      )}
+      <View
+        style={{
+          position: "absolute",
+          left: INVESTIMENTO_TOTAL.valor.left,
+          top: INVESTIMENTO_TOTAL.valor.top,
+          width: INVESTIMENTO_TOTAL.valor.width,
+          alignItems: "center",
+        }}
+      >
+        <Text
+          style={{
+            fontFamily: FONTE,
+            fontSize: INVESTIMENTO_TOTAL.valor.fontSize,
+            fontWeight: INVESTIMENTO_TOTAL.valor.weight,
+            color: CORES.azul,
+          }}
+        >
+          {formatCurrency(dto.resumo.totalGeral)}
+        </Text>
+      </View>
+      {/* Prazo de instalação — movido do slide 08 para cá (mesma posição). */}
       <View
         style={{
           position: "absolute",
@@ -385,111 +431,13 @@ export function PaginaInvestimento({ dto, bg }: Dyn) {
   );
 }
 
-// ── Página 11 — DINÂMICA: **Investimento Total** (só quando há ≥1 Serviço
-// Complementar). Detalha Projeto Automação + Som/Wi-Fi (os que existirem),
-// divisor, e a linha Investimento Total. Todos os valores vêm do DTO
-// (`calcularInvestimento`, Sprint 2.9.2) — nunca recalculados aqui.
-export function PaginaInvestimentoTotal({ dto, bg }: Dyn) {
-  return (
-    <PresentationPage background={bg}>
-      <View
-        style={{
-          position: "absolute",
-          left: INVESTIMENTO_TOTAL.area.left,
-          top: INVESTIMENTO_TOTAL.area.top,
-          width: INVESTIMENTO_TOTAL.area.width,
-          gap: INVESTIMENTO_TOTAL.gap,
-        }}
-      >
-        <LinhaInvestimento
-          label="Projeto Automação"
-          valor={dto.investimento.automacao}
-        />
-        {dto.servicos.map((s) => (
-          <LinhaInvestimento
-            key={s.tipo}
-            label={PROJETO_LABEL[s.tipo]}
-            valor={s.valorTotal}
-          />
-        ))}
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            alignItems: "baseline",
-            borderTopWidth: 1,
-            borderTopColor: INVESTIMENTO_TOTAL.divisorColor,
-            marginTop: INVESTIMENTO_TOTAL.divisorMarginTop,
-            paddingTop: INVESTIMENTO_TOTAL.divisorPaddingTop,
-          }}
-        >
-          <Text
-            style={{
-              fontFamily: FONTE,
-              fontSize: INVESTIMENTO_TOTAL.totalFontSize,
-              fontWeight: INVESTIMENTO_TOTAL.totalWeight,
-              color: CORES.azul,
-            }}
-          >
-            Investimento Total
-          </Text>
-          <Text
-            style={{
-              fontFamily: FONTE,
-              fontSize: INVESTIMENTO_TOTAL.totalFontSize,
-              fontWeight: INVESTIMENTO_TOTAL.totalWeight,
-              color: CORES.azul,
-            }}
-          >
-            {formatCurrency(dto.investimento.total)}
-          </Text>
-        </View>
-      </View>
-    </PresentationPage>
-  );
-}
-
-/** Linha rótulo→valor do detalhamento do Investimento Total (slide 11). */
-function LinhaInvestimento({ label, valor }: { label: string; valor: number }) {
-  return (
-    <View
-      style={{
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "baseline",
-      }}
-    >
-      <Text
-        style={{
-          fontFamily: FONTE,
-          fontSize: INVESTIMENTO_TOTAL.rotuloFontSize,
-          fontWeight: INVESTIMENTO_TOTAL.rotuloWeight,
-          color: CORES.azul,
-        }}
-      >
-        {label}
-      </Text>
-      <Text
-        style={{
-          fontFamily: FONTE,
-          fontSize: INVESTIMENTO_TOTAL.valorFontSize,
-          fontWeight: INVESTIMENTO_TOTAL.valorWeight,
-          color: CORES.azul,
-        }}
-      >
-        {formatCurrency(valor)}
-      </Text>
-    </View>
-  );
-}
-
 // ── Slide 12 — DINÂMICA: Forma de Pagamento (campo da proposta). Cada linha é
-// renderizada como [marcador menor] + [texto], para o bullet (●/•) não sair do
-// tamanho gigante da fonte do texto. Linhas sem marcador saem só como texto.
+// renderizada com um bullet pequeno (●) + texto. Qualquer ●/• já digitado é
+// removido para não duplicar o marcador.
 export function PaginaPagamento({ dto, bg }: Dyn) {
   const linhas = (dto.formaPagamento?.trim() || "A combinar")
     .split("\n")
-    .map((l) => l.trim())
+    .map((l) => l.trim().replace(/^[●•]\s*/, ""))
     .filter(Boolean);
   return (
     <PresentationPage background={bg}>
@@ -505,39 +453,31 @@ export function PaginaPagamento({ dto, bg }: Dyn) {
           gap: PAGAMENTO.gapLinhas,
         }}
       >
-        {linhas.map((linha, i) => {
-          const m = /^([●•])\s*(.*)$/.exec(linha);
-          return (
-            <View
-              key={i}
-              style={{ flexDirection: "row", alignItems: "center" }}
+        {linhas.map((linha, i) => (
+          <View key={i} style={{ flexDirection: "row", alignItems: "center" }}>
+            <Text
+              style={{
+                fontFamily: FONTE,
+                fontSize: PAGAMENTO.bullet.fontSize,
+                fontWeight: PAGAMENTO.texto.weight,
+                color: CORES.azul,
+                marginRight: PAGAMENTO.bullet.gap,
+              }}
             >
-              {m && (
-                <Text
-                  style={{
-                    fontFamily: FONTE,
-                    fontSize: PAGAMENTO.bullet.fontSize,
-                    fontWeight: PAGAMENTO.texto.weight,
-                    color: CORES.azul,
-                    marginRight: PAGAMENTO.bullet.gap,
-                  }}
-                >
-                  {m[1]}
-                </Text>
-              )}
-              <Text
-                style={{
-                  fontFamily: FONTE,
-                  fontSize: PAGAMENTO.texto.fontSize,
-                  fontWeight: PAGAMENTO.texto.weight,
-                  color: CORES.azul,
-                }}
-              >
-                {m ? m[2] : linha}
-              </Text>
-            </View>
-          );
-        })}
+              ●
+            </Text>
+            <Text
+              style={{
+                fontFamily: FONTE,
+                fontSize: PAGAMENTO.texto.fontSize,
+                fontWeight: PAGAMENTO.texto.weight,
+                color: CORES.azul,
+              }}
+            >
+              {linha}
+            </Text>
+          </View>
+        ))}
       </View>
     </PresentationPage>
   );

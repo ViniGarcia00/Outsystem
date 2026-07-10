@@ -12,9 +12,7 @@ import type { SecaoDTO } from "@/services/proposta-conteudo.service";
 import { AdicionarItemDialog } from "./adicionar-item-dialog";
 import type { ConteudoActions } from "./conteudo-handlers";
 import { ItensTable } from "./itens-table";
-import { RodapeTotais } from "./rodape-totais";
 import { SecaoCard } from "./secao-card";
-import type { Desconto } from "./totais";
 
 /**
  * Editor de conteúdo. No modelo **Comercial**, produtos vivem dentro de seções
@@ -28,24 +26,13 @@ export function ConteudoEditor({
   readOnly,
   refresh,
   simplificada,
-  desconto,
-  onDescontoChange,
-  frete,
-  onFreteChange,
 }: {
   secoes: SecaoDTO[];
   actions: ConteudoActions;
   readOnly: boolean;
   refresh: () => void;
   simplificada: boolean;
-  desconto: Desconto;
-  onDescontoChange: (desconto: Desconto) => void;
-  frete: number;
-  onFreteChange: (frete: number) => void;
 }) {
-  // Todos os itens da proposta (todas as seções) — base dos totais em tempo real.
-  const itens = secoes.flatMap((s) => s.itens);
-
   return (
     <section className="space-y-4">
       <h2 className="text-lg font-semibold tracking-tight">Conteúdo</h2>
@@ -62,18 +49,6 @@ export function ConteudoEditor({
           actions={actions}
           readOnly={readOnly}
           refresh={refresh}
-        />
-      )}
-
-      {itens.length > 0 && (
-        <RodapeTotais
-          itens={itens}
-          simplificada={simplificada}
-          desconto={desconto}
-          onDescontoChange={onDescontoChange}
-          frete={frete}
-          onFreteChange={onFreteChange}
-          readOnly={readOnly}
         />
       )}
     </section>

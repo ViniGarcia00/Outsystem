@@ -1,4 +1,4 @@
-import { calcularTotais } from "@/features/propostas/totais";
+import { calcularResumoFinanceiro } from "@/features/propostas/totais";
 import { prisma } from "@/infrastructure/database";
 
 /**
@@ -76,6 +76,8 @@ export async function listPropostas(): Promise<PropostaListItem[]> {
       tipoDesconto: true,
       valorDesconto: true,
       frete: true,
+      // Serviços complementares (Sprint 2.9.4): compõem o Valor Final da lista.
+      servicos: { select: { valorTotal: true } },
       currentRevision: {
         select: {
           revisionNumber: true,
@@ -109,8 +111,12 @@ export async function listPropostas(): Promise<PropostaListItem[]> {
         valorServico: num(i.valorServico),
       })),
     );
-    const { totalProposta } = calcularTotais(
+    // Valor Final = Total Geral da proposta (Automação + Serviços − Desconto
+    // sobre o Total + Frete). Reusa a fonte única `calcularResumoFinanceiro`
+    // (Sprint 2.9.4) — idêntico ao Total Geral exibido na proposta.
+    const { totalGeral } = calcularResumoFinanceiro(
       itens,
+      r.servicos.map((s) => ({ valorTotal: num(s.valorTotal) })),
       r.modelo === "SIMPLIFICADA",
       { tipo: r.tipoDesconto, valor: num(r.valorDesconto) },
       num(r.frete),
@@ -126,7 +132,7 @@ export async function listPropostas(): Promise<PropostaListItem[]> {
       status: r.status,
       validadeDias: r.validadeDias,
       updatedAt: r.updatedAt,
-      valorTotal: totalProposta,
+      valorTotal: totalGeral,
     };
   });
 }
@@ -306,6 +312,24 @@ export async function criarPropostaCompleta(
       }
     }
 
+    // Serviços complementares (Sprint 2.9.1/2.9.4). Simplificada não os suporta.
+    const servicosCriar =
+      payload.modelo === "SIMPLIFICADA" ? [] : payload.servicos ?? [];
+    for (let si = 0; si < servicosCriar.length; si++) {
+      const sv = servicosCriar[si];
+      await tx.propostaServico.create({
+        data: {
+          propostaId: proposta.id,
+          tipo: sv.tipo,
+          descricao: trimOrNull(sv.descricao),
+          valorProdutos: sv.valorProdutos,
+          valorServicos: sv.valorServicos,
+          valorTotal: sv.valorProdutos + sv.valorServicos,
+          ordem: si,
+        },
+      });
+    }
+
     const totalSecoes = payload.secoes.length;
     const totalItens = payload.secoes.reduce((n, s) => n + s.itens.length, 0);
     await tx.propostaAuditoria.create({
@@ -446,13 +470,16 @@ export async function salvarProposta(
     }
 
     // Serviços complementares (Sprint 2.9.1): substitui o conjunto atual pelo
-    // estado enviado. Pertencem à Proposta (não à revisão) e NÃO entram em
-    // cálculo. `valorTotal` é derivado aqui (produtos + serviços). Ausência do
-    // campo (undefined) preserva o conjunto atual.
-    if (payload.servicos) {
+    // estado enviado. Pertencem à Proposta (não à revisão); `valorTotal` é
+    // derivado aqui (produtos + serviços). Ausência do campo (undefined)
+    // preserva o conjunto atual. Simplificada não os suporta → força conjunto
+    // vazio, limpando quaisquer existentes (Sprint 2.9.4).
+    const servicosSalvar =
+      payload.modelo === "SIMPLIFICADA" ? [] : payload.servicos;
+    if (servicosSalvar) {
       await tx.propostaServico.deleteMany({ where: { propostaId } });
-      for (let si = 0; si < payload.servicos.length; si++) {
-        const sv = payload.servicos[si];
+      for (let si = 0; si < servicosSalvar.length; si++) {
+        const sv = servicosSalvar[si];
         await tx.propostaServico.create({
           data: {
             propostaId,

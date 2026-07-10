@@ -24,6 +24,8 @@ export interface ServicosActions {
   adicionar: (tipo: TipoServico) => void;
   atualizar: (tipo: TipoServico, patch: ServicoPatch) => void;
   remover: (tipo: TipoServico) => void;
+  /** Remove TODOS os serviços (ex.: ao trocar para o modelo Simplificada). */
+  limpar: () => void;
 }
 
 const total = (produtos: number, servicos: number) => produtos + servicos;
@@ -77,6 +79,14 @@ export function useServicosMemoria(
             .filter((s) => s.tipo !== tipo)
             .map((s, i) => ({ ...s, ordem: i })),
         );
+      },
+      limpar: () => {
+        // Só marca alteração/limpa quando há algo (evita sujar sem mudança real).
+        setServicos((prev) => {
+          if (prev.length === 0) return prev;
+          onMutate();
+          return [];
+        });
       },
     };
   }, [onMutate]);

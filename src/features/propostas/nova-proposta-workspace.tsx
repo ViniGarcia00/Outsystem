@@ -21,8 +21,11 @@ import {
   PropostaCabecalho,
   type CabecalhoValores,
 } from "./proposta-cabecalho";
+import { ResumoFinanceiro } from "./resumo-financeiro";
 import type { CabecalhoPatchValues } from "./schema";
-import { DESCONTO_ZERO, type Desconto } from "./totais";
+import { ServicosComplementares } from "./servicos-complementares";
+import { useServicosMemoria } from "./servicos-memoria";
+import { calcularResumoFinanceiro, DESCONTO_ZERO, type Desconto } from "./totais";
 
 const CABECALHO_INICIAL: CabecalhoValores = {
   clienteId: null,
@@ -34,7 +37,7 @@ const CABECALHO_INICIAL: CabecalhoValores = {
   obsInternas: "",
   obsProposta: "",
   // Valores padrão (o usuário pode alterar normalmente) — ADR-0224.
-  formaPagamento: "● 3x no Cartão de Crédito\n● 5% de Desconto no PIX",
+  formaPagamento: "3x no Cartão de Crédito\n5% de Desconto no PIX",
   previsaoInstalacao: "3 dias",
   obsComerciais: "",
   obsTecnicas: "",
@@ -58,8 +61,14 @@ export function NovaPropostaWorkspace({
 
   const semMutacao = useCallback(() => {}, []);
   const { secoes, actions } = useConteudoMemoria([], semMutacao);
+  const { servicos, actions: servicosActions } = useServicosMemoria(
+    [],
+    semMutacao,
+  );
 
-  const onCampo = (patch: CabecalhoPatchValues) =>
+  const onCampo = (patch: CabecalhoPatchValues) => {
+    // Simplificada não suporta Serviços Complementares — remove-os ao trocar.
+    if (patch.modelo === "SIMPLIFICADA") servicosActions.limpar();
     setHeader((h) => ({
       ...h,
       ...(patch.clienteId !== undefined ? { clienteId: patch.clienteId } : {}),
@@ -92,8 +101,21 @@ export function NovaPropostaWorkspace({
         ? { obsTecnicas: patch.obsTecnicas ?? "" }
         : {}),
     }));
+  };
 
   const semCliente = !header.clienteId;
+  const simplificada = header.modelo === "SIMPLIFICADA";
+  const itensProposta = secoes.flatMap((s) => s.itens);
+  const somValor = servicos.find((s) => s.tipo === "SOM")?.valorTotal ?? null;
+  const wifiValor = servicos.find((s) => s.tipo === "WIFI")?.valorTotal ?? null;
+  const resumo = calcularResumoFinanceiro(
+    itensProposta,
+    servicos,
+    simplificada,
+    desconto,
+    frete,
+  );
+  const mostrarResumo = itensProposta.length > 0 || servicos.length > 0;
 
   const criar = async () => {
     if (semCliente) return;
@@ -121,6 +143,12 @@ export function NovaPropostaWorkspace({
           valorProduto: it.valorProduto,
           valorServico: it.valorServico,
         })),
+      })),
+      servicos: servicos.map((s) => ({
+        tipo: s.tipo,
+        descricao: s.descricao || null,
+        valorProdutos: s.valorProdutos,
+        valorServicos: s.valorServicos,
       })),
     });
     if (result.success) {
@@ -177,12 +205,34 @@ export function NovaPropostaWorkspace({
         actions={actions}
         readOnly={false}
         refresh={() => {}}
-        simplificada={header.modelo === "SIMPLIFICADA"}
-        desconto={desconto}
-        onDescontoChange={setDesconto}
-        frete={frete}
-        onFreteChange={setFrete}
+        simplificada={simplificada}
       />
+
+      {/* Serviços Complementares — ANTES do Resumo Financeiro; ocultos no modelo
+          Simplificada (Sprint 2.9.4). */}
+      {!simplificada && (
+        <ServicosComplementares
+          servicos={servicos}
+          actions={servicosActions}
+          readOnly={false}
+        />
+      )}
+
+      {/* Resumo Financeiro (tabela financeira ÚNICA) — Automação + Serviços +
+          Desconto/Frete (editáveis) → Total Geral. */}
+      {mostrarResumo && (
+        <ResumoFinanceiro
+          resumo={resumo}
+          som={somValor}
+          wifi={wifiValor}
+          simplificada={simplificada}
+          desconto={desconto}
+          onDescontoChange={setDesconto}
+          frete={frete}
+          onFreteChange={setFrete}
+          readOnly={false}
+        />
+      )}
 
       {/* Finalização — informações comerciais finais (ADR-0222) */}
       <FinalizacaoProposta

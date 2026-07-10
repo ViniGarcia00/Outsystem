@@ -33,8 +33,6 @@ export function FinalizacaoProposta({
   // Últimos valores comitados (evita salvar sem mudança real).
   const ultimaFormaPagamento = useRef(valores.formaPagamento);
   const ultimaPrevisao = useRef(valores.previsaoInstalacao);
-  const ultimaObsComerciais = useRef(valores.obsComerciais);
-  const ultimaObsTecnicas = useRef(valores.obsTecnicas);
 
   return (
     <section className="space-y-4">
@@ -88,51 +86,6 @@ export function FinalizacaoProposta({
         </CardContent>
       </Card>
 
-      {/* Observações */}
-      <Card>
-        <CardContent className="space-y-4">
-          <h3 className="text-sm font-semibold text-muted-foreground">
-            Observações
-          </h3>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="fin-obs-comerciais">Observações comerciais</Label>
-              <Textarea
-                id="fin-obs-comerciais"
-                rows={4}
-                defaultValue={valores.obsComerciais}
-                disabled={readOnly}
-                placeholder="Ex.: Valores válidos conforme a validade da proposta."
-                onBlur={(e) => {
-                  const v = e.target.value;
-                  if (v !== ultimaObsComerciais.current) {
-                    ultimaObsComerciais.current = v;
-                    onCampo({ obsComerciais: v || null });
-                  }
-                }}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="fin-obs-tecnicas">Observações técnicas</Label>
-              <Textarea
-                id="fin-obs-tecnicas"
-                rows={4}
-                defaultValue={valores.obsTecnicas}
-                disabled={readOnly}
-                placeholder="Ex.: Necessário Wi-Fi 2.4 GHz e ponto de energia."
-                onBlur={(e) => {
-                  const v = e.target.value;
-                  if (v !== ultimaObsTecnicas.current) {
-                    ultimaObsTecnicas.current = v;
-                    onCampo({ obsTecnicas: v || null });
-                  }
-                }}
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </section>
   );
 }

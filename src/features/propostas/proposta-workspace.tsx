@@ -32,11 +32,11 @@ import {
   PropostaCabecalho,
   type CabecalhoValores,
 } from "./proposta-cabecalho";
-import { ResumoInvestimento } from "./resumo-investimento";
+import { ResumoFinanceiro } from "./resumo-financeiro";
 import type { CabecalhoPatchValues, CancelarFormValues } from "./schema";
 import { ServicosComplementares } from "./servicos-complementares";
 import { useServicosMemoria } from "./servicos-memoria";
-import { calcularInvestimento, calcularTotais, type Desconto } from "./totais";
+import { calcularResumoFinanceiro, type Desconto } from "./totais";
 
 interface Option {
   value: string;
@@ -95,6 +95,8 @@ export function PropostaWorkspace({
 
   const onCampo = (patch: CabecalhoPatchValues) => {
     setDirty(true);
+    // Simplificada não suporta Serviços Complementares — remove-os ao trocar.
+    if (patch.modelo === "SIMPLIFICADA") servicosActions.limpar();
     setHeader((h) => ({
       ...h,
       ...(patch.clienteId !== undefined ? { clienteId: patch.clienteId } : {}),
@@ -234,19 +236,20 @@ export function PropostaWorkspace({
   const podeEmitir =
     data.status === "RASCUNHO" && !dirty && !semCliente && temItens;
 
-  // Investimento Geral (Sprint 2.9.2): Automação (Total da Proposta) + Serviços
-  // Complementares. Derivado em tempo real pela fonte única (`totais.ts`); nada
-  // é persistido e o Total da Proposta/PDF permanece inalterado.
+  // Resumo Financeiro (Sprint 2.9.4): Automação + Serviços Complementares →
+  // Total → Desconto (sobre o Total) → Frete → Total Geral. Derivado pela fonte
+  // única (`calcularResumoFinanceiro`); nada é persistido. O PDF Comercial
+  // (`calcularTotais`, desconto só na Automação) permanece inalterado.
+  const simplificada = header.modelo === "SIMPLIFICADA";
   const itensProposta = secoes.flatMap((s) => s.itens);
-  const totaisAutomacao = calcularTotais(
+  const somValor = servicos.find((s) => s.tipo === "SOM")?.valorTotal ?? null;
+  const wifiValor = servicos.find((s) => s.tipo === "WIFI")?.valorTotal ?? null;
+  const resumo = calcularResumoFinanceiro(
     itensProposta,
-    header.modelo === "SIMPLIFICADA",
+    servicos,
+    simplificada,
     desconto,
     frete,
-  );
-  const investimento = calcularInvestimento(
-    totaisAutomacao.totalProposta,
-    servicos,
   );
   const mostrarResumo = itensProposta.length > 0 || servicos.length > 0;
   const horaSalvo = formatDate(data.updatedAt, {
@@ -331,24 +334,35 @@ export function PropostaWorkspace({
         actions={actions}
         readOnly={readOnly}
         refresh={() => {}}
-        simplificada={header.modelo === "SIMPLIFICADA"}
-        desconto={desconto}
-        onDescontoChange={onDesconto}
-        frete={frete}
-        onFreteChange={onFrete}
+        simplificada={simplificada}
       />
 
-      {/* Serviços Complementares (Sprint 2.9.1) — paralelos ao Conteúdo;
-          NÃO entram nos cálculos da proposta nesta Sprint. */}
-      <ServicosComplementares
-        servicos={servicos}
-        actions={servicosActions}
-        readOnly={readOnly}
-      />
+      {/* Serviços Complementares — ANTES do Resumo Financeiro; ocultos no modelo
+          Simplificada (Sprint 2.9.4). */}
+      {!simplificada && (
+        <ServicosComplementares
+          servicos={servicos}
+          actions={servicosActions}
+          readOnly={readOnly}
+        />
+      )}
 
-      {/* Resumo do Investimento (Sprint 2.9.2) — Automação + Serviços
-          Complementares. Derivado; não altera Total da Proposta/PDF. */}
-      {mostrarResumo && <ResumoInvestimento investimento={investimento} />}
+      {/* Resumo Financeiro (tabela financeira ÚNICA) — Automação + Serviços +
+          Desconto/Frete (editáveis) → Total Geral. Derivado; não altera o PDF
+          Comercial nem o Total da Proposta persistido. */}
+      {mostrarResumo && (
+        <ResumoFinanceiro
+          resumo={resumo}
+          som={somValor}
+          wifi={wifiValor}
+          simplificada={simplificada}
+          desconto={desconto}
+          onDescontoChange={onDesconto}
+          frete={frete}
+          onFreteChange={onFrete}
+          readOnly={readOnly}
+        />
+      )}
 
       {/* Finalização — informações comerciais finais (ADR-0222) */}
       <FinalizacaoProposta
@@ -389,7 +403,7 @@ export function PropostaWorkspace({
             Abrir PDF
           </Button>
         )}
-        {data.status === "RASCUNHO" && (
+        {data.status === "RASCUNHO" && !simplificada && (
           <Button
             variant="outline"
             onClick={gerarApresentacao}
@@ -406,7 +420,7 @@ export function PropostaWorkspace({
             Gerar PDF Apresentação
           </Button>
         )}
-        {data.status === "EMITIDA" && (
+        {data.status === "EMITIDA" && !simplificada && (
           <Button variant="outline" onClick={abrirApresentacao}>
             <FileDown className="h-4 w-4" />
             Abrir Apresentação

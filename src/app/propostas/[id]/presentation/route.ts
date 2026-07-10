@@ -19,6 +19,13 @@ export async function GET(
   if (!dto) {
     return new Response("Proposta não encontrada.", { status: 404 });
   }
+  // Simplificada não dispõe de PDF Apresentação (Sprint 2.9.4) — só o Comercial.
+  if (dto.simplificada) {
+    return new Response(
+      "PDF Apresentação indisponível para propostas no modelo Simplificada.",
+      { status: 400 },
+    );
+  }
 
   const buffer = await renderPresentationPdf(dto);
   return new Response(new Uint8Array(buffer), {

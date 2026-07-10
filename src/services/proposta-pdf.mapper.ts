@@ -1,11 +1,11 @@
 import {
-  calcularInvestimento,
+  calcularResumoFinanceiro,
   calcularTotais,
   totalProdutoLinha,
   totalServicoLinha,
   totalLinha,
   type Desconto,
-  type InvestimentoProposta,
+  type ResumoFinanceiro,
   type TotaisProposta,
 } from "@/features/propostas/totais";
 
@@ -97,11 +97,12 @@ export interface PropostaPdfDTO {
    */
   servicos: PdfServico[];
   /**
-   * Investimento consolidado (Sprint 2.9.2/2.9.3) = Automação (totalProposta) +
-   * Serviços Complementares. Já calculado pela fonte única (`calcularInvestimento`);
-   * o slide de Investimento apenas exibe. NÃO altera `totais.totalProposta`.
+   * Resumo financeiro consolidado (Sprint 2.9.4) — Automação + Serviços, com o
+   * Desconto incidindo sobre o Total combinado. Alimenta os slides de
+   * Investimento do PDF Apresentação (08 = Subtotal da Automação; 11 = Total
+   * Geral com o detalhamento). NÃO altera `totais` (usado pelo PDF Comercial).
    */
-  investimento: InvestimentoProposta;
+  resumo: ResumoFinanceiro;
   /** Modelagem do desconto (para anotar % na linha, quando aplicável). */
   desconto: Desconto;
   formaPagamento: string | null;
@@ -232,15 +233,21 @@ export function montarPropostaPdfDTO(
   const itensCalc = secoes.flatMap((s) => s.itens);
   const totais = calcularTotais(itensCalc, simplificada, desconto, frete);
 
-  // Serviços complementares (Sprint 2.9.3) — na ordem recebida; `valorTotal` já
-  // vem calculado (não recalculado aqui). Investimento = Automação
-  // (totalProposta) + Σ serviços, via a fonte única `calcularInvestimento`.
+  // Serviços complementares (Sprint 2.9.3/2.9.4) — na ordem recebida; `valorTotal`
+  // já vem calculado (não recalculado aqui). O Resumo Financeiro (Automação +
+  // Serviços, desconto sobre o Total) vem da fonte única `calcularResumoFinanceiro`.
   const servicos: PdfServico[] = (p.servicos ?? []).map((s) => ({
     tipo: s.tipo,
     descricao: nn(s.descricao),
     valorTotal: toNumber(s.valorTotal),
   }));
-  const investimento = calcularInvestimento(totais.totalProposta, servicos);
+  const resumo = calcularResumoFinanceiro(
+    itensCalc,
+    servicos,
+    simplificada,
+    desconto,
+    frete,
+  );
 
   const empresa: PdfEmpresa = {
     nome: nn(config.nomeEmpresa) || nn(config.razaoSocial) || "Outmat",
@@ -276,7 +283,7 @@ export function montarPropostaPdfDTO(
     secoes,
     totais,
     servicos,
-    investimento,
+    resumo,
     desconto,
     formaPagamento: nn(p.formaPagamento),
     previsaoInstalacao: nn(p.previsaoInstalacao),

@@ -71,27 +71,18 @@ export const ITENS = {
  * grande) + prazo ("Prazo de Instalação: X"). Representa EXCLUSIVAMENTE a
  * Automação (nunca Som/Wi-Fi). Layout homologado — inalterado. */
 export const INVESTIMENTO = {
-  valor: { left: 205, top: 227, width: 550, fontSize: 62, weight: 700 as const },
+  valor: { left: 205, top: 280, width: 550, fontSize: 62, weight: 700 as const },
+  /** Prazo de instalação — usado agora no SLIDE 11 (mesma posição de antes). */
   prazo: { left: 205, top: 390, width: 550, fontSize: 20, weight: 600 as const },
 };
 
-/** Slide 11 — **Investimento Total** (só quando há ≥1 Serviço Complementar):
- * detalhamento Projeto Automação + Som/Wi-Fi, divisor, e a linha Investimento
- * Total em destaque. Valores 100% consumidos do DTO (não recalculados).
- * Coordenadas PROVISÓRIAS: ajustar quando o layout do template for conferido. */
+/** Slide 11 — **Investimento Total**: valor total (Total Geral, já com desconto)
+ * dentro do bloco; e, QUANDO houver desconto, o valor inicial (sem desconto)
+ * RISCADO acima do bloco. Coordenadas PROVISÓRIAS. */
 export const INVESTIMENTO_TOTAL = {
-  area: { left: 205, top: 200, width: 550 },
-  rotuloFontSize: 18,
-  rotuloWeight: 500 as const,
-  valorFontSize: 18,
-  valorWeight: 700 as const,
-  gap: 7,
-  /** Linha divisória (────) antes do total. */
-  divisorColor: "#3E7EB8",
-  divisorMarginTop: 8,
-  divisorPaddingTop: 8,
-  totalFontSize: 30,
-  totalWeight: 700 as const,
+  valor: { left: 205, top: 228, width: 550, fontSize: 62, weight: 700 as const },
+  /** Valor inicial (sem desconto), riscado (branco), acima do bloco — só quando há desconto. */
+  original: { left: 205, top: 150, width: 550, fontSize: 44, weight: 500 as const },
 };
 
 /** Slides 09 e 10 — Serviços Complementares (Som e Wi-Fi). Layout único
@@ -99,24 +90,35 @@ export const INVESTIMENTO_TOTAL = {
  * tabela e sem lista de produtos. Coordenadas PROVISÓRIAS: ajustar conforme a
  * arte de page-09-sound-project.png / page-10-wifi-premium.png. */
 export const SERVICO = {
-  titulo: { left: 64, top: 74, width: 832, fontSize: 34, weight: 700 as const },
+  // Sem título (vem no próprio template). Overlays no painel ESQUERDO, texto
+  // BRANCO. Coordenadas PROVISÓRIAS — ajustar sobre a arte real.
+  /** Descrição — dentro do quadrado azul à DIREITA, abaixo do bloco Investimento.
+   *  Cada linha (split por \n) vira um item com bullet pequeno. */
   descricao: {
-    left: 64,
-    top: 156,
-    width: 832,
-    fontSize: 16,
-    weight: 400 as const,
-    lineHeight: 1.5,
+    left: 620,
+    top: 315,
+    width: 310,
+    fontSize: 17,
+    weight: 500 as const,
+    lineHeight: 1.35,
     /** Trunca (…) para nunca exceder a área e gerar página extra. */
-    maxChars: 900,
+    maxChars: 380,
+    /** Espaçamento vertical entre as linhas (itens com bullet). */
+    gapLinhas: 3,
+    /** Marcador (bullet) pequeno, folga até o texto e alinhamento vertical. */
+    bulletFontSize: 8,
+    bulletGap: 6,
+    bulletMarginTop: 5,
   },
+  /** Investimento (rótulo + valor) — bloco azul à DIREITA, parte de cima; rótulo
+   *  e valor CENTRALIZADOS. Texto branco. */
   investimento: {
-    left: 64,
-    top: 430,
-    width: 832,
-    rotuloFontSize: 16,
-    rotuloWeight: 600 as const,
-    valorFontSize: 40,
+    left: 580,
+    top: 200,
+    width: 320,
+    rotuloFontSize: 22,
+    rotuloWeight: 700 as const,
+    valorFontSize: 34,
     valorWeight: 700 as const,
     valorMarginTop: 4,
   },
@@ -131,8 +133,8 @@ export const SERVICO = {
 export const PAGAMENTO = {
   box: { left: 149, top: 228, width: 662, height: 181 },
   texto: { fontSize: 40, weight: 700 as const },
-  /** Marcador de lista (●/•): bem menor que o texto e com folga até a palavra. */
-  bullet: { fontSize: 16, gap: 12 },
+  /** Marcador de lista (●): pequeno em relação ao texto e com folga até a palavra. */
+  bullet: { fontSize: 12, gap: 12 },
   /** Espaço vertical entre as linhas. */
   gapLinhas: 16,
 };

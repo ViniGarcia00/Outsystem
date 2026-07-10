@@ -96,22 +96,24 @@ export function calcularTotais(
 }
 
 // ---------------------------------------------------------------------------
-// Investimento Geral (Sprint 2.9.2) — Automação + Serviços Complementares
+// Resumo Financeiro (Sprint 2.9.4) — Automação + Serviços Complementares
 // ---------------------------------------------------------------------------
 //
-// Camada ADITIVA sobre `calcularTotais`: NÃO altera o Total da Proposta (que
-// segue alimentando PDF e listagem — só a Automação). Os Serviços
-// Complementares (Som + Wi-Fi) entram AQUI, no nível da proposta, sem desconto
-// nem frete (valores próprios, `valorTotal = produtos + serviços`, Sprint 2.9.1).
+// Camada sobre `calcularTotais` que consolida a proposta INTEIRA:
+//   Subtotal Automação (produtos + serviços)  +  Subtotal Serviços (Som + Wi-Fi)
+//   = Total  →  Desconto (INCIDE SOBRE O TOTAL)  →  Frete  →  Total Geral.
+// Difere do PDF Comercial: lá o desconto incide só sobre a Automação
+// (`calcularTotais`, intocado). Aqui o desconto é sobre o Total combinado
+// (decisão do usuário — vale para tela, listagem e PDF Apresentação).
 
-/** Serviço mínimo para o cálculo do investimento (estrutural — serve ao ServicoDTO). */
+/** Serviço mínimo para o cálculo (estrutural — serve ao ServicoDTO). */
 export interface ServicoCalculavel {
   valorTotal: number;
 }
 
 /**
- * Investimento dos Serviços Complementares = **soma de todos os `valorTotal`
- * existentes** (Som e/ou Wi-Fi). Fonte ÚNICA; 0 quando não há serviços.
+ * Soma de todos os `valorTotal` dos Serviços Complementares (Som e/ou Wi-Fi).
+ * Fonte ÚNICA; 0 quando não há serviços.
  */
 export function calcularInvestimentoComplementar(
   servicos: ReadonlyArray<ServicoCalculavel>,
@@ -119,24 +121,53 @@ export function calcularInvestimentoComplementar(
   return servicos.reduce((soma, s) => soma + s.valorTotal, 0);
 }
 
-export interface InvestimentoProposta {
-  /** Investimento da Automação = Total da Proposta (conteúdo − desconto + frete). */
-  automacao: number;
-  /** Investimento dos Serviços Complementares = Σ valorTotal (0 se não houver). */
-  complementar: number;
-  /** Investimento Total = Automação + Serviços Complementares. */
+export interface ResumoFinanceiro {
+  /** Σ Total Produto (Automação). */
+  produtos: number;
+  /** Σ Total Serviço (Automação). */
+  servicos: number;
+  /** Subtotal da Automação (produtos + serviços; só produtos na Simplificada). */
+  subtotalAutomacao: number;
+  /** Subtotal dos Serviços Complementares (Som + Wi-Fi); 0 na Simplificada. */
+  subtotalServicos: number;
+  /** Total = Subtotal Automação + Subtotal Serviços (bruto, antes de desconto/frete). */
   total: number;
+  /** Desconto efetivamente aplicado — INCIDE SOBRE O `total` combinado. */
+  descontoAplicado: number;
+  /** Frete aplicado (≥ 0). */
+  frete: number;
+  /** Total Geral = Total − Desconto + Frete (nunca negativo). */
+  totalGeral: number;
 }
 
 /**
- * Consolida o Investimento Geral: Automação + Serviços Complementares. `automacao`
- * é o `totalProposta` já derivado por `calcularTotais` (não recalculado aqui),
- * garantindo lógica financeira em um só lugar e sem regra paralela.
+ * Consolida o Resumo Financeiro da proposta inteira. O desconto incide sobre o
+ * **Total combinado** (Automação + Serviços). Na Simplificada os Serviços
+ * Complementares não entram (subtotalServicos = 0) e o Subtotal da Automação
+ * considera apenas os produtos (regra da `calcularTotais`).
  */
-export function calcularInvestimento(
-  automacao: number,
+export function calcularResumoFinanceiro(
+  itens: ReadonlyArray<ItemCalculavel>,
   servicos: ReadonlyArray<ServicoCalculavel>,
-): InvestimentoProposta {
-  const complementar = calcularInvestimentoComplementar(servicos);
-  return { automacao, complementar, total: automacao + complementar };
+  simplificada: boolean,
+  desconto: Desconto,
+  frete: number,
+): ResumoFinanceiro {
+  const base = calcularTotais(itens, simplificada, DESCONTO_ZERO, 0);
+  const subtotalServicos = simplificada
+    ? 0
+    : calcularInvestimentoComplementar(servicos);
+  const total = base.subtotal + subtotalServicos;
+  const descontoAplicado = aplicarDesconto(total, desconto);
+  const freteAplicado = Math.max(frete, 0);
+  return {
+    produtos: base.totalProdutos,
+    servicos: base.totalServicos,
+    subtotalAutomacao: base.subtotal,
+    subtotalServicos,
+    total,
+    descontoAplicado,
+    frete: freteAplicado,
+    totalGeral: Math.max(0, total - descontoAplicado + freteAplicado),
+  };
 }

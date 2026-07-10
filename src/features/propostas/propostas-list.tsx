@@ -152,15 +152,6 @@ export function PropostasList({
           ),
       },
       {
-        id: "valorTotal",
-        header: () => sortHeader("valorTotal", "Valor"),
-        cell: ({ row }) => (
-          <span className="tabular-nums">
-            {formatCurrency(row.original.valorTotal)}
-          </span>
-        ),
-      },
-      {
         id: "vendedorNome",
         header: () => (
           <span className="text-sm font-medium text-muted-foreground">
@@ -168,6 +159,15 @@ export function PropostasList({
           </span>
         ),
         cell: ({ row }) => row.original.vendedorNome ?? "—",
+      },
+      {
+        id: "valorTotal",
+        header: () => sortHeader("valorTotal", "Valor"),
+        cell: ({ row }) => (
+          <span className="tabular-nums">
+            {formatCurrency(row.original.valorTotal)}
+          </span>
+        ),
       },
       {
         id: "status",
@@ -183,7 +183,7 @@ export function PropostasList({
       },
       {
         id: "updatedAt",
-        header: () => sortHeader("updatedAt", "Última alteração"),
+        header: () => sortHeader("updatedAt", "Última Atualização"),
         cell: ({ row }) => formatDateTime(row.original.updatedAt),
       },
       {
