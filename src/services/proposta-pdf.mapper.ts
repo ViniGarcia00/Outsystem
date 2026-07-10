@@ -39,10 +39,17 @@ export interface PdfEmpresa {
 }
 
 export interface PdfCliente {
+  /** Tipo de pessoa — define os documentos exibidos no PDF Contratual. */
+  tipoPessoa: "PF" | "PJ";
   nome: string;
   telefone: string | null;
   email: string | null;
+  /** CPF (PF) ou CNPJ (PJ). */
   documento: string | null;
+  /** RG (PF) — documento secundário; nulo quando não informado. */
+  rg: string | null;
+  /** Inscrição Estadual (PJ) — documento secundário; nulo quando não informado. */
+  inscricaoEstadual: string | null;
   /** Endereço da obra = endereço do cliente, montado em linha única. */
   endereco: string | null;
 }
@@ -120,6 +127,8 @@ interface FonteCliente {
   nome: string | null;
   empresa: string | null;
   cpfCnpj: string | null;
+  rg: string | null;
+  inscricaoEstadual: string | null;
   telefone: string | null;
   email: string | null;
   endereco: string | null;
@@ -266,13 +275,25 @@ export function montarPropostaPdfDTO(
 
   const cliente: PdfCliente = p.cliente
     ? {
+        tipoPessoa: p.cliente.tipoPessoa,
         nome: clienteDisplay(p.cliente),
         telefone: nn(p.cliente.telefone),
         email: nn(p.cliente.email),
         documento: nn(p.cliente.cpfCnpj),
+        rg: nn(p.cliente.rg),
+        inscricaoEstadual: nn(p.cliente.inscricaoEstadual),
         endereco: montarEndereco(p.cliente),
       }
-    : { nome: "—", telefone: null, email: null, documento: null, endereco: null };
+    : {
+        tipoPessoa: "PF",
+        nome: "—",
+        telefone: null,
+        email: null,
+        documento: null,
+        rg: null,
+        inscricaoEstadual: null,
+        endereco: null,
+      };
 
   return {
     numero: p.proposalNumber,

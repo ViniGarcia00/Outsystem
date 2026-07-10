@@ -42,6 +42,8 @@ export async function getPropostaPdfData(
             nome: true,
             empresa: true,
             cpfCnpj: true,
+            rg: true,
+            inscricaoEstadual: true,
             telefone: true,
             email: true,
             endereco: true,

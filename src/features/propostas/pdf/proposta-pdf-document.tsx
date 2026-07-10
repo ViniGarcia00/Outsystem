@@ -13,7 +13,7 @@ import { PdfRodapeDocumento } from "./blocks/pdf-rodape-documento";
 import { PdfRodapeFinanceiro } from "./blocks/pdf-rodape-financeiro";
 import { PdfServicoComplementar } from "./blocks/pdf-servico-complementar";
 import { registrarFontes } from "./fonts";
-import { formatDate } from "./format";
+import { formatCurrency, formatDate } from "./format";
 import { criarTema } from "./theme";
 
 /**
@@ -22,10 +22,11 @@ import { criarTema } from "./theme";
  *
  * A MESMA composição serve a dois documentos (Sprint 2.10.2), via `variante`:
  * - **detalhado**: com todos os valores (PDF Detalhado);
- * - **contratual**: sem preços por item — tabela só Código/Descrição/Qtd/UN,
- *   seções Som/Wi-Fi sem valor e Resumo Financeiro apenas Desconto/Frete/Total
- *   (anexo ao contrato). Cabeçalho, rodapé, cliente, observações e assinaturas
- *   são compartilhados; só a tabela, as seções e o financeiro mudam.
+ * - **contratual**: oculta só o preço por produto — tabela Código/Descrição/
+ *   Qtd/UN + Subtotal Automação; cada projeto (Som/Wi-Fi) exibe seu Subtotal; e
+ *   o Resumo Financeiro traz Subtotal Automação → Som → Wi-Fi → Total → Desconto
+ *   → Frete → TOTAL DA PROPOSTA (anexo ao contrato). Cabeçalho, rodapé, cliente,
+ *   observações e assinaturas são compartilhados; muda a tabela + os subtotais.
  *
  * Cabeçalho e rodapé do documento são FIXOS (repetem em todas as páginas); o
  * cabeçalho da tabela repete a cada página; blocos de totais/observações/
@@ -84,6 +85,7 @@ export function PropostaPdfDocument({
           consultor={dto.consultor}
           dataLabel={dataLabel}
           validadeDias={dto.validadeDias}
+          contratual={contratual}
         />
 
         <PdfConteudoTabela
@@ -93,12 +95,57 @@ export function PropostaPdfDocument({
           contratual={contratual}
         />
 
+        {/* Contratual — a tabela não traz preços por produto; logo abaixo dela
+            fecha o bloco Automação com o Subtotal (Produtos + Serviços da
+            Automação), vindo do DTO. */}
+        {contratual && (
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "flex-end",
+              marginTop: tema.espaco(1.5),
+            }}
+          >
+            <View
+              style={{
+                width: 268,
+                flexDirection: "row",
+                justifyContent: "space-between",
+                borderTopWidth: 0.5,
+                borderTopColor: tema.cores.linha,
+                paddingTop: tema.espaco(1),
+              }}
+            >
+              <Text
+                style={{
+                  fontFamily: tema.fonte,
+                  fontSize: tema.tamanho.base,
+                  fontWeight: tema.pesos.semibold,
+                  color: tema.cores.textoSuave,
+                }}
+              >
+                Subtotal Automação
+              </Text>
+              <Text
+                style={{
+                  fontFamily: tema.fonte,
+                  fontSize: tema.tamanho.base,
+                  fontWeight: tema.pesos.semibold,
+                  color: tema.cores.texto,
+                }}
+              >
+                {formatCurrency(dto.resumo.subtotalAutomacao)}
+              </Text>
+            </View>
+          </View>
+        )}
+
         {som && (
           <PdfServicoComplementar
             tema={tema}
             titulo="Projeto Som Ambiente"
             servico={som}
-            mostrarValor={!contratual}
+            rotuloValor={contratual ? "Subtotal" : "Valor do Projeto"}
           />
         )}
         {wifi && (
@@ -106,7 +153,7 @@ export function PropostaPdfDocument({
             tema={tema}
             titulo="Projeto Wi-Fi Premium"
             servico={wifi}
-            mostrarValor={!contratual}
+            rotuloValor={contratual ? "Subtotal" : "Valor do Projeto"}
           />
         )}
 

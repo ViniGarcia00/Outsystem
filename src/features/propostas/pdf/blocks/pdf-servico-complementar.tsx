@@ -6,22 +6,24 @@ import { formatCurrency } from "../format";
 import type { Tema } from "../theme";
 
 /**
- * Seção de um Serviço Complementar (Som Ambiente / Wi-Fi Premium) no PDF
- * Detalhado (Sprint 2.10.1). Mesma identidade das seções da tabela: banda de
- * título + Descrição + "Valor do Projeto". NÃO lista produtos internos do
- * serviço — só descrição e valor. `valorTotal` vem do DTO (não recalculado).
+ * Seção de um Serviço Complementar (Som Ambiente / Wi-Fi Premium). Mesma
+ * identidade das seções da tabela: banda de título + Descrição + valor. NÃO
+ * lista produtos internos do serviço — só descrição e valor total do projeto,
+ * vindo do DTO (nunca recalculado). O rótulo do valor muda por documento:
+ * "Valor do Projeto" no Detalhado, "Subtotal" no Contratual (Sprint 2.10.2 —
+ * o cliente vê o subtotal de cada projeto contratado, sem a composição).
  */
 export function PdfServicoComplementar({
   tema,
   titulo,
   servico,
-  mostrarValor = true,
+  rotuloValor = "Valor do Projeto",
 }: {
   tema: Tema;
   titulo: string;
   servico: PdfServico;
-  /** Sprint 2.10.2 — false no PDF Contratual (oculta "Valor do Projeto"). */
-  mostrarValor?: boolean;
+  /** Rótulo da linha de valor: "Valor do Projeto" (Detalhado) | "Subtotal" (Contratual). */
+  rotuloValor?: string;
 }) {
   return (
     <View minPresenceAhead={70} style={{ marginTop: tema.espaco(3) }}>
@@ -60,40 +62,38 @@ export function PdfServicoComplementar({
             {servico.descricao}
           </Text>
         )}
-        {mostrarValor && (
-          <View
-            wrap={false}
+        <View
+          wrap={false}
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            marginTop: tema.espaco(1.5),
+            borderTopWidth: 0.5,
+            borderTopColor: tema.cores.linha,
+            paddingTop: tema.espaco(1),
+          }}
+        >
+          <Text
             style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              marginTop: tema.espaco(1.5),
-              borderTopWidth: 0.5,
-              borderTopColor: tema.cores.linha,
-              paddingTop: tema.espaco(1),
+              fontFamily: tema.fonte,
+              fontSize: tema.tamanho.base,
+              fontWeight: tema.pesos.semibold,
+              color: tema.cores.textoSuave,
             }}
           >
-            <Text
-              style={{
-                fontFamily: tema.fonte,
-                fontSize: tema.tamanho.base,
-                fontWeight: tema.pesos.semibold,
-                color: tema.cores.textoSuave,
-              }}
-            >
-              Valor do Projeto
-            </Text>
-            <Text
-              style={{
-                fontFamily: tema.fonte,
-                fontSize: tema.tamanho.base,
-                fontWeight: tema.pesos.semibold,
-                color: tema.cores.texto,
-              }}
-            >
-              {formatCurrency(servico.valorTotal)}
-            </Text>
-          </View>
-        )}
+            {rotuloValor}
+          </Text>
+          <Text
+            style={{
+              fontFamily: tema.fonte,
+              fontSize: tema.tamanho.base,
+              fontWeight: tema.pesos.semibold,
+              color: tema.cores.texto,
+            }}
+          >
+            {formatCurrency(servico.valorTotal)}
+          </Text>
+        </View>
       </View>
     </View>
   );

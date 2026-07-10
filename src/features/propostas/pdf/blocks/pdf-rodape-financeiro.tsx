@@ -6,12 +6,15 @@ import { formatCurrency, formatPercent } from "../format";
 import type { Tema } from "../theme";
 
 /**
- * Rodapé financeiro do PDF Detalhado (Sprint 2.10.1). Consome o Resumo
- * Financeiro homologado (`dto.resumo`, `calcularResumoFinanceiro` — desconto
- * sobre o Total combinado): Produtos → Serviços da Automação (só Completa) →
- * Projeto Som Ambiente / Projeto Wi-Fi Premium (quando existirem) → Desconto →
- * Frete → **TOTAL DA PROPOSTA** (= Total Geral). Nada é recalculado aqui.
- * Alinhado à direita; não quebra entre páginas.
+ * Rodapé financeiro do PDF. Consome o Resumo Financeiro homologado (`dto.resumo`,
+ * `calcularResumoFinanceiro` — desconto sobre o Total combinado). Nada é
+ * recalculado aqui; alinhado à direita e não quebra entre páginas.
+ *
+ * - **Detalhado** (Sprint 2.10.1): Produtos → Serviços da Automação (só Completa)
+ *   → Som/Wi-Fi → Desconto → Frete → **TOTAL DA PROPOSTA**.
+ * - **Contratual** (Sprint 2.10.2): subtotais dos projetos contratados —
+ *   Projeto de Automação → Som → Wi-Fi → (Subtotal Geral) → Desconto → Frete →
+ *   **TOTAL DA PROPOSTA**. Sem preço por produto; nunca esconde linhas.
  */
 
 function Linha({
@@ -64,7 +67,7 @@ export function PdfRodapeFinanceiro({
 }: {
   tema: Tema;
   dto: PropostaPdfDTO;
-  /** Sprint 2.10.2 — PDF Contratual: só Desconto/Frete/TOTAL (oculta os itens). */
+  /** Sprint 2.10.2 — PDF Contratual: subtotais por projeto (sem preço por produto). */
   contratual?: boolean;
 }) {
   const { resumo, servicos, simplificada, desconto } = dto;
@@ -75,6 +78,11 @@ export function PdfRodapeFinanceiro({
     desconto.tipo === "PERCENTUAL" && desconto.valor > 0
       ? `Desconto (${formatPercent(desconto.valor)}%)`
       : "Desconto";
+  // Mostra "−" apenas quando há desconto; R$ 0,00 quando zerado.
+  const descontoValor =
+    resumo.descontoAplicado > 0
+      ? `− ${formatCurrency(resumo.descontoAplicado)}`
+      : formatCurrency(0);
 
   return (
     <View
@@ -86,8 +94,52 @@ export function PdfRodapeFinanceiro({
       }}
     >
       <View style={{ width: 268 }}>
-        {/* Itens do orçamento — ocultos no Contratual (cliente vê só o Total). */}
-        {!contratual && (
+        {contratual ? (
+          // Contratual (Sprint 2.10.2): subtotais dos projetos contratados —
+          // Subtotal Automação (Produtos + Serviços) / Som / Wi-Fi → Total →
+          // Desconto → Frete → TOTAL DA PROPOSTA. Nunca esconde linhas: Som/Wi-Fi
+          // (e Desconto/Frete) aparecem como R$ 0,00 quando não existem. O cliente
+          // vê o subtotal de cada projeto, nunca o preço por produto.
+          <>
+            <Linha
+              tema={tema}
+              rotulo="Projeto de Automação"
+              valor={formatCurrency(resumo.subtotalAutomacao)}
+            />
+            <Linha
+              tema={tema}
+              rotulo="Projeto Som Ambiente"
+              valor={formatCurrency(som?.valorTotal ?? 0)}
+            />
+            <Linha
+              tema={tema}
+              rotulo="Projeto Wi-Fi Premium"
+              valor={formatCurrency(wifi?.valorTotal ?? 0)}
+            />
+            <View
+              style={{
+                marginVertical: tema.espaco(0.75),
+                borderBottomWidth: 0.5,
+                borderBottomColor: tema.cores.linha,
+              }}
+            />
+            <Linha
+              tema={tema}
+              rotulo="Subtotal Geral"
+              valor={formatCurrency(resumo.total)}
+              forte
+            />
+            <Linha tema={tema} rotulo={descontoLabel} valor={descontoValor} />
+            <Linha
+              tema={tema}
+              rotulo="Frete"
+              valor={formatCurrency(resumo.frete)}
+            />
+          </>
+        ) : (
+          // Detalhado (Sprint 2.10.1): Produtos → Serviços → Som/Wi-Fi →
+          // Desconto → Frete. Som/Wi-Fi R$ 0,00 quando ausentes; ocultos só na
+          // Simplificada. Desconto/Frete sempre visíveis (R$ 0,00 quando zerados).
           <>
             <Linha
               tema={tema}
@@ -101,8 +153,6 @@ export function PdfRodapeFinanceiro({
                 valor={formatCurrency(resumo.servicos)}
               />
             )}
-            {/* Linhas Som/Wi-Fi SEMPRE visíveis no Comercial (R$ 0,00 quando o
-                serviço não existe); ocultas apenas na Simplificada. */}
             {!simplificada && (
               <Linha
                 tema={tema}
@@ -117,20 +167,14 @@ export function PdfRodapeFinanceiro({
                 valor={formatCurrency(wifi?.valorTotal ?? 0)}
               />
             )}
+            <Linha tema={tema} rotulo={descontoLabel} valor={descontoValor} />
+            <Linha
+              tema={tema}
+              rotulo="Frete"
+              valor={formatCurrency(resumo.frete)}
+            />
           </>
         )}
-        {/* Desconto e Frete SEMPRE visíveis (R$ 0,00 quando zerados) — estrutura
-            fixa do orçamento. Desconto mostra "−" apenas quando há valor. */}
-        <Linha
-          tema={tema}
-          rotulo={descontoLabel}
-          valor={
-            resumo.descontoAplicado > 0
-              ? `− ${formatCurrency(resumo.descontoAplicado)}`
-              : formatCurrency(0)
-          }
-        />
-        <Linha tema={tema} rotulo="Frete" valor={formatCurrency(resumo.frete)} />
 
         <View
           style={{

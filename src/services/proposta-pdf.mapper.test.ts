@@ -47,6 +47,8 @@ function fonteBase(over: Partial<FontePropostaPdf> = {}): FontePropostaPdf {
       nome: "João da Silva",
       empresa: null,
       cpfCnpj: "529.982.247-25",
+      rg: "12.345.678-9",
+      inscricaoEstadual: null,
       telefone: "(11) 99999-0000",
       email: "joao@exemplo.com",
       endereco: "Rua A",
