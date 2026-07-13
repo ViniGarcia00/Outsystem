@@ -110,7 +110,9 @@ function mapWriteError(error: unknown): Error {
     "code" in error &&
     (error as { code?: string }).code === "P2002"
   ) {
-    return new Error("Já existe um produto com este código.");
+    return new Error(
+      "Este SKU já está sendo utilizado por outro produto. Informe um SKU diferente.",
+    );
   }
   return error instanceof Error ? error : new Error("Falha ao salvar o produto.");
 }
@@ -137,6 +139,27 @@ export async function listProdutos(
     valorProduto: toNumber(p.valorProduto),
     valorServico: toNumber(p.valorServico),
   }));
+}
+
+/**
+ * SKU disponível? (unicidade — 2º nível, backend). Normaliza para MAIÚSCULO
+ * (mesma regra do `toData`). `excludeId` ignora o próprio produto na edição.
+ * Vazio conta como disponível (o "obrigatório" é tratado pelo schema).
+ */
+export async function skuDisponivel(
+  codigo: string,
+  excludeId?: string,
+): Promise<boolean> {
+  const normalized = codigo.trim().toUpperCase();
+  if (!normalized) return true;
+  const existente = await prisma.produto.findFirst({
+    where: {
+      codigo: normalized,
+      ...(excludeId ? { id: { not: excludeId } } : {}),
+    },
+    select: { id: true },
+  });
+  return existente === null;
 }
 
 export async function getProdutoForEdit(

@@ -15,11 +15,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
   emptyMessage?: string;
+  /** Classe extra por linha (ex.: destaque temporário do item recém-editado). */
+  rowClassName?: (row: TData) => string | undefined;
 }
 
 /**
@@ -30,6 +33,7 @@ export function DataTable<TData, TValue>({
   columns,
   data,
   emptyMessage = "Nenhum registro encontrado.",
+  rowClassName,
 }: DataTableProps<TData, TValue>) {
   // eslint-disable-next-line react-hooks/incompatible-library -- API do TanStack Table não é memoizável; comportamento esperado.
   const table = useReactTable({
@@ -60,7 +64,10 @@ export function DataTable<TData, TValue>({
         <TableBody>
           {table.getRowModel().rows.length ? (
             table.getRowModel().rows.map((row) => (
-              <TableRow key={row.id}>
+              <TableRow
+                key={row.id}
+                className={cn(rowClassName?.(row.original))}
+              >
                 {row.getVisibleCells().map((cell) => (
                   <TableCell key={cell.id}>
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}

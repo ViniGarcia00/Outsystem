@@ -115,7 +115,7 @@ export function ItensTable({
           <TableHeader>
             <TableRow>
               {!readOnly && <TableHead className="w-8 sr-only">Ordenar</TableHead>}
-              <TableHead>Código</TableHead>
+              <TableHead>SKU</TableHead>
               <TableHead className="w-full min-w-[240px]">Descrição</TableHead>
               <TableHead>Qtd.</TableHead>
               <TableHead>UN</TableHead>
@@ -151,8 +151,8 @@ export function ItensTable({
 }
 
 /** Campo monetário editável (máscara BRL); comita ao sair se o valor mudou.
- *  Fonte interna levemente menor (text-xs) para o valor caber por inteiro sem
- *  alargar o campo; altura e alinhamento preservados. */
+ *  Fonte interna 13px (um nível acima do 12px anterior) — melhora a leitura sem
+ *  cortar o valor (medido: até "R$ 12.345,67" cabe na largura atual w-24). */
 function EditableMoney({
   valor,
   onCommit,
@@ -170,7 +170,7 @@ function EditableMoney({
       onBlur={() => {
         if (v !== valor) onCommit(v);
       }}
-      className="h-8 w-24 text-xs! tabular-nums"
+      className="h-8 w-24 text-[13px]! tabular-nums"
       aria-label={ariaLabel}
     />
   );

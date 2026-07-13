@@ -175,3 +175,25 @@
     background: transparent;
   }
 }
+
+/* Destaque temporário da linha recém-editada (Sprint 2.11.0, Task 6):
+   cinza mais ESCURO e estável de 0–1s (hold) e, de 1–3s, clareia gradualmente
+   até voltar ao normal. A cor mistura `muted` com `foreground` (15%) → funciona
+   em tema claro e escuro. Não altera layout/posição — apenas a cor de fundo. */
+@keyframes row-highlight {
+  0%,
+  33.333% {
+    background-color: color-mix(in oklch, var(--muted), var(--foreground) 15%);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+.animate-row-highlight {
+  animation: row-highlight 3s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-row-highlight {
+    animation-duration: 0.01ms;
+  }
+}

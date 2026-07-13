@@ -48,6 +48,8 @@ interface CrudLayoutProps<TData, TValue> {
   filters?: ReactNode;
   /** Ações extras no cabeçalho, à esquerda do botão "Novo". */
   headerActions?: ReactNode;
+  /** Classe extra por linha da tabela (repassada ao PageTable/DataTable). */
+  rowClassName?: (row: TData) => string | undefined;
 }
 
 /**
@@ -76,6 +78,7 @@ export function CrudLayout<TData, TValue>({
   pagination,
   filters,
   headerActions,
+  rowClassName,
 }: CrudLayoutProps<TData, TValue>) {
   const novoButton = onNew ? (
     <Button onClick={onNew}>
@@ -126,6 +129,7 @@ export function CrudLayout<TData, TValue>({
           loading={loading}
           empty={empty}
           pagination={pagination}
+          rowClassName={rowClassName}
         />
       </PageContent>
     </AppPage>

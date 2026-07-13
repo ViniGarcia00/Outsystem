@@ -31,7 +31,7 @@ export function ProdutoAutocomplete({
       getSublabel={(p) => p.descricao}
       onSelect={onSelect}
       label={label}
-      placeholder="Digite código ou descrição..."
+      placeholder="Digite SKU ou descrição..."
       autoFocus={autoFocus}
       disabled={disabled}
     />

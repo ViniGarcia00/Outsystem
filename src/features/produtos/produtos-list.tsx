@@ -16,7 +16,7 @@ import {
 const columns: CrudColumn<ProdutoListItem>[] = [
   {
     key: "codigo",
-    header: "Código",
+    header: "SKU",
     cell: (p) => <span className="font-medium">{p.codigo}</span>,
   },
   {
@@ -58,7 +58,7 @@ export function ProdutosList({
     <CrudListView<ProdutoListItem>
       title="Produtos"
       description="Cadastro de produtos e serviços."
-      searchPlaceholder="Buscar por código ou descrição..."
+      searchPlaceholder="Buscar por SKU ou descrição..."
       emptyIcon={Package}
       emptyTitle="Nenhum produto encontrado"
       emptyDescription="Cadastre o primeiro produto para começar."
@@ -72,9 +72,11 @@ export function ProdutosList({
       entityLabel="produto"
       onNew={() => router.push("/produtos/novo")}
       onEdit={(id) => router.push(`/produtos/${id}`)}
+      onClone={(id) => router.push(`/produtos/novo?clonarDe=${id}`)}
       listAction={listProdutosAction}
       deleteAction={deleteProdutoAction}
       toggleAtivoAction={toggleProdutoAtivoAction}
+      persistKey="produtos"
     />
   );
 }

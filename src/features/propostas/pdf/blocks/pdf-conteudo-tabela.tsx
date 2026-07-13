@@ -26,7 +26,7 @@ function colunas(simplificada: boolean, contratual: boolean): Coluna[] {
   // entregue (Código, Descrição, Quantidade, Unidade).
   if (contratual) {
     return [
-      { chave: "codigo", titulo: "Código", largura: 50, align: "left" },
+      { chave: "codigo", titulo: "SKU", largura: 50, align: "left" },
       { chave: "descricao", titulo: "Descrição", flex: true, align: "left" },
       { chave: "qtd", titulo: "Qtd", largura: 46, align: "right" },
       { chave: "un", titulo: "UN", largura: 40, align: "center" },
@@ -34,7 +34,7 @@ function colunas(simplificada: boolean, contratual: boolean): Coluna[] {
   }
   if (simplificada) {
     return [
-      { chave: "codigo", titulo: "Código", largura: 44, align: "left" },
+      { chave: "codigo", titulo: "SKU", largura: 44, align: "left" },
       { chave: "descricao", titulo: "Descrição", flex: true, align: "left" },
       { chave: "qtd", titulo: "Qtd", largura: 38, align: "right" },
       { chave: "un", titulo: "UN", largura: 30, align: "center" },
@@ -43,7 +43,7 @@ function colunas(simplificada: boolean, contratual: boolean): Coluna[] {
     ];
   }
   return [
-    { chave: "codigo", titulo: "Código", largura: 44, align: "left" },
+    { chave: "codigo", titulo: "SKU", largura: 44, align: "left" },
     { chave: "descricao", titulo: "Descrição", flex: true, align: "left" },
     { chave: "qtd", titulo: "Qtd", largura: 38, align: "right" },
     { chave: "un", titulo: "UN", largura: 30, align: "center" },

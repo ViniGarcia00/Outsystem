@@ -7,6 +7,7 @@ import {
   listProdutos,
   removeProduto,
   setProdutoAtivo,
+  skuDisponivel,
   updateProduto,
   type ProdutoListItem,
 } from "@/services/produto.service";
@@ -18,6 +19,17 @@ export async function listProdutosAction(
   showInactive: boolean,
 ): Promise<ProdutoListItem[]> {
   return listProdutos(showInactive);
+}
+
+/**
+ * Verificação de SKU único para o frontend (1º nível — feedback imediato).
+ * Retorna `true` quando o SKU está livre. `excludeId` = produto em edição.
+ */
+export async function verificarSkuAction(
+  codigo: string,
+  excludeId?: string,
+): Promise<boolean> {
+  return skuDisponivel(codigo, excludeId);
 }
 
 export async function createProdutoAction(

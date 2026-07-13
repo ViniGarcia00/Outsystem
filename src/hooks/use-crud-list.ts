@@ -20,6 +20,10 @@ interface UseCrudListOptions<T> {
   pageSize?: number;
   /** Ordenação inicial. */
   initialSort?: SortState;
+  /** Busca inicial (ex.: restaurada da navegação anterior). Padrão: "". */
+  initialSearch?: string;
+  /** Página inicial (ex.: restaurada da navegação anterior). Padrão: 1. */
+  initialPage?: number;
 }
 
 /** Normaliza texto p/ busca: minúsculas e sem acentos (busca por qualquer parte). */
@@ -56,10 +60,12 @@ export function useCrudList<T>({
   getSortValue,
   pageSize = 20,
   initialSort = { key: null, dir: "asc" },
+  initialSearch = "",
+  initialPage = 1,
 }: UseCrudListOptions<T>) {
-  const [search, setSearchRaw] = useState("");
+  const [search, setSearchRaw] = useState(initialSearch);
   const [sort, setSort] = useState<SortState>(initialSort);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(initialPage);
 
   const setSearch = (value: string) => {
     setSearchRaw(value);
@@ -110,6 +116,7 @@ export function useCrudList<T>({
     // ordenação
     sort,
     toggleSort,
+    setSort,
     // paginação
     page: safePage,
     setPage,

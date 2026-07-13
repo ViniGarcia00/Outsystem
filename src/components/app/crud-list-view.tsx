@@ -2,13 +2,22 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 import type { LucideIcon } from "lucide-react";
-import { useCallback, useMemo, useState, useTransition, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+  type ReactNode,
+} from "react";
 import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/shared";
 import { SortableHeader } from "@/components/tables/sortable-header";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useCrudList } from "@/hooks/use-crud-list";
+import { useCrudList, type SortDirection } from "@/hooks/use-crud-list";
 import type { ActionResult } from "@/types";
 
 import { CrudLayout } from "./crud-layout";
@@ -48,15 +57,56 @@ interface CrudListViewProps<T> {
 
   onNew: () => void;
   onEdit: (id: string) => void;
+  /** Opcional: habilita a ação "Clonar" por linha (ex.: Produtos). */
+  onClone?: (id: string) => void;
 
   listAction: (showInactive: boolean) => Promise<T[]>;
   deleteAction: (id: string) => Promise<ActionResult>;
   toggleAtivoAction: (id: string, ativo: boolean) => Promise<ActionResult>;
+
+  /**
+   * Opcional: quando fornecido, a posição da listagem (busca, ordenação, página,
+   * "Mostrar inativos") é preservada em sessionStorage sob esta chave — o usuário
+   * volta ao mesmo ponto após editar. Também habilita o destaque temporário do
+   * item recém-editado (chave `crudlist:<persistKey>:highlight`).
+   */
+  persistKey?: string;
 }
 
 type PendingAction =
   | { type: "delete"; id: string; label: string }
   | { type: "inactivate"; id: string; label: string };
+
+interface PersistedListState {
+  search: string;
+  sortKey: string | null;
+  sortDir: SortDirection;
+  page: number;
+  showInactive: boolean;
+}
+
+/** useLayoutEffect no cliente (restaura antes da pintura → sem "flash"); no
+ *  servidor cai para useEffect (evita o aviso de SSR). */
+const useIsomorphicLayoutEffect =
+  typeof window !== "undefined" ? useLayoutEffect : useEffect;
+
+function lerEstado(persistKey?: string): PersistedListState | null {
+  if (!persistKey || typeof window === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(`crudlist:${persistKey}`);
+    return raw ? (JSON.parse(raw) as PersistedListState) : null;
+  } catch {
+    return null;
+  }
+}
+
+function salvarEstado(persistKey: string, estado: PersistedListState): void {
+  try {
+    sessionStorage.setItem(`crudlist:${persistKey}`, JSON.stringify(estado));
+  } catch {
+    /* sessionStorage indisponível — ignora silenciosamente */
+  }
+}
 
 /**
  * Listagem CRUD padrão (client-side): busca instantânea, ordenação por coluna,
@@ -84,14 +134,17 @@ export function CrudListView<T>({
   entityLabel,
   onNew,
   onEdit,
+  onClone,
   listAction,
   deleteAction,
   toggleAtivoAction,
+  persistKey,
 }: CrudListViewProps<T>) {
   const [rows, setRows] = useState<T[]>(initialRows);
   const [showInactive, setShowInactive] = useState(false);
   const [pending, setPending] = useState<PendingAction | null>(null);
   const [isRefreshing, startRefresh] = useTransition();
+  const [highlightId, setHighlightId] = useState<string | null>(null);
 
   const sortAccessors = useMemo(() => {
     const map: Record<string, (row: T) => unknown> = {};
@@ -128,6 +181,58 @@ export function CrudListView<T>({
       });
     },
     [listAction],
+  );
+
+  // ── Task 5 — restaura a posição da listagem ao voltar da edição. Roda uma
+  // única vez, antes da pintura (sem "flash"). `setSearch` zera a página, então
+  // `setPage` vem por último para prevalecer.
+  const restauradoRef = useRef(false);
+  useIsomorphicLayoutEffect(() => {
+    if (restauradoRef.current) return;
+    restauradoRef.current = true;
+    const estado = lerEstado(persistKey);
+    if (!estado) return;
+    list.setSearch(estado.search);
+    list.setSort({ key: estado.sortKey, dir: estado.sortDir });
+    list.setPage(estado.page);
+    if (estado.showInactive) {
+      setShowInactive(true);
+      refresh(true); // initialRows só traz ativos — recarrega incluindo inativos
+    }
+  }, [persistKey]);
+
+  // Persiste a posição a cada mudança (somente com persistKey).
+  useEffect(() => {
+    if (!persistKey || !restauradoRef.current) return;
+    salvarEstado(persistKey, {
+      search: list.search,
+      sortKey: list.sort.key,
+      sortDir: list.sort.dir,
+      page: list.page,
+      showInactive,
+    });
+  }, [persistKey, list.search, list.sort, list.page, showInactive]);
+
+  // ── Task 6 — destaque temporário do item recém-editado (uma única vez).
+  useEffect(() => {
+    if (!persistKey || typeof window === "undefined") return;
+    const key = `crudlist:${persistKey}:highlight`;
+    const id = sessionStorage.getItem(key);
+    if (!id) return;
+    sessionStorage.removeItem(key);
+    // Leitura de fonte externa (sessionStorage) na montagem — precisa ser efeito.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setHighlightId(id);
+    const timer = setTimeout(() => setHighlightId(null), 3200);
+    return () => clearTimeout(timer);
+  }, [persistKey]);
+
+  const rowClassName = useCallback(
+    (row: T) =>
+      highlightId && getId(row) === highlightId
+        ? "animate-row-highlight"
+        : undefined,
+    [highlightId, getId],
   );
 
   const handleToggleInactive = (checked: boolean) => {
@@ -210,6 +315,7 @@ export function CrudListView<T>({
             onEdit={() => onEdit(getId(row.original))}
             onDelete={() => handleDelete(row.original)}
             onToggleAtivo={() => handleToggleAtivo(row.original)}
+            onClone={onClone ? () => onClone(getId(row.original)) : undefined}
           />
         </div>
       ),
@@ -245,6 +351,7 @@ export function CrudListView<T>({
         columns={columnDefs}
         data={list.pageRows}
         loading={isRefreshing}
+        rowClassName={rowClassName}
         filters={inactiveFilter}
         emptyIcon={emptyIcon}
         emptyTitle={emptyTitle}

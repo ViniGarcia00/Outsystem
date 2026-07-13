@@ -9,7 +9,7 @@ import { money, requiredText } from "@/lib/validation";
  */
 export const produtoSchema = z.object({
   ativo: z.boolean(),
-  codigo: requiredText("Código", 60),
+  codigo: requiredText("SKU", 60),
   descricao: requiredText("Descrição", 300),
   unidade: requiredText("Unidade", 10),
   valorProduto: money,

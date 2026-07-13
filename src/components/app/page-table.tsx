@@ -19,6 +19,8 @@ interface PageTableProps<TData, TValue> {
   emptyMessage?: string;
   pagination?: PagePaginationProps;
   className?: string;
+  /** Classe extra por linha (repassada ao DataTable). */
+  rowClassName?: (row: TData) => string | undefined;
 }
 
 /**
@@ -33,6 +35,7 @@ export function PageTable<TData, TValue>({
   emptyMessage,
   pagination,
   className,
+  rowClassName,
 }: PageTableProps<TData, TValue>) {
   const isEmpty = !loading && data.length === 0;
 
@@ -43,7 +46,12 @@ export function PageTable<TData, TValue>({
       ) : isEmpty && empty ? (
         empty
       ) : (
-        <DataTable columns={columns} data={data} emptyMessage={emptyMessage} />
+        <DataTable
+          columns={columns}
+          data={data}
+          emptyMessage={emptyMessage}
+          rowClassName={rowClassName}
+        />
       )}
 
       {pagination && !isEmpty && <PagePagination {...pagination} />}
