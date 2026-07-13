@@ -1,6 +1,26 @@
 "use client";
 
-import { ChevronDown, ChevronUp, Trash2 } from "lucide-react";
+import {
+  closestCenter,
+  DndContext,
+  type DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  restrictToParentElement,
+  restrictToVerticalAxis,
+} from "@dnd-kit/modifiers";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { GripVertical, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -28,6 +48,11 @@ import { totalProdutoLinha, totalServicoLinha } from "./totais";
  * (apenas visual — os valores de serviço continuam armazenados) e o Total passa
  * a ser Qtd × Valor Produto.
  *
+ * Reordenação por **Drag & Drop** (@dnd-kit): arrastar pela alça (⋮⋮) reposiciona
+ * o item na seção; a ordem é aplicada na hora e persiste no snapshot ao salvar a
+ * proposta (mesma persistência de antes). Arraste apenas pela alça — cliques nos
+ * inputs e o scroll da página seguem intactos.
+ *
  * Valores monetários usam máscara BRL (R$ 0,00); armazenamento continua numérico.
  * Qtd, Valor Produto e Valor Serviço são editáveis (gravam no snapshot do item,
  * não no cadastro).
@@ -45,6 +70,29 @@ export function ItensTable({
   refresh: () => void;
   simplificada: boolean;
 }) {
+  // Sensores: ponteiro (mouse/touch/caneta) com um pequeno limiar para não
+  // disparar arraste em cliques; teclado para acessibilidade.
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  // `arrastando` mantém o cursor "grabbing" por TODO o arraste (não só no
+  // :active da alça), cobrindo a área da tabela onde o item se move.
+  const [arrastando, setArrastando] = useState(false);
+
+  const onDragEnd = async (event: DragEndEvent) => {
+    setArrastando(false);
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const result = await actions.reordenarItens(
+      String(active.id),
+      String(over.id),
+    );
+    if (result.success) refresh();
+    else toast.error(result.error);
+  };
+
   if (itens.length === 0) {
     return (
       <p className="py-4 text-sm text-muted-foreground">
@@ -54,42 +102,57 @@ export function ItensTable({
   }
 
   return (
-    <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Código</TableHead>
-            <TableHead>Descrição</TableHead>
-            <TableHead>Qtd.</TableHead>
-            <TableHead>UN</TableHead>
-            <TableHead>Valor Produto</TableHead>
-            {!simplificada && <TableHead>Valor Serviço</TableHead>}
-            {!simplificada && <TableHead>Total Produto</TableHead>}
-            {!simplificada && <TableHead>Total Serviço</TableHead>}
-            <TableHead>Total</TableHead>
-            {!readOnly && <TableHead className="sr-only">Ações</TableHead>}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {itens.map((item, index) => (
-            <ItemRow
-              key={item.id}
-              item={item}
-              actions={actions}
-              readOnly={readOnly}
-              simplificada={simplificada}
-              isFirst={index === 0}
-              isLast={index === itens.length - 1}
-              refresh={refresh}
-            />
-          ))}
-        </TableBody>
-      </Table>
+    <div className="overflow-x-auto" style={arrastando ? { cursor: "grabbing" } : undefined}>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+        onDragStart={() => setArrastando(true)}
+        onDragCancel={() => setArrastando(false)}
+        onDragEnd={onDragEnd}
+      >
+        <Table>
+          <TableHeader>
+            <TableRow>
+              {!readOnly && <TableHead className="w-8 sr-only">Ordenar</TableHead>}
+              <TableHead>Código</TableHead>
+              <TableHead className="w-full min-w-[240px]">Descrição</TableHead>
+              <TableHead>Qtd.</TableHead>
+              <TableHead>UN</TableHead>
+              <TableHead>Valor Produto</TableHead>
+              {!simplificada && <TableHead>Valor Serviço</TableHead>}
+              {!simplificada && <TableHead>Total Produto</TableHead>}
+              {!simplificada && <TableHead>Total Serviço</TableHead>}
+              <TableHead>Total</TableHead>
+              {!readOnly && <TableHead className="sr-only">Ações</TableHead>}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <SortableContext
+              items={itens.map((i) => i.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              {itens.map((item) => (
+                <ItemRow
+                  key={item.id}
+                  item={item}
+                  actions={actions}
+                  readOnly={readOnly}
+                  simplificada={simplificada}
+                  refresh={refresh}
+                />
+              ))}
+            </SortableContext>
+          </TableBody>
+        </Table>
+      </DndContext>
     </div>
   );
 }
 
-/** Campo monetário editável (máscara BRL); comita ao sair se o valor mudou. */
+/** Campo monetário editável (máscara BRL); comita ao sair se o valor mudou.
+ *  Fonte interna levemente menor (text-xs) para o valor caber por inteiro sem
+ *  alargar o campo; altura e alinhamento preservados. */
 function EditableMoney({
   valor,
   onCommit,
@@ -107,7 +170,7 @@ function EditableMoney({
       onBlur={() => {
         if (v !== valor) onCommit(v);
       }}
-      className="h-8 w-24"
+      className="h-8 w-24 text-xs! tabular-nums"
       aria-label={ariaLabel}
     />
   );
@@ -118,18 +181,24 @@ function ItemRow({
   actions,
   readOnly,
   simplificada,
-  isFirst,
-  isLast,
   refresh,
 }: {
   item: ItemDTO;
   actions: ConteudoActions;
   readOnly: boolean;
   simplificada: boolean;
-  isFirst: boolean;
-  isLast: boolean;
   refresh: () => void;
 }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item.id, disabled: readOnly });
+
   // Quantidade controlada localmente → totais recalculam a cada tecla, sem
   // precisar sair do campo (a memória é atualizada em paralelo).
   const [qtdStr, setQtdStr] = useState(String(item.quantidade));
@@ -166,12 +235,6 @@ function ItemRow({
     else toast.error(result.error);
   };
 
-  const mover = async (direcao: "UP" | "DOWN") => {
-    const result = await actions.moverItem(item.id, direcao);
-    if (result.success) refresh();
-    else toast.error(result.error);
-  };
-
   const remover = async () => {
     const result = await actions.removerItem(item.id);
     if (result.success) refresh();
@@ -179,10 +242,43 @@ function ItemRow({
   };
 
   return (
-    <TableRow>
+    <TableRow
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      // Destaque do item em arraste (feedback estilo Trello/Notion/Linear).
+      className={
+        isDragging ? "relative z-10 bg-muted shadow-lg" : undefined
+      }
+      data-dragging={isDragging || undefined}
+    >
+      {!readOnly && (
+        <TableCell className="px-1">
+          <Button
+            ref={setActivatorNodeRef}
+            type="button"
+            size="icon-sm"
+            variant="ghost"
+            className="cursor-grab touch-none text-muted-foreground active:cursor-grabbing"
+            aria-label="Arrastar para reordenar"
+            {...attributes}
+            {...listeners}
+          >
+            <GripVertical className="h-4 w-4" />
+          </Button>
+        </TableCell>
+      )}
       <TableCell className="font-medium whitespace-nowrap">{item.codigo}</TableCell>
-      <TableCell>
-        <span className="line-clamp-2 max-w-[220px]">{item.descricao}</span>
+      <TableCell className="align-top">
+        {/* Descrição privilegiada: usa toda a largura da coluna e permite até
+            2 linhas antes do truncamento (line-clamp-2). `whitespace-normal`
+            libera a quebra (a célula é nowrap por padrão). Fonte levemente menor
+            (13px) só para caber mais texto — leitura preservada. */}
+        <span
+          className="line-clamp-2 text-[13px] leading-snug whitespace-normal"
+          title={item.descricao}
+        >
+          {item.descricao}
+        </span>
       </TableCell>
       <TableCell>
         {readOnly ? (
@@ -200,8 +296,8 @@ function ItemRow({
           />
         )}
       </TableCell>
-      <TableCell>{item.unidade}</TableCell>
-      <TableCell>
+      <TableCell className="whitespace-nowrap">{item.unidade}</TableCell>
+      <TableCell className="whitespace-nowrap">
         {readOnly ? (
           formatCurrency(item.valorProduto)
         ) : (
@@ -213,7 +309,7 @@ function ItemRow({
         )}
       </TableCell>
       {!simplificada && (
-        <TableCell>
+        <TableCell className="whitespace-nowrap">
           {readOnly ? (
             formatCurrency(item.valorServico)
           ) : (
@@ -226,39 +322,21 @@ function ItemRow({
         </TableCell>
       )}
       {!simplificada && (
-        <TableCell className="tabular-nums">
+        <TableCell className="tabular-nums whitespace-nowrap">
           {formatCurrency(totalProduto)}
         </TableCell>
       )}
       {!simplificada && (
-        <TableCell className="tabular-nums">
+        <TableCell className="tabular-nums whitespace-nowrap">
           {formatCurrency(totalServico)}
         </TableCell>
       )}
-      <TableCell className="font-medium tabular-nums">
+      <TableCell className="font-medium tabular-nums whitespace-nowrap">
         {formatCurrency(totalLinha)}
       </TableCell>
       {!readOnly && (
         <TableCell>
-          <div className="flex justify-end gap-1">
-            <Button
-              size="icon-sm"
-              variant="ghost"
-              disabled={isFirst}
-              onClick={() => mover("UP")}
-              aria-label="Mover item para cima"
-            >
-              <ChevronUp className="h-4 w-4" />
-            </Button>
-            <Button
-              size="icon-sm"
-              variant="ghost"
-              disabled={isLast}
-              onClick={() => mover("DOWN")}
-              aria-label="Mover item para baixo"
-            >
-              <ChevronDown className="h-4 w-4" />
-            </Button>
+          <div className="flex justify-end">
             <Button
               size="icon-sm"
               variant="ghost"

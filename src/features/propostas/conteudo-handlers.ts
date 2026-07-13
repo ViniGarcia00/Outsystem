@@ -38,5 +38,11 @@ export interface ConteudoActions {
   atualizarValorProduto(itemId: string, valor: number): Promise<ActionResult>;
   atualizarValorServico(itemId: string, valor: number): Promise<ActionResult>;
   removerItem(itemId: string): Promise<ActionResult>;
-  moverItem(itemId: string, direcao: Direcao): Promise<ActionResult>;
+  /**
+   * Reordena itens por Drag & Drop: move o item `idOrigem` para a posição do
+   * item `idDestino` dentro da MESMA seção e renumera `ordem`. Substitui o antigo
+   * `moverItem` (mover para cima/baixo). A persistência segue igual — só ao
+   * salvar a proposta.
+   */
+  reordenarItens(idOrigem: string, idDestino: string): Promise<ActionResult>;
 }

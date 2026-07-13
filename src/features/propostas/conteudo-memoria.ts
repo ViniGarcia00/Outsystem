@@ -25,6 +25,25 @@ function moverNaLista<T extends { id: string; ordem: number }>(
   return novo.map((x, i) => ({ ...x, ordem: i }));
 }
 
+/**
+ * Reordena `idOrigem` para a posição de `idDestino` na mesma lista e renumera
+ * `ordem` (0,1,2…). Semântica de arraste (Drag & Drop): remove da posição atual
+ * e insere no índice do destino. Pura e testável.
+ */
+export function reordenarNaLista<T extends { id: string; ordem: number }>(
+  lista: T[],
+  idOrigem: string,
+  idDestino: string,
+): T[] {
+  const from = lista.findIndex((x) => x.id === idOrigem);
+  const to = lista.findIndex((x) => x.id === idDestino);
+  if (from < 0 || to < 0 || from === to) return lista;
+  const novo = [...lista];
+  const [movido] = novo.splice(from, 1);
+  novo.splice(to, 0, movido);
+  return novo.map((x, i) => ({ ...x, ordem: i }));
+}
+
 /** Monta um item em memória (snapshot do produto; valores usados na proposta). */
 function criarItem(
   produto: ProdutoRef,
@@ -212,11 +231,12 @@ export function useConteudoMemoria(
         );
         return ok(undefined);
       },
-      moverItem: async (itemId, direcao) => {
+      reordenarItens: async (idOrigem, idDestino) => {
         mut((prev) =>
           prev.map((s) =>
-            s.itens.some((it) => it.id === itemId)
-              ? { ...s, itens: moverNaLista(s.itens, itemId, direcao) }
+            s.itens.some((it) => it.id === idOrigem) &&
+            s.itens.some((it) => it.id === idDestino)
+              ? { ...s, itens: reordenarNaLista(s.itens, idOrigem, idDestino) }
               : s,
           ),
         );
