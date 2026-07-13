@@ -1,3 +1,7 @@
+import {
+  contentDispositionPdf,
+  nomeArquivoPdf,
+} from "@/features/propostas/pdf/filename";
 import { renderPresentationPdf } from "@/features/propostas/pdf/presentation";
 import { getPropostaPdfData } from "@/services/proposta-pdf.service";
 
@@ -32,7 +36,9 @@ export async function GET(
     status: 200,
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `inline; filename="apresentacao-${dto.numero}.pdf"`,
+      "Content-Disposition": contentDispositionPdf(
+        nomeArquivoPdf("comercial", dto),
+      ),
       "Cache-Control": "no-store",
     },
   });

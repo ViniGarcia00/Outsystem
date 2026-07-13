@@ -45,9 +45,10 @@ export const ITENS = {
   gapColuna: 16,
   /** Cartão (fundo) de cada coluna. */
   painel: { bg: "#F2F4F7", radius: 6, padding: 8 },
-  /** Cabeçalho de seção (faixa de fundo + texto). */
+  /** Cabeçalho de seção (faixa de fundo + texto). Fonte aumentada na 2.10.3
+   *  (slide 06 estava com a fonte pequena) — alinhamento preservado. */
   secao: {
-    fontSize: 11,
+    fontSize: 13,
     weight: 700 as const,
     bg: "#CBD2DA",
     cor: "#14324B",
@@ -55,16 +56,17 @@ export const ITENS = {
     padX: 6,
     marginTop: 6,
   },
-  /** Produto: quantidade + descrição. */
+  /** Produto: quantidade + descrição. Fonte aumentada na 2.10.3; `qtdWidth`
+   *  acompanha para manter o alinhamento da coluna de quantidade. */
   produto: {
-    fontSize: 10,
+    fontSize: 12,
     weight: 400 as const,
     cor: "#1F2937",
-    qtdWidth: 22,
+    qtdWidth: 24,
     padY: 3,
     divisor: "#E1E5EA",
   },
-  mais: { fontSize: 9, cor: "#6B7280" },
+  mais: { fontSize: 10, cor: "#6B7280" },
 };
 
 /** Slide 08 — **Investimento da Automação**: valor único (caixa cinza, fonte
