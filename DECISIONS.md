@@ -961,3 +961,97 @@ Sprint de refinamento (escopo estrito):
   páginas estáticas compensa — validando o `npm run build` em ambiente de poucos
   núcleos (1 vCPU) **antes** de reverter. Enquanto o bug existir no Next, a decisão
   permanece.
+
+---
+
+## Sprint 3.1 — Documentação Contratual
+
+> Encerra o módulo Comercial. Nota de nomenclatura: houve uma "Sprint 3.1"
+> anterior sobre o **PDF Apresentação** (ADR-0301); esta "Sprint 3.1" é a
+> **Documentação Contratual** (ADR-0330). São ciclos distintos que reusaram o
+> número — os ADRs, não o rótulo, são a referência estável.
+
+### ADR-0330 — Contrato em .docx via docxtemplater (marcação seletiva do template)
+
+- **Contexto:** o Anexo Contratual (PDF Contratual, ADR da Sprint 2.10.2) já
+  entrega o escopo aprovado sem preço por item. Faltava o **contrato jurídico**,
+  que precisa ser **editável antes do envio** (forma de pagamento, prazos, multa,
+  cláusulas, ajustes jurídicos) — requisito que nenhum PDF atende. O ADR-0223
+  fixou `@react-pdf/renderer` para PDFs e descartou Puppeteer.
+- **Decisão — DOCX como formato oficial do contrato:** gerado com
+  `docxtemplater` + `pizzip` (MIT) a partir do **template oficial da Outmat**.
+  Não contradiz o ADR-0223 (aquele decidia sobre PDF); o docxtemplater é puro
+  JS/WASM, mesma motivação de não trazer Chromium. Valor por extenso via
+  `extenso` (MIT). .docx é obrigatório porque o Word é onde o jurídico ajusta o
+  contrato — um PDF seria imutável.
+- **Template versionado + script reproduzível:** o `.docx` oficial fica em
+  `public/templates/contrato/contrato-outmat.oficial.docx` (fonte da verdade,
+  commitado). `scripts/marcar-template-contrato.mjs` converte `[PLACEHOLDER]` →
+  `{tag}` gerando `contrato-outmat.docx` (também commitado, lido em runtime). O
+  script **só altera texto dentro de `<w:t>` e aborta** se qualquer outra parte
+  do XML mudar — prova mecânica de que fonte, margens, cabeçalho, rodapé,
+  espaçamentos, numeração e estilos ficam intactos. Versionar entrada + script
+  torna a marcação auditável e reexecutável quando o jurídico enviar novo modelo.
+- **Marcação SELETIVA (decisão crítica):** o template usa `[MAIÚSCULAS ENTRE
+  COLCHETES]`. Configurar `[` `]` como delimitadores do docxtemplater está
+  **proibido**: `[Nº]` aparece 5× com 5 significados (prazo de início, prazo de
+  conclusão, prazo de aceite, multa %, nº da proposta) e todos receberiam o mesmo
+  valor — "multa de 1042%". Só os placeholders que o sistema preenche viram
+  `{tag}`; os demais permanecem literais para preenchimento manual no Word.
+- **Placeholders como contrato template↔código:** as chaves do
+  `ContratoTemplateDTO` **são** as tags do `.docx`. Renomear um campo exige
+  remarcar o template — acoplamento documentado no código e travado por
+  `template.test.ts` (confere presença das 9 tags e a preservação dos literais).
+- **Camadas — regra só no mapper, renderer burro:**
+  - `ContratoMapper` (`contrato.mapper.ts`) concentra **toda** a regra de
+    negócio: busca no DTO, formata moeda/data, converte extenso, decide o
+    fallback da forma de pagamento, monta o `ContratoTemplateDTO` pronto.
+  - `renderContratoDocx` (`render.ts`) **só** abre o template, troca placeholder
+    por valor e devolve o buffer. Não calcula, não formata, não decide.
+  - Rota `GET /propostas/[id]/contrato` orquestra e trata erro (500 + log em
+    falha de template/render); sem regra de negócio.
+- **Fonte única do valor:** `calcularResumoFinanceiro().totalGeral`, consumido
+  via `dto.resumo.totalGeral` — a **mesma** do Anexo Contratual. O mapper **não
+  recalcula**; espelha o total recebido. Garante que Contrato e Anexo citem
+  exatamente o mesmo valor (travado por teste que roda a fonte oficial de
+  verdade). Verificado em runtime: proposta real → contrato "R$ 15.000,00" ==
+  cadeia do Resumo Financeiro na tela (18.085,50 − 3.085,50).
+- **Campos manuais preservados:** os 4 `[Nº]` (prazos/multa), `[VALOR]` (parcela
+  final do Anexo II) e `[se houver]` (observações) permanecem literais no
+  documento gerado — são preenchidos no Word, coerente com "alterações de
+  cláusulas realizadas posteriormente pelo usuário".
+- **Timezone fixa `America/Sao_Paulo`:** a data usa `Intl.DateTimeFormat` com
+  fuso explícito e vem de `dto.data` (`currentRevision.emittedAt`), **não**
+  `new Date()`. O fuso do servidor poderia virar o dia e datar o contrato errado;
+  usar a data da revisão faz reemitir um contrato antigo reproduzir a data
+  original. A cidade **não** entra na tag — o fecho do template já traz "São
+  Caetano do Sul, ".
+- **Nome do arquivo com nº da proposta e revisão:** `Contrato - Proposta {Nº} -
+  {Nome Completo} Rev.{Rev}.docx`, baixado como `attachment`. A revisão é
+  obrigatória — sem ela, contratos de revisões diferentes da mesma proposta
+  baixariam com nome idêntico e se sobrescreveriam. Foge do padrão dos PDFs
+  (primeiro nome) de propósito: é o documento que vai para assinatura.
+- **Anexo Contratual:** só o rótulo do botão mudou ("PDF Contratual" → "Emitir
+  Anexo Contratual"). A rota `/contratual`, o documento e o nome de download
+  (`Anexo Contrato - ...`) ficam **inalterados** — regressão provada por teste
+  unitário e em runtime.
+- **Consequência:** a proposta passa a ter quatro documentos (PDF Detalhado, PDF
+  Apresentação, Contrato .docx, Anexo Contratual PDF). O módulo Comercial encerra
+  aqui; os próximos ciclos são operacionais (Pedido de Venda, Ordem de Serviço).
+
+#### Fora do escopo (deliberado) e backlog
+
+- **Proposta sem itens gera documento por acesso direto à rota.** A UI protege
+  (`podeEmitir` exige cliente + item), mas `GET /contrato` de uma proposta vazia
+  responde 200 com "R$ 0,00". É o **comportamento herdado** das rotas de PDF
+  existentes (`/pdf`, `/presentation` fazem o mesmo) — não uma regressão desta
+  sprint. **Melhoria futura:** um guard 400 na rota quando a proposta não tem
+  itens, como `/presentation` já faz para o modelo Simplificada. Não implementado
+  aqui para não divergir do comportamento dos demais documentos.
+- **"zero centavos" para valor zero.** `extenso(0)` devolve "zero centavos", não
+  "zero reais" (quirk da lib). Só aparece no caso acima (proposta sem itens), que
+  não deveria gerar contrato. Fica no backlog junto do guard 400.
+- **Homologação visual do .docx é manual e obrigatória** antes do merge — nenhum
+  teste automatizado prova fidelidade de fonte/margem/layout; só a inspeção no
+  Word. O script de marcação dá a garantia estrutural (XML fora de `<w:t>`
+  idêntico), mas a conferência visual final é humana.
