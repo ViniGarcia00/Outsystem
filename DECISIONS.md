@@ -1002,6 +1002,16 @@ Sprint de refinamento (escopo estrito):
   `ContratoTemplateDTO` **são** as tags do `.docx`. Renomear um campo exige
   remarcar o template — acoplamento documentado no código e travado por
   `template.test.ts` (confere presença das 9 tags e a preservação dos literais).
+- **Realce (highlight) dos campos automáticos removido:** o template oficial
+  realça os placeholders em amarelo ("preencha aqui") e o docxtemplater preserva
+  a formatação do run ao trocar o texto — sem tratamento, o contrato final sairia
+  com nome, CPF, valor e data pintados de amarelo (e a forma de pagamento em
+  itálico). O script de marcação limpa `highlight`/`i` **apenas** dos runs que
+  viram tag do sistema; os placeholders manuais (`[Nº]`, `[VALOR]`, `[se houver]`)
+  mantêm o amarelo, sinalizando o que falta preencher. A invariante do script
+  mudou de acordo: "removendo texto e realce de ambos, o resto é byte a byte
+  idêntico" — prova que nada além de texto/realce mudou. Achado na homologação
+  visual da própria sprint; travado por `template.test.ts`.
 - **Camadas — regra só no mapper, renderer burro:**
   - `ContratoMapper` (`contrato.mapper.ts`) concentra **toda** a regra de
     negócio: busca no DTO, formata moeda/data, converte extenso, decide o
