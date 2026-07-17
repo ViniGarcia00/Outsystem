@@ -18,7 +18,9 @@ const CAMINHO = path.join(
 );
 
 function documentXml(): string {
-  return new PizZip(readFileSync(CAMINHO)).file("word/document.xml").asText();
+  const arquivo = new PizZip(readFileSync(CAMINHO)).file("word/document.xml");
+  if (!arquivo) throw new Error(`word/document.xml não encontrado em ${CAMINHO}`);
+  return arquivo.asText();
 }
 
 const conta = (s: string, sub: string) => s.split(sub).length - 1;
