@@ -59,14 +59,47 @@ para o escopo, evitando duplicar a lista em dois documentos que podem divergir.
 Biblioteca `extenso` (MIT), modo `currency`. Escrever do zero seriam ~80 linhas com
 casos difíceis (cem/cento, centavos, valores quebrados) num documento jurídico.
 
-### D3 — Marcação do template é manual (fora do código)
+### D3 — Marcação do template é programática, feita uma vez (REVISADO em 2026-07-17)
 
-O .docx oficial é fornecido pelo usuário e **marcado por ele no Word**, seguindo o
-contrato de tags de D5. Inserir tags programaticamente mexeria no XML à mão,
-arriscando justamente a formatação que se quer preservar.
+**Revisão após inspeção do template real.** A versão original de D3 dizia que o
+usuário marcaria o template no Word, porque mexer no XML arriscaria a formatação.
+Essa avaliação de risco valia para placeholders **fragmentados entre runs**.
+Verificação no template entregue: **todos os 12 placeholders estão intactos dentro
+de um único `<w:t>`** — nenhum fragmentado. Trocar o texto dentro de um `<w:t>` não
+toca em fonte, margem, cabeçalho, rodapé, espaçamento, numeração nem estilo.
 
-O template vive em `public/templates/contrato/contrato-outmat.docx`, seguindo a
-convenção já usada por `public/templates/presentation/`.
+Portanto a conversão `[PLACEHOLDER]` → `{tag}` é feita programaticamente, **uma
+única vez**, gerando o template marcado que é commitado no repositório. A prova
+exigida: diff estrutural do `document.xml` demonstrando que **apenas texto dentro de
+`<w:t>` mudou** — todo o restante do XML byte a byte idêntico.
+
+O template vive em `public/templates/contrato/contrato-outmat.docx` (o arquivo
+chegou como `contrato-outmat.docx.docx`, extensão dupla; é renomeado).
+
+### D3.1 — Marcação é SELETIVA (crítico)
+
+O template usa `[MAIÚSCULAS ENTRE COLCHETES]`, não `{tag}`. A saída óbvia seria
+configurar o docxtemplater com delimitadores `[` `]`. **Isso está proibido**, porque
+`[Nº]` aparece **5 vezes com 5 significados diferentes**:
+
+| Ocorrência | Significado | Sistema sabe? |
+|---|---|---|
+| Cláusula 3.1 | dias úteis para **início** | ❌ |
+| Cláusula 3.1 | dias úteis para **conclusão** | ❌ |
+| Cláusula 5.5 | dias úteis para **aceite** | ❌ |
+| Cláusula 9.2 | **multa %** na rescisão | ❌ |
+| Anexo II | **número da proposta** | ✅ |
+
+Com delimitadores `[ ]`, os cinco receberiam o mesmo valor — o contrato sairia com
+"multa de 1042%". Inaceitável num documento assinado.
+
+**Regra:** apenas os placeholders que o sistema preenche viram `{tag}`. Os demais
+permanecem literais `[...]`, para preenchimento manual no Word — coerente com o
+escopo ("alterações de cláusulas realizadas posteriormente pelo usuário"). O
+docxtemplater roda com os delimitadores padrão `{ }` e nunca enxerga os literais.
+
+**Permanecem literais (manuais):** os 4 `[Nº]` de prazos/multa, `[VALOR]` (parcela
+final do Anexo II — dado que o sistema não possui) e `[se houver]` (observações).
 
 ### D4 — Botões seguem o padrão de emissão atual
 
@@ -75,67 +108,143 @@ congela a revisão) e então baixa o .docx — idêntico aos outros três botõe
 `emitirEAbrir` já existente. Em EMITIDA, apenas baixa. Sem exceção de comportamento
 para o usuário aprender.
 
-### D5 — Contrato de tags
+### D5 — Contrato de tags (REVISADO em 2026-07-17, derivado do template real)
 
-| Tag | Preenchimento | Fonte |
-|---|---|---|
-| `{clienteNome}` | Razão social (PJ) ou nome (PF) | `cliente.empresa` se `tipoPessoa = PJ`, senão `cliente.nome` |
-| `{clienteDocumento}` | CPF ou CNPJ formatado | `cliente.cpfCnpj` |
-| `{clienteDocumentoLabel}` | "CPF" ou "CNPJ" | derivado de `cliente.tipoPessoa` |
-| `{clienteRgIe}` | RG (PF) ou Inscrição Estadual (PJ) | `cliente.rg` / `cliente.inscricaoEstadual` |
-| `{clienteEndereco}` | Endereço completo, separado por vírgulas | campos granulares de `Cliente` |
-| `{propostaNumero}` | Número da proposta | `proposta.proposalNumber` |
-| `{valorTotal}` | `R$ 12.345,67` | **`resumo.totalGeral`** (ver nota abaixo) |
-| `{valorTotalExtenso}` | "doze mil, trezentos e quarenta e cinco reais e sessenta e sete centavos" | `extenso(resumo.totalGeral)` |
-| `{formaPagamento}` | Campo livre da proposta | `proposta.formaPagamento` |
-| `{dataExtenso}` | "Curitiba, 17 de julho de 2026" | `config.cidade` + data de emissão |
-| `{empresaRazaoSocial}` | Razão social da Outmat | `config.razaoSocial` |
-| `{empresaCnpj}` | CNPJ da Outmat | `config.cnpj` |
-| `{empresaIe}` | Inscrição Estadual | `config.inscricaoEstadual` |
-| `{empresaEndereco}` | Endereço completo | campos de `ConfiguracaoSistema` |
+O template é a autoridade. Mapeamento `[PLACEHOLDER]` → `{tag}`:
+
+| Placeholder no template | Tag | Fonte | Onde |
+|---|---|---|---|
+| `[NOME COMPLETO DO CLIENTE]` | `{clienteNome}` | `cliente.empresa` se PJ, senão `cliente.nome` | Partes |
+| `[CPF/CNPJ]` | `{clienteDocumento}` | `cliente.cpfCnpj` formatado | Partes |
+| `[ENDEREÇO DO CLIENTE]` | `{clienteEndereco}` | campos granulares, separados por vírgula | Partes |
+| `[Nº DA PROPOSTA]` | `{propostaNumero}` | `proposta.proposalNumber` | Cl. 1.2 |
+| `[VALOR TOTAL]` | `{valorTotal}` | `resumo.totalGeral`, **sem "R$"** | Cl. 2.1 |
+| `[VALOR POR EXTENSO]` | `{valorTotalExtenso}` | `extenso(resumo.totalGeral)` | Cl. 2.1 |
+| `[DESCREVA AQUI A FORMA DE PAGAMENTO: …]` | `{formaPagamento}` | `proposta.formaPagamento` (ver D5.3) | Cl. 2.2 |
+| `[DATA]` (2×) | `{data}` | `proposta.emitidaAt`, **só a data** | Fecho + Anexo II |
+| `[NOME DO CLIENTE]` | `{clienteNome}` | mesmo da qualificação | Anexo II |
+| `[Nº]` (**apenas o do Anexo II**) | `{propostaNumero}` | `proposta.proposalNumber` | Anexo II |
+| `[OUTMAT]` | `{empresaNome}` | `config.nomeEmpresa` | Anexo II |
 
 **Regra:** todo campo ausente vira string vazia, nunca `undefined` — o docxtemplater
-renderiza `undefined` literalmente no documento.
+renderiza `undefined` literalmente no documento. Exceção: `{formaPagamento}` (D5.3).
 
-**Nota sobre `{valorTotal}` (crítico).** O projeto tem dois calculadores que
-**divergem** (`src/features/propostas/totais.ts`):
+`{clienteDocumentoLabel}` e `{clienteRgIe}` — previstos na versão original — **não
+existem**: o template já traz "inscrito(a) no CPF/CNPJ sob o nº" como texto fixo, e
+não há placeholder para RG/IE.
+
+#### D5.1 — Tags eliminadas pelo template
+
+A qualificação da **CONTRATADA está hardcoded** no template ("JVL INDÚSTRIA E
+COMÉRCIO DE ELETROELETRÔNICOS LTDA, CNPJ 37.830.388/0001-68, com sede na Rua Eng.
+Cajado de Lemos, 290, Cerâmica, São Caetano do Sul/SP, CEP 09530-320"). Portanto
+`{empresaRazaoSocial}`, `{empresaCnpj}`, `{empresaIe}` e `{empresaEndereco}` — da
+versão original de D5 — **não existem**: não há placeholder onde encaixá-las, e a
+regra obrigatória proíbe alterar o que não é placeholder.
+
+**Consequência importante:** a `ConfiguracaoSistema` é usada apenas para
+`{empresaNome}` no Anexo II. O `PdfEmpresa` **não precisa ser estendido**, e a
+premissa central de D6 cai (ver D6 revisado).
+
+Nota factual: a razão social contratual é **JVL**, entidade distinta da marca
+"Outmat". Como está fixa no template, o sistema não interfere.
+
+#### D5.2 — Dois ajustes que o template impõe
+
+- **`{valorTotal}` sem "R$".** A cláusula 2.1 já traz `"o valor total de R$ [VALOR
+  TOTAL] ([VALOR POR EXTENSO])"`. A tag emite `12.345,67`, não `R$ 12.345,67` —
+  senão sai "R$ R$ 12.345,67". Pelo mesmo motivo `{valorTotalExtenso}` não leva
+  parênteses: o template já os tem.
+- **`{data}` sem cidade.** O fecho já traz `"São Caetano do Sul, [DATA]."` — cidade
+  fixa. A tag emite `"17 de julho de 2026"`. A versão original previa `"Curitiba, 17
+  de julho de 2026"`, o que duplicaria a cidade **e** citaria a cidade errada.
+  Fonte: `proposta.emitidaAt`, nunca `new Date()` — reemitir o contrato de uma
+  proposta antiga deve reproduzir a data original.
+
+#### D5.3 — Forma de pagamento: substituição condicional
+
+O template traz um **bloco de instrução** em 2.2 ("[DESCREVA AQUI A FORMA DE
+PAGAMENTO: entrada, número de parcelas… Exemplos: 50% de entrada…]").
+
+- `proposta.formaPagamento` **preenchida** → o bloco inteiro é substituído por ela.
+- `proposta.formaPagamento` **vazia** → o bloco de instrução **permanece**, servindo
+  de guia para quem preencher no Word.
+
+A instrução é o *fallback* da tag, não string vazia — o único campo com esse
+comportamento. Deixar a cláusula 2.2 em branco num contrato enviado é pior do que
+deixar a instrução visível.
+
+#### D5.4 — Fonte do valor (crítico)
+
+O projeto tem dois calculadores que **divergem** (`src/features/propostas/totais.ts`):
 
 - `calcularTotais` → desconto incide **só sobre a Automação**
 - `calcularResumoFinanceiro` → desconto incide sobre o **Total combinado**
   (Automação + Som + Wi-Fi)
 
 O contrato usa **`calcularResumoFinanceiro().totalGeral`** — a mesma fonte que o
-Anexo Contratual (`dto.resumo.totalGeral`). Isso é obrigatório: contrato e anexo
-citam o mesmo negócio e não podem divergir em centavos. Um teste do mapper trava
-essa escolha.
+Anexo Contratual (`dto.resumo.totalGeral`). Fonte oficial fixada pela sprint.
+Contrato e Anexo citam o mesmo negócio e não podem divergir em centavos. Um teste
+do mapper trava essa escolha.
 
-**Nota sobre `{dataExtenso}`.** A cidade vem de `config.cidade`; a data é a de
-emissão da proposta (`proposta.emitidaAt`), não `new Date()` — reemitir o contrato
-de uma proposta antiga deve reproduzir a data original.
+### D6 — Sem refatoração de loader: o contrato consome o `PropostaPdfDTO` (REVISADO)
 
-### D6 — Refatoração do loader (sem mudança de comportamento)
+**A versão original de D6 foi descartada.** Ela extraía `carregarPropostaEConfig()`
+do `proposta-pdf.service.ts` para dar ao contrato acesso aos dados crus, partindo da
+premissa de que o `PropostaPdfDTO` descartava o que o contrato precisa. Após D5.1
+(CONTRATADA hardcoded) essa premissa caiu. Auditoria do DTO:
 
-O contrato precisa de dados que o `PropostaPdfDTO` descarta:
+| Tag | Já existe no DTO? |
+|---|---|
+| `{empresaNome}` | ✅ `empresa.nome` (`nomeEmpresa \|\| razaoSocial \|\| "Outmat"`) |
+| `{clienteNome}` | ✅ `cliente.nome` — `clienteDisplay()` já resolve PF/PJ |
+| `{clienteDocumento}` | ✅ `cliente.documento` |
+| `{propostaNumero}` | ✅ `numero` |
+| `{valorTotal}` / `{valorTotalExtenso}` | ✅ `resumo.totalGeral` |
+| `{formaPagamento}` | ✅ `formaPagamento` |
+| `{data}` | ✅ `data` |
+| `{clienteEndereco}` | ⚠️ existe, separado por `·` |
 
-- **CONTRATADA:** `ConfiguracaoSistema` tem `razaoSocial`, `cnpj`,
-  `inscricaoEstadual` e endereço completo, mas `PdfEmpresa` só expõe
-  nome/site/telefone/email/logo/cores/textoFinal.
-- **Endereço do cliente:** o mapper dos PDFs achata tudo com `·`
-  (`"Rua X, 123 · Centro · Curitiba/PR"`), inadequado para qualificação das partes.
+Uma única lacuna — o separador do endereço. Não justifica refatorar o service dos
+PDFs. **O contrato chama `getPropostaPdfData(id)` e mapeia `PropostaPdfDTO` → tags.**
 
-Como a sprint proíbe alterar os PDFs existentes, o DTO **não** é inchado. Em vez
-disso, extrai-se o fetch cru para `carregarPropostaEConfig()`, consumido tanto por
-`getPropostaPdfData` (comportamento idêntico) quanto pelo novo
-`getContratoDocxData`. Evita duplicar a query do Prisma.
+Ganhos: `proposta-pdf.service.ts` e o `PropostaPdfDTO` ficam **intactos** (risco zero
+aos PDFs existentes, alinhado à regra "não alterar os PDFs existentes"), e some um
+arquivo do escopo.
+
+Nota: `dto.data` = `currentRevision.emittedAt ?? emitidaAt ?? createdAt` — melhor que
+o `emitidaAt` cru previsto em D5.2, pois respeita a data de emissão da **revisão**
+vigente. É o valor usado em `{data}`.
+
+#### D6.1 — Endereço
+
+`{clienteEndereco}` = `dto.cliente.endereco` com `" · "` trocado por `", "`. O
+`montarEndereco` já monta `"Rua X, 123 · Sala 2 · Centro · Curitiba/PR · CEP 80000-320"`;
+a troca produz `"Rua X, 123, Sala 2, Centro, Curitiba/PR, CEP 80000-320"`, adequado
+à qualificação das partes ("residente/com sede em [ENDEREÇO DO CLIENTE]").
+
+O acoplamento ao separador do mapper é coberto por teste — se `montarEndereco` mudar
+o separador, o teste do contrato falha em vez de emitir "·" num documento jurídico.
 
 ## Arquitetura
 
 ```
 GET /propostas/[id]/contrato
-  → getContratoDocxData(id)        IO: Prisma + Configuração
-  → montarContratoTags(p, config)  puro → Record<string,string>
-  → renderContratoDocx(tags)       docxtemplater + template oficial
+  → getPropostaPdfData(id)        IO já existente, reusado sem alteração
+  → montarContratoTags(dto)       puro: DTO → Record<string,string>
+  → renderContratoDocx(tags)      docxtemplater + template marcado
   → Response .docx (attachment)
+```
+
+### Preparação do template (uma vez, fora do runtime)
+
+Passo prévio, não faz parte do fluxo de request:
+
+```
+contrato-outmat.docx.docx  (oficial, [PLACEHOLDERS])
+  → script de marcação seletiva (D3/D3.1)
+  → verificação: diff estrutural (só <w:t> mudou)
+  → public/templates/contrato/contrato-outmat.docx  (marcado, {tags}) → commitado
 ```
 
 ### Arquivos
@@ -144,12 +253,13 @@ GET /propostas/[id]/contrato
 
 | Arquivo | Responsabilidade |
 |---|---|
-| `public/templates/contrato/contrato-outmat.docx` | Template oficial marcado (fornecido) |
+| `public/templates/contrato/contrato-outmat.docx` | Template marcado (gerado na preparação, commitado) |
 | `src/app/propostas/[id]/contrato/route.ts` | Route handler (espelha `contratual/route.ts`) |
-| `src/services/contrato-docx.mapper.ts` | `montarContratoTags` — puro, testável |
-| `src/services/contrato-docx.mapper.test.ts` | Testes do mapper |
+| `src/features/propostas/docx/contrato-tags.ts` | `montarContratoTags(dto)` — puro, testável |
+| `src/features/propostas/docx/contrato-tags.test.ts` | Testes do mapper de tags |
 | `src/features/propostas/docx/render.ts` | `renderContratoDocx` — docxtemplater |
 | `src/features/propostas/docx/extenso.ts` | Wrapper de `valorPorExtenso` |
+| `scripts/marcar-template-contrato.mjs` | Preparação do template (uso único, versionado para auditoria) |
 
 **Alterados:**
 
@@ -157,9 +267,11 @@ GET /propostas/[id]/contrato
 |---|---|
 | `src/features/propostas/proposta-workspace.tsx` | Rótulo → "Emitir Anexo Contratual"; botão "Emitir Contrato" novo |
 | `src/features/propostas/pdf/filename.ts` | Generalizar extensão e `Content-Disposition` |
-| `src/services/proposta-pdf.service.ts` | Extrair `carregarPropostaEConfig` |
 | `package.json` | + `docxtemplater`, `pizzip`, `extenso` |
 | `DECISIONS.md` | + ADR-0330 |
+
+`proposta-pdf.service.ts`, `proposta-pdf.mapper.ts` e os documentos react-pdf **não
+são tocados** (D6).
 
 ### Naming e download
 
@@ -177,17 +289,35 @@ Content-Type: `application/vnd.openxmlformats-officedocument.wordprocessingml.do
 
 Seguindo o padrão de `proposta-pdf.mapper.test.ts` (mapper puro, sem banco):
 
-- `montarContratoTags`: PF vs PJ (documento/label/RG-IE), campos ausentes → string
-  vazia (nunca `undefined`), endereço montado, forma de pagamento vazia.
+**`montarContratoTags`:**
+- PF vs PJ (`{clienteNome}` = nome vs razão social; `{clienteDocumento}`).
+- Campos ausentes → string vazia, **nunca `undefined`** (senão o docxtemplater
+  escreve "undefined" no contrato).
+- `{clienteEndereco}`: separador `·` convertido em `, ` (D6.1) — trava o acoplamento
+  ao `montarEndereco`.
 - **`{valorTotal}` == `resumo.totalGeral`** com desconto + frete presentes — trava a
-  escolha do calculador (D5) e garante que contrato e Anexo não divirjam.
-- `{dataExtenso}` usa `emitidaAt`, não a data corrente.
-- `valorPorExtenso`: inteiro, com centavos, zero, valores de cem/cento.
-- `filename.ts`: **os três nomes de PDF atuais não mudaram** (regressão da
-  generalização); contrato gera `.docx` com `attachment`.
+  fonte oficial (D5.4) e garante que contrato e Anexo não divirjam.
+- **`{valorTotal}` não contém "R$"** e `{valorTotalExtenso}` não contém parênteses
+  (D5.2) — o template já os fornece.
+- `{data}` usa `dto.data`, não a data corrente.
+- `{formaPagamento}`: preenchida → texto da proposta; vazia → bloco de instrução
+  preservado (D5.3).
 
-Teste manual: gerar contrato de proposta PF e PJ, abrir no Word, conferir que a
-formatação do template está intacta e todos os campos preenchidos.
+**`valorPorExtenso`:** inteiro, com centavos, zero, casos cem/cento.
+
+**`filename.ts`:** os três nomes de PDF atuais **inalterados** (regressão da
+generalização); contrato gera `.docx` com `attachment`.
+
+**Template marcado (teste de integridade, roda no CI):**
+- Todas as `{tags}` de D5 estão presentes no template.
+- Os **4 `[Nº]` manuais, `[VALOR]` e `[se houver]` continuam literais** — nenhum
+  virou tag (D3.1). Esta é a proteção contra o bug "multa de 1042%".
+- `renderContratoDocx` com dados de exemplo não lança e não emite `undefined`.
+
+**Teste manual (obrigatório):** gerar contrato de proposta PF e PJ, abrir no Word,
+conferir contra o template oficial que fonte, margens, cabeçalho, rodapé,
+espaçamentos, numeração e estilos estão idênticos, e que todos os campos foram
+preenchidos.
 
 ## ADR
 
@@ -203,8 +333,11 @@ requisito que nenhum PDF atende.
 - [ ] Botão "PDF Contratual" removido
 - [ ] Botão "Emitir Contrato" criado, gera .docx
 - [ ] Botão "Emitir Anexo Contratual" criado, gera o PDF existente
-- [ ] Template do contrato preservado (verificado no Word)
+- [ ] Template do contrato preservado — fonte, margens, cabeçalho, rodapé,
+      espaçamentos, numeração, estilos e estrutura idênticos (conferido no Word)
 - [ ] Campos variáveis preenchidos automaticamente
+- [ ] **Os 4 `[Nº]` manuais, `[VALOR]` e `[se houver]` permanecem literais** (D3.1)
+- [ ] **`{valorTotal}` == `resumo.totalGeral`; Contrato e Anexo com valor idêntico**
 - [ ] Nomes de download dos 3 PDFs existentes inalterados
 - [ ] Build sem erros
 - [ ] TypeScript sem erros
@@ -217,8 +350,30 @@ requisito que nenhum PDF atende.
 - Alterações na Ordem de Serviço
 - Alterações nos PDFs existentes, no fluxo das propostas ou no cálculo de valores
 
-## Dependência externa (bloqueante)
+## Dependência externa — RESOLVIDA
 
-O `.docx` oficial da Outmat, marcado com as tags de D5, precisa estar em
-`public/templates/contrato/contrato-outmat.docx` antes da implementação do renderer.
-Sem ele, o mapper e os testes podem avançar, mas o render e o teste manual não.
+O `.docx` oficial foi entregue em 2026-07-17 (`contrato-outmat.docx.docx`, extensão
+dupla, a renomear). Veio **não marcado**, no formato oficial com `[PLACEHOLDERS]` —
+a marcação passa a ser tarefa da implementação (D3), não um bloqueio.
+
+Verificações já realizadas sobre ele:
+- 12 placeholders distintos, **todos intactos** num único `<w:t>` (nenhum fragmentado
+  entre runs) → marcação programática é segura (D3).
+- `[Nº]` ambíguo em 5 pontos → exige marcação seletiva (D3.1).
+- CONTRATADA, cidade do fecho e "R$" da cláusula 2.1 são texto fixo → reduzem o
+  contrato de tags (D5.1, D5.2).
+- Contém um **Anexo II — Termo de Aceite de Entrega**, com `[VALOR]` (parcela final)
+  e `[se houver]` (observações), ambos manuais. O Termo de Aceite está fora do escopo
+  da sprint; o sistema apenas preserva seu texto e preenche `{clienteNome}`,
+  `{propostaNumero}`, `{empresaNome}` e `{data}` nele.
+
+## Histórico de revisões
+
+- **2026-07-17 (inicial):** design aprovado antes da entrega do template; D3/D5/D6
+  baseados em premissas.
+- **2026-07-17 (revisão pós-template):** inspeção do `.docx` real corrigiu D3
+  (marcação programática, pois nada está fragmentado), acrescentou D3.1 (marcação
+  seletiva — `[Nº]` ambíguo em 5 pontos), reescreveu D5 conforme os placeholders
+  reais (4 tags de empresa eliminadas; `{valorTotal}` sem "R$"; `{data}` sem cidade;
+  forma de pagamento condicional) e descartou D6 (o `PropostaPdfDTO` já supre tudo
+  menos o separador do endereço → zero alteração no service dos PDFs).
