@@ -190,13 +190,22 @@ export function PropostaWorkspace({
     window.open(`/propostas/${data.id}/presentation`, "_blank", "noopener");
   };
 
-  // PDF Contratual (anexo ao contrato) — sem preços por item (Sprint 2.10.2).
-  const abrirContratual = () => {
+  // Anexo Contratual (Anexo I do contrato) — mesmo PDF sem preços por item de
+  // antes (Sprint 2.10.2); só o rótulo do botão mudou na Sprint 3.1.
+  const abrirAnexoContratual = () => {
     window.open(`/propostas/${data.id}/contratual`, "_blank", "noopener");
   };
 
-  // Emite a proposta (mesma lógica/método) e abre o PDF solicitado. Reutilizado
-  // pelos "Gerar PDF Detalhado", "Gerar PDF Apresentação" e "Gerar PDF Contratual".
+  // Contrato (.docx) — documento jurídico editável no Word (Sprint 3.1). Baixa
+  // como anexo; o navegador não renderiza .docx, então window.open dispara o
+  // download direto.
+  const abrirContrato = () => {
+    window.open(`/propostas/${data.id}/contrato`, "_blank", "noopener");
+  };
+
+  // Emite a proposta (mesma lógica/método) e abre o documento solicitado.
+  // Reutilizado por "PDF Detalhado", "PDF Apresentação", "Emitir Contrato" e
+  // "Emitir Anexo Contratual".
   const emitirEAbrir = async (abrir: () => void) => {
     setSaving(true);
     const result = await emitirPropostaAction(data.id);
@@ -212,7 +221,8 @@ export function PropostaWorkspace({
 
   const gerarPdf = () => emitirEAbrir(abrirPdf);
   const gerarApresentacao = () => emitirEAbrir(abrirApresentacao);
-  const gerarContratual = () => emitirEAbrir(abrirContratual);
+  const gerarContrato = () => emitirEAbrir(abrirContrato);
+  const gerarAnexoContratual = () => emitirEAbrir(abrirAnexoContratual);
 
   const cancelarProposta = () => {
     if (dirty && !confirmDiscardChanges()) return;
@@ -435,24 +445,47 @@ export function PropostaWorkspace({
         {data.status === "RASCUNHO" && (
           <Button
             variant="outline"
-            onClick={gerarContratual}
+            onClick={gerarContrato}
             disabled={!podeEmitir || saving}
             title={
               dirty
-                ? "Salve as alterações antes de gerar o PDF."
+                ? "Salve as alterações antes de emitir o contrato."
                 : podeEmitir
                   ? undefined
                   : "Informe o cliente e adicione ao menos um item para emitir."
             }
           >
             <FileDown className="h-4 w-4" />
-            Gerar PDF Contratual
+            Emitir Contrato
           </Button>
         )}
         {data.status === "EMITIDA" && (
-          <Button variant="outline" onClick={abrirContratual}>
+          <Button variant="outline" onClick={abrirContrato}>
             <FileDown className="h-4 w-4" />
-            Abrir PDF Contratual
+            Emitir Contrato
+          </Button>
+        )}
+        {data.status === "RASCUNHO" && (
+          <Button
+            variant="outline"
+            onClick={gerarAnexoContratual}
+            disabled={!podeEmitir || saving}
+            title={
+              dirty
+                ? "Salve as alterações antes de emitir o anexo."
+                : podeEmitir
+                  ? undefined
+                  : "Informe o cliente e adicione ao menos um item para emitir."
+            }
+          >
+            <FileDown className="h-4 w-4" />
+            Emitir Anexo Contratual
+          </Button>
+        )}
+        {data.status === "EMITIDA" && (
+          <Button variant="outline" onClick={abrirAnexoContratual}>
+            <FileDown className="h-4 w-4" />
+            Emitir Anexo Contratual
           </Button>
         )}
         {!readOnly && (

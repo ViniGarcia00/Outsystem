@@ -255,6 +255,63 @@ test("Propostas: criação diferida, emitir e revisão automática", async ({
   await expect(page.getByRole("heading", { name: /Rev\.1/ })).toBeVisible();
 });
 
+test("Propostas: Contrato (.docx) e Anexo Contratual (Sprint 3.1)", async ({
+  page,
+}) => {
+  // Cliente pesquisável e uma proposta com um item, para haver o que emitir.
+  const clienteNome = `E2E Contrato Cliente ${Date.now()}`;
+  await page.goto("/clientes/novo");
+  await page.getByLabel("Nome", { exact: true }).fill(clienteNome);
+  await page.getByRole("button", { name: "Salvar" }).click();
+  await expect(page).toHaveURL(/\/clientes$/);
+
+  await page.goto("/propostas/nova");
+  await page.getByLabel("Cliente", { exact: true }).fill(clienteNome);
+  await page.getByRole("option", { name: clienteNome }).click();
+  await page.getByPlaceholder("Nome da nova seção (ex.: Sala)").fill("Sala E2E");
+  await page.getByRole("button", { name: "Adicionar seção" }).click();
+  await page.getByRole("button", { name: "Adicionar produto" }).click();
+  await page.getByLabel("Produto", { exact: true }).fill("CM10");
+  await page.getByRole("option").first().waitFor();
+  await page.getByRole("option").first().click();
+  await page.getByRole("button", { name: "Adicionar", exact: true }).click();
+  await page.getByLabel("Forma de pagamento").fill("PIX à vista");
+  await page.getByRole("button", { name: "Criar Proposta" }).click();
+  await expect(page).toHaveURL(/\/propostas\/(?!nova$)[^/]+$/);
+  const propostaPath = new URL(page.url()).pathname;
+
+  // Os dois botões novos aparecem; o antigo "PDF Contratual" foi removido.
+  await expect(
+    page.getByRole("button", { name: "Emitir Contrato", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Emitir Anexo Contratual" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /PDF Contratual/ }),
+  ).toHaveCount(0);
+
+  // Anexo Contratual: mesmo endpoint /contratual de antes, ainda PDF.
+  const anexo = await page.request.get(`${propostaPath}/contratual`);
+  expect(anexo.status()).toBe(200);
+  expect(anexo.headers()["content-type"]).toContain("application/pdf");
+  expect((await anexo.body()).byteLength).toBeGreaterThan(1000);
+
+  // Contrato: endpoint /contrato novo, devolve .docx como anexo para download.
+  const contrato = await page.request.get(`${propostaPath}/contrato`);
+  expect(contrato.status()).toBe(200);
+  expect(contrato.headers()["content-type"]).toContain(
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  );
+  expect(contrato.headers()["content-disposition"]).toContain("attachment;");
+  expect(contrato.headers()["content-disposition"]).toContain(".docx");
+  expect((await contrato.body()).byteLength).toBeGreaterThan(1000);
+
+  // "Emitir Contrato" a partir de RASCUNHO emite a proposta (padrão dos demais).
+  await page.getByRole("button", { name: "Emitir Contrato", exact: true }).click();
+  await expect(page.getByText("Emitida", { exact: true })).toBeVisible();
+});
+
 test("Propostas: modelo Simplificada (produtos sem seções)", async ({
   page,
 }) => {
