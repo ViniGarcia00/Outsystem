@@ -61,3 +61,37 @@ describe("template do contrato", () => {
     expect(xml).not.toContain("[DATA]");
   });
 });
+
+/**
+ * Realce (highlight amarelo): o template oficial realça os placeholders como
+ * "preencha aqui". Os campos que o SISTEMA preenche têm de sair SEM realce
+ * (senão o contrato vai para assinatura com nome/CPF/valor pintados de amarelo);
+ * os MANUAIS mantêm o amarelo, sinalizando o que falta preencher no Word.
+ */
+describe("realce dos campos", () => {
+  /** O run que contém a tag/placeholder tem highlight? */
+  function runComHighlight(alvo: string): boolean {
+    const xml = documentXml();
+    const runs = [...xml.matchAll(/<w:r\b[^>]*>([\s\S]*?)<\/w:r>/g)];
+    const run = runs.find((m) => m[1].includes(alvo));
+    if (!run) throw new Error(`run com "${alvo}" não encontrado`);
+    return /<w:highlight\s+w:val=/.test(run[1]);
+  }
+
+  it.each([
+    "{clienteNome}",
+    "{clienteDocumento}",
+    "{valorTotal}",
+    "{data}",
+    "{formaPagamento}",
+  ])("campo automático %s sai SEM realce", (tag) => {
+    expect(runComHighlight(tag)).toBe(false);
+  });
+
+  it.each(["[Nº]", "[VALOR]", "[se houver]"])(
+    "placeholder manual %s mantém o realce",
+    (ph) => {
+      expect(runComHighlight(ph)).toBe(true);
+    },
+  );
+});
