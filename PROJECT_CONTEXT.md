@@ -23,7 +23,10 @@ Sistema **interno** de geração de propostas da Outmat. Não é SaaS. Uso restr
 | Dados (UI→DB) | Server Actions → services → Prisma (`ActionResult`) |
 | Toasts        | sonner                                       |
 | Testes        | Vitest (unidade) + Playwright (smoke E2E)     |
-| Impressão     | `print.css` (base para o Preview HTML futuro) |
+| PDF           | `@react-pdf/renderer` (sem Chromium)          |
+| DOCX          | `docxtemplater` + `pizzip` + `extenso`        |
+| Drag & drop   | `@dnd-kit` (ordenação de itens)               |
+| Impressão     | `print.css` (impressão de tela)               |
 | Tema          | next-themes (claro/escuro/sistema)           |
 
 ## Arquitetura
@@ -96,6 +99,18 @@ UX, testes e preparação)** concluídas.
   sequencial (1001+), revisões, cancelamento, duplicação, status + datas
   automáticas e auditoria (sem produtos/serviços/PDF ainda). Ver DECISIONS.md
   ADR-0201..0205.
+- ✅ **Módulo de Propostas completo (1.0.0, Sprint 2.8):** workspace com seções,
+  itens, autocomplete de produto, drag & drop, desconto, frete, informações
+  comerciais, revisões, emissão e cancelamento.
+- ✅ **Serviços complementares (Sprints 2.9.x):** Projeto Som Ambiente e Projeto
+  Wi-Fi Premium (`PropostaServico`), com integração financeira. O desconto passou
+  a incidir sobre o **total combinado** (`calcularResumoFinanceiro`) — a fonte
+  oficial do valor para todos os documentos.
+- ✅ **Quatro documentos da proposta:** PDF Detalhado, PDF Apresentação (13
+  templates, slides condicionais), Contrato em **.docx** e Anexo Contratual (PDF).
+  Ver ADR-0223, ADR-0300, ADR-0301 e ADR-0330.
+- ✅ **Refinamentos de Produtos:** SKU único em três níveis, Clonar Produto,
+  nomenclatura "Código" → "SKU" na interface.
 - ✅ `lint`, `build` e `typecheck` sem erros.
 
 ## Tela "About" (planejada — não implementada)
@@ -107,10 +122,26 @@ About é voltada ao usuário final e existirá também em produção.
 
 ## Próximas Sprints (visão)
 
-> **Estado atual (2026-07-08):** o **módulo de Propostas está encerrado em
-> 1.0.0** — homologado e pronto para produção (ver PROJECT_HISTORY.md, CHANGELOG
-> e DECISIONS.md ADR-0228). As próximas evoluções ocorrem em **módulos
-> independentes**, a começar por **"PDF Projeto"** (escopo/arquitetura próprios).
+> **Estado atual (2026-08-18): módulo Comercial encerrado na versão 1.1.0.**
+> Depois da 1.0.0 vieram os Serviços Complementares (2.9.x), o PDF Detalhado e o
+> PDF Contratual (2.10.x), o PDF Apresentação (3.0 e 3.1 a), a correção de build
+> do Windows Server (3.2.1) e a Documentação Contratual (3.1 b, ADR-0330) —
+> consolidados na release **1.1.0**. Ver PROJECT_HISTORY.md e CHANGELOG.md.
+>
+> **Próximos ciclos são operacionais:** **Pedido de Venda** e **Ordem de
+> Serviço** (ADR-0330). Nenhum dos dois tem design ou plano escritos; pelo
+> processo do projeto, cada um exige spec aprovada antes de qualquer código.
+> Seguem abertos do roadmap original o **Dashboard** (rota existe como
+> placeholder) e a tela **About**.
+>
+> **Pendência de release:** homologação visual do Contrato .docx no Microsoft
+> Word — gate manual obrigatório pelo ADR-0330.
+>
+> **Nota de numeração:** o rótulo "Sprint 3.1" foi usado duas vezes — 3.1 (a) é o
+> PDF Apresentação (ADR-0301) e 3.1 (b) é a Documentação Contratual (ADR-0330).
+> A numeração das Sprints também não é cronológica. Os **ADRs** são a referência
+> estável.
+>
 > A visão abaixo é histórica. Melhorias registradas em `BACKLOG.md`.
 
 - ✅ **Sprint 1 — Cadastros base:** Configuração, Clientes, Produtos, Vendedores

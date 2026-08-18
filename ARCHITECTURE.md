@@ -56,8 +56,18 @@ src/
     forms/                   # CurrencyInput (pronto p/ React Hook Form)
     tables/                  # DataTable (TanStack Table genérico)
 
-  features/                  # Feature-First (esqueletos na Sprint 0)
-    dashboard/ propostas/ clientes/ produtos/ vendedores/ configuracoes/
+  features/                  # Feature-First
+    dashboard/ clientes/ produtos/ vendedores/ configuracoes/
+    propostas/               # workspace, seções, itens, serviços, totais
+      pdf/                   # geração de PDF (@react-pdf/renderer)
+        blocks/              #   cabeçalho, cliente, tabela, rodapé financeiro,
+                             #   serviço complementar — compartilhados
+        presentation/        #   PDF Apresentação (13 templates, landscape 16:9)
+        filename.ts          #   nome de download de TODOS os documentos
+      docx/                  # geração do Contrato (docxtemplater)
+        contrato.mapper.ts   #   DTO → ContratoTemplateDTO (toda a regra)
+        render.ts            #   preenche o template (sem regra)
+        extenso.ts           #   valor por extenso
 
   infrastructure/
     configuration/           # env tipado e validado (Zod) — fail-fast
@@ -99,7 +109,9 @@ Prisma 7 com o generator `prisma-client` (saída em `src/generated/prisma`) e
 | `Proposta`            | `propostas`             | Raiz (`proposalNumber` único, `currentRevisionId`, enum `modelo`) |
 | `PropostaRevisao`     | `proposta_revisoes`     | Versões (`revisionNumber` inteiro, único por proposta) |
 | `PropostaSecao`       | `proposta_secoes`       | **Agrupador neutro de itens** (ver abaixo)       |
-| `PropostaItem`        | `proposta_itens`        | Item dentro de uma seção                         |
+| `PropostaItem`        | `proposta_itens`        | Item dentro de uma seção (`produtoId` com `onDelete: Restrict`) |
+| `PropostaServico`     | `proposta_servicos`     | Serviço complementar (SOM/WIFI), único por tipo por proposta |
+| `PropostaAuditoria`   | `proposta_auditorias`   | Trilha de eventos do ciclo de vida               |
 | `ConfiguracaoSistema` | `configuracao_sistema`  | **Singleton** de configuração                    |
 
 ### Hierarquia da proposta
@@ -196,12 +208,86 @@ cadastros (ADR-0106).
   **inativado** (mensagem padrão única).
   - **Cliente** e **Vendedor** possuem relação com `Proposta` — a checagem já é
     aplicada (`proposta.count`).
-  - **Produto NÃO possui relação com `Proposta` na Sprint 1** (decisão
-    deliberada — não criar vínculo artificial). Portanto, **na Sprint 1 o
-    produto é excluível normalmente**. Quando a Sprint de Propostas criar o
-    vínculo (`produtoId` nos itens), a checagem será adicionada em
-    `ProdutoService.remove` e a regra passará a valer automaticamente. Ver
-    `DECISIONS.md` (ADR-0104).
+  - **Produto** passou a ter vínculo com a proposta: `PropostaItem.produtoId` com
+    `onDelete: Restrict` (ADR-0207). A regra vale hoje — produto usado em
+    proposta não é excluído. O texto original do ADR-0104 previa exatamente isso.
+
+> **Nomenclatura — "Código" × "SKU".** Na interface (formulário, listagem, busca,
+> validações, tabela, PDF e autocomplete) o campo do produto chama-se **SKU**.
+> No banco e no código o nome continua `codigo` — a renomeação foi só de
+> apresentação. Unicidade garantida em três níveis: índice do banco, backend
+> (`skuDisponivel` + tratamento de `P2002`) e checagem assíncrona no frontend.
+
+## 4.3. Serviços complementares (Sprint 2.9.x)
+
+Os **módulos opcionais** da proposta comercial previstos na VISION são a entidade
+`PropostaServico`, ligada à **Proposta** (não à Revisão):
+
+- Enum `TipoServicoProposta { SOM, WIFI }` — **Projeto Som Ambiente** e
+  **Projeto Wi-Fi Premium**.
+- `@@unique([propostaId, tipo])` — no máximo **um de cada** por proposta.
+- Persistência por *delete-and-recreate* em `salvarProposta`; `valorTotal`
+  (produtos + serviços do módulo) é derivado, mas **persistido** por decisão da
+  Sprint 2.9.1.
+- **Nunca aparecem no modelo SIMPLIFICADA** — são auto-removidos ao trocar o
+  modelo, e o mapper força `servicos = []`.
+- Novos módulos entram como novos valores do enum + linhas associadas, **sem
+  reestruturar tabelas**, como a VISION exige.
+
+### Cálculo financeiro — fonte oficial única
+
+`src/features/propostas/totais.ts` tem **dois calculadores com resultados
+diferentes**, e a distinção importa:
+
+| Função | Desconto incide sobre | Uso |
+| --- | --- | --- |
+| `calcularTotais` | apenas a **Automação** | legado; permanece no código |
+| `calcularResumoFinanceiro` | o **Total combinado** (Automação + Som + Wi-Fi) | **fonte oficial** |
+
+**Regra:** todo documento consome `calcularResumoFinanceiro().totalGeral` via
+`dto.resumo.totalGeral`. Nenhum documento recalcula — os mappers **espelham** o
+total recebido. É isso que garante que PDF Detalhado, Anexo Contratual e Contrato
+citem o mesmo valor. Travado por teste em `contrato.mapper.test.ts`.
+
+## 4.4. Documentos da proposta
+
+A mesma proposta gera **quatro documentos**, todos sob demanda, sem persistir
+arquivo em disco:
+
+| Documento | Rota | Formato | Papel |
+| --- | --- | --- | --- |
+| **PDF Detalhado** | `/propostas/[id]/pdf` | PDF | documento comercial completo, com preços |
+| **PDF Apresentação** | `/propostas/[id]/presentation` | PDF | institucional; 13 templates, slides condicionais |
+| **Contrato** | `/propostas/[id]/contrato` | **.docx** | jurídico, editável no Word antes do envio |
+| **Anexo Contratual** | `/propostas/[id]/contratual` | PDF | escopo aprovado **sem preço por item** |
+
+Arquitetura comum a todos:
+
+```
+Route Handler (runtime nodejs, force-dynamic, no-store)
+  → getPropostaPdfData(id)      loader ÚNICO, compartilhado
+  → PropostaPdfDTO
+  → mapper puro                 (montarPropostaPdfDTO | montarContratoTemplateDTO)
+  → renderer                    (@react-pdf/renderer | docxtemplater)
+  → Response
+```
+
+- **Um loader só.** Nenhum documento faz consulta própria.
+- **Mapper concentra a regra; renderer é burro.** O renderer do contrato abre o
+  template, troca placeholder por valor e devolve o buffer — não calcula, não
+  formata, não decide (ADR-0330).
+- **PDF Apresentação:** templates PNG 1920×1080 como plano de fundo de página
+  inteira, em landscape 16:9 (`size=[960, 540]` pt); nenhuma página é redesenhada.
+  Slides 09 (Som), 10 (Wi-Fi) e 11 (Investimento Total) são **condicionais** —
+  Automação = 10 páginas · +Som = 12 · +Wi-Fi = 12 · ambos = 13. Coordenadas dos
+  overlays centralizadas em `coords.ts`. Bloqueado no modelo Simplificada.
+- **Contrato:** template oficial versionado (`contrato-outmat.oficial.docx`) +
+  `scripts/marcar-template-contrato.mjs`, que converte `[PLACEHOLDER]` → `{tag}`
+  de forma **seletiva** e **aborta** se o XML mudar fora de `<w:t>`/realce. Os
+  placeholders que o sistema não conhece ficam literais e realçados, para
+  preenchimento manual no Word. As chaves do `ContratoTemplateDTO` **são** as tags
+  do `.docx` — renomear um campo exige remarcar o template.
+- **Nomes de download** centralizados em `pdf/filename.ts`, para PDF e .docx.
 
 ## 5. Configuração e Storage (Windows Server 2019)
 
@@ -242,21 +328,33 @@ cadastros (ADR-0106).
 
 ## 8. Testes
 
-- **Unidade (Vitest):** formatadores/validações e utilitários puros
-  (`src/**/*.test.ts`).
+- **Unidade (Vitest):** formatadores/validações, utilitários puros, mappers e
+  route handlers (`src/**/*.test.ts`). Mappers são funções puras, testadas **sem
+  banco** — o padrão de `proposta-pdf.mapper.test.ts` e `contrato.mapper.test.ts`.
+  O template do contrato tem teste de **integridade** que roda no CI, garantindo
+  que as tags existem e que os placeholders manuais continuam literais.
 - **E2E smoke (Playwright):** fluxos mínimos de navegação e CRUD básico contra a
   aplicação real, em `e2e/`. Apenas Chromium, execução serial (os testes escrevem
   no banco); o `webServer` sobe a aplicação automaticamente. Ver DECISIONS.md
   (ADR-0150).
 
-## 9. Impressão (base para o Preview HTML)
+> **Limitação conhecida do smoke.** Os testes preenchem o autocomplete com
+> **códigos de produto fixos**, o que os acopla ao conteúdo do banco. O ambiente
+> de desenvolvimento passou a ser restaurado do catálogo real da Outmat
+> (`backup/db_outsystem.backup`), que não contém os produtos fictícios do
+> `prisma/seed.ts`. Ver `BACKLOG.md`.
+
+## 9. Impressão
 
 `src/app/print.css` (importado no `globals.css`) define a **estrutura de
 impressão**: `@page` A4, utilitários (`.no-print`, `.print-only`,
 `.print-avoid-break`, `.print-break-before`, `.print-page`) e regras
 `@media print` que ocultam o chrome (sidebar/header/toasts) e neutralizam
-superfícies. É a base do futuro Preview HTML da proposta (ainda não
-implementado). Ver DECISIONS.md (ADR-0151).
+superfícies. Ver DECISIONS.md (ADR-0151).
+
+> O **Preview HTML** que essa base preparava **não foi implementado** e não será:
+> foi substituído pela geração de PDF via `@react-pdf/renderer` (ADR-0223). O
+> `print.css` permanece para impressão de tela.
 
 ## 10. Convenção de imports
 

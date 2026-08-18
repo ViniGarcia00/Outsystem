@@ -1,6 +1,39 @@
-# Sprint 3.1 — Documentação Contratual — Implementation Plan
+# Sprint 3.1 (b) — Documentação Contratual — Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+---
+
+> ## Auditoria pós-implementação (Release 1.1.0 — 2026-08-18)
+>
+> Os checkboxes foram auditados **item a item** contra código, commits e testes.
+> Marcado `[x]` só onde há evidência concreta. **A implementação divergiu deste
+> plano em nomenclatura** — o plano ficou como foi escrito; as divergências estão
+> anotadas abaixo e junto de cada passo afetado.
+>
+> | O plano previa | O que foi entregue |
+> |---|---|
+> | `docx/contrato-tags.ts` | `docx/contrato.mapper.ts` |
+> | `montarContratoTags()` | `montarContratoTemplateDTO()` |
+> | `interface ContratoTags` | `interface ContratoTemplateDTO` |
+> | testes de render dentro de `template.test.ts` | arquivo separado `render.test.ts` |
+> | `nomeArquivoDocumento(tipo, dto)` + `type TipoDocumento` | `nomeArquivoContrato(dto)`, sem `TipoDocumento` |
+> | Task 6 sem testes | `route.test.ts` com 11 testes (**entregue a mais**) |
+> | `src/types/extenso.d.ts` (condicional) | não foi necessário |
+>
+> **Entregue fora do plano:** o tratamento do **realce amarelo** dos campos
+> automáticos (`1a6e6c8`), achado na homologação visual — nova invariante no
+> script de marcação e 8 testes em `template.test.ts`.
+>
+> **Suíte ao final da auditoria:** 105 testes, 10 arquivos, todos verdes.
+>
+> **Convenção usada aqui:** passos "rodar o teste para verificar que **falha**"
+> ficam `[ ]` — a fase vermelha do TDD não deixa artefato no repositório e marcá-los
+> seria inferência. Isso **não** significa que o passo foi pulado.
+>
+> **Nota de nomenclatura:** o título ganhou o sufixo "(b)" para distinguir do ciclo
+> homônimo do PDF Apresentação (ADR-0301). Este plano é o da Documentação
+> Contratual, ADR-0330.
 
 **Goal:** Gerar o Contrato em .docx a partir do template oficial da Outmat e renomear o PDF Contratual existente para "Anexo Contratual", encerrando o módulo Comercial.
 
@@ -67,7 +100,7 @@ Converte o template oficial em template marcado. **Roda uma vez**; a saída é c
 - Consumes: nada.
 - Produces: `public/templates/contrato/contrato-outmat.docx` contendo exatamente as tags `{clienteNome}`, `{clienteDocumento}`, `{clienteEndereco}`, `{propostaNumero}`, `{valorTotal}`, `{valorTotalExtenso}`, `{formaPagamento}`, `{data}`, `{empresaNome}` — e mantendo literais 4× `[Nº]`, 1× `[VALOR]`, 1× `[se houver]`.
 
-- [ ] **Step 1: Instalar dependências e renomear a entrada**
+- [x] **Step 1: Instalar dependências e renomear a entrada**
 
 ```bash
 npm i docxtemplater@^3.69.0 pizzip@^3.2.0 extenso@^2.1.0
@@ -76,7 +109,7 @@ mv public/templates/contrato/contrato-outmat.docx.docx public/templates/contrato
 
 O oficial vira `.oficial.docx` (entrada do script, fonte da verdade) e o marcado ocupa o nome `contrato-outmat.docx` (lido em runtime). Assim a extensão dupla some e a marcação continua reproduzível.
 
-- [ ] **Step 2: Escrever o script de marcação**
+- [x] **Step 2: Escrever o script de marcação**
 
 Criar `scripts/marcar-template-contrato.mjs`:
 
@@ -176,7 +209,7 @@ console.log("  4× [Nº] manuais, [VALOR] e [se houver] preservados literais");
 console.log("  XML fora de <w:t>: idêntico");
 ```
 
-- [ ] **Step 3: Rodar o script**
+- [x] **Step 3: Rodar o script**
 
 ```bash
 node scripts/marcar-template-contrato.mjs
@@ -191,7 +224,7 @@ Template marcado: ...\public\templates\contrato\contrato-outmat.docx
 
 Se lançar erro, **pare** — o template mudou e o mapeamento precisa ser revisto. Não contorne o erro.
 
-- [ ] **Step 4: Escrever o teste de integridade do template**
+- [x] **Step 4: Escrever o teste de integridade do template**
 
 Este teste roda no CI e protege contra o bug "multa de 1042%" caso alguém regenere o template.
 
@@ -261,7 +294,7 @@ describe("template do contrato", () => {
 });
 ```
 
-- [ ] **Step 5: Rodar o teste**
+- [x] **Step 5: Rodar o teste**
 
 ```bash
 npm test -- src/features/propostas/docx/template.test.ts
@@ -269,7 +302,16 @@ npm test -- src/features/propostas/docx/template.test.ts
 
 Esperado: PASS (13 testes).
 
-- [ ] **Step 6: Remover o template de entrada e commitar**
+> **Auditoria:** hoje são **21 testes** neste arquivo — os 13 previstos mais 8 do
+> tratamento do realce, acrescentados em `1a6e6c8`.
+
+- [x] **Step 6: Remover o template de entrada e commitar**
+
+> **Auditoria:** o **título deste passo contradiz o próprio corpo** — o título diz
+> "remover o template de entrada", o corpo manda commitar os dois. A implementação
+> seguiu o corpo: `contrato-outmat.oficial.docx` e `contrato-outmat.docx` estão
+> ambos versionados, o que é o correto (sem a entrada, a marcação não é
+> reproduzível nem auditável). Passo cumprido; o título é que está errado.
 
 Commitar **os dois**: o oficial (entrada, fonte da verdade) e o marcado (usado em
 runtime). Versionar a entrada é o que torna o script reexecutável e auditável — sem
@@ -296,7 +338,7 @@ git commit -m "feat(contrato): marca template oficial com tags (marcação selet
 - Consumes: pacote `extenso`.
 - Produces: `valorPorExtenso(valor: number): string` — sem "R$", sem parênteses (o template já os fornece).
 
-- [ ] **Step 1: Escrever o teste falhando**
+- [x] **Step 1: Escrever o teste falhando**
 
 Criar `src/features/propostas/docx/extenso.test.ts`:
 
@@ -334,6 +376,8 @@ describe("valorPorExtenso", () => {
 ```
 
 - [ ] **Step 2: Rodar o teste para verificar que falha**
+      <br>*Auditoria: não verificável retroativamente — a fase vermelha do TDD não
+      deixa artefato no repositório. Desmarcado por rigor, não por omissão.*
 
 ```bash
 npm test -- src/features/propostas/docx/extenso.test.ts
@@ -341,7 +385,7 @@ npm test -- src/features/propostas/docx/extenso.test.ts
 
 Esperado: FAIL — `Failed to resolve import "./extenso"`.
 
-- [ ] **Step 3: Implementar**
+- [x] **Step 3: Implementar**
 
 Criar `src/features/propostas/docx/extenso.ts`:
 
@@ -364,7 +408,7 @@ export function valorPorExtenso(valor: number): string {
 }
 ```
 
-- [ ] **Step 4: Rodar o teste para verificar que passa**
+- [x] **Step 4: Rodar o teste para verificar que passa**
 
 ```bash
 npm test -- src/features/propostas/docx/extenso.test.ts
@@ -385,7 +429,7 @@ declare module "extenso" {
 }
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/features/propostas/docx/extenso.ts src/features/propostas/docx/extenso.test.ts src/types/extenso.d.ts
@@ -409,7 +453,7 @@ O coração da sprint. Função pura `PropostaPdfDTO` → tags.
   - `montarContratoTags(dto: PropostaPdfDTO): ContratoTags`
   - `const INSTRUCAO_FORMA_PAGAMENTO: string` (fallback da cláusula 2.2).
 
-- [ ] **Step 1: Escrever o teste falhando**
+- [x] **Step 1: Escrever o teste falhando**
 
 Criar `src/features/propostas/docx/contrato-tags.test.ts`:
 
@@ -527,6 +571,8 @@ describe("montarContratoTags", () => {
 ```
 
 - [ ] **Step 2: Rodar o teste para verificar que falha**
+      <br>*Auditoria: não verificável retroativamente — a fase vermelha do TDD não
+      deixa artefato no repositório. Desmarcado por rigor, não por omissão.*
 
 ```bash
 npm test -- src/features/propostas/docx/contrato-tags.test.ts
@@ -534,7 +580,7 @@ npm test -- src/features/propostas/docx/contrato-tags.test.ts
 
 Esperado: FAIL — `Failed to resolve import "./contrato-tags"`.
 
-- [ ] **Step 3: Implementar**
+- [x] **Step 3: Implementar**
 
 Criar `src/features/propostas/docx/contrato-tags.ts`:
 
@@ -614,7 +660,7 @@ export function montarContratoTags(dto: PropostaPdfDTO): ContratoTags {
 }
 ```
 
-- [ ] **Step 4: Rodar o teste para verificar que passa**
+- [x] **Step 4: Rodar o teste para verificar que passa**
 
 ```bash
 npm test -- src/features/propostas/docx/contrato-tags.test.ts
@@ -622,12 +668,20 @@ npm test -- src/features/propostas/docx/contrato-tags.test.ts
 
 Esperado: PASS (9 testes).
 
-- [ ] **Step 5: Commit**
+> **Auditoria:** entregue como `contrato.mapper.test.ts` com **13 testes** — os 9
+> previstos mais 4 do bloco "fonte oficial do valor (contrato == anexo)", que
+> travam a regra do ADR-0330 de que o mapper **não recalcula**, apenas espelha
+> `resumo.totalGeral`.
+
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/features/propostas/docx/contrato-tags.ts src/features/propostas/docx/contrato-tags.test.ts
 git commit -m "feat(contrato): mapper de tags do contrato (DTO → template)"
 ```
+
+> **Auditoria:** commit real `707785c` — *"feat(contrato): ContratoMapper e
+> ContratoTemplateDTO"*, com os arquivos sob os nomes finais.
 
 ---
 
@@ -647,7 +701,7 @@ git commit -m "feat(contrato): mapper de tags do contrato (DTO → template)"
   - `contentDisposition(nome: string, disposicao?: "inline" | "attachment"): string`
   - `nomeArquivoPdf` e `contentDispositionPdf` continuam exportados e com o mesmo comportamento (as 3 rotas de PDF não mudam).
 
-- [ ] **Step 1: Escrever o teste falhando**
+- [x] **Step 1: Escrever o teste falhando**
 
 Criar `src/features/propostas/pdf/filename.test.ts`:
 
@@ -725,6 +779,8 @@ describe("contrato .docx", () => {
 ```
 
 - [ ] **Step 2: Rodar o teste para verificar que falha**
+      <br>*Auditoria: não verificável retroativamente — a fase vermelha do TDD não
+      deixa artefato no repositório. Desmarcado por rigor, não por omissão.*
 
 ```bash
 npm test -- src/features/propostas/pdf/filename.test.ts
@@ -732,7 +788,7 @@ npm test -- src/features/propostas/pdf/filename.test.ts
 
 Esperado: FAIL — `nomeArquivoDocumento` / `contentDisposition` não exportados.
 
-- [ ] **Step 3: Implementar**
+- [x] **Step 3: Implementar**
 
 Substituir o conteúdo de `src/features/propostas/pdf/filename.ts` por:
 
@@ -821,7 +877,7 @@ export function contentDispositionPdf(nome: string): string {
 }
 ```
 
-- [ ] **Step 4: Rodar os testes**
+- [x] **Step 4: Rodar os testes**
 
 ```bash
 npm test -- src/features/propostas/pdf/filename.test.ts
@@ -829,7 +885,7 @@ npm test -- src/features/propostas/pdf/filename.test.ts
 
 Esperado: PASS (8 testes).
 
-- [ ] **Step 5: Verificar que as rotas de PDF continuam compilando**
+- [x] **Step 5: Verificar que as rotas de PDF continuam compilando**
 
 ```bash
 npm run typecheck
@@ -837,7 +893,7 @@ npm run typecheck
 
 Esperado: sem erros. As 3 rotas de PDF importam `nomeArquivoPdf`/`contentDispositionPdf`, que continuam existindo.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/features/propostas/pdf/filename.ts src/features/propostas/pdf/filename.test.ts
@@ -856,7 +912,7 @@ git commit -m "feat(contrato): generaliza nome de download para .docx/attachment
 - Consumes: `ContratoTags` (Task 3); pacotes `docxtemplater` e `pizzip`.
 - Produces: `renderContratoDocx(tags: ContratoTags): Buffer`
 
-- [ ] **Step 1: Escrever o teste falhando**
+- [x] **Step 1: Escrever o teste falhando**
 
 Acrescentar ao final de `src/features/propostas/docx/template.test.ts`.
 
@@ -932,6 +988,8 @@ describe("renderContratoDocx", () => {
 ```
 
 - [ ] **Step 2: Rodar o teste para verificar que falha**
+      <br>*Auditoria: não verificável retroativamente — a fase vermelha do TDD não
+      deixa artefato no repositório. Desmarcado por rigor, não por omissão.*
 
 ```bash
 npm test -- src/features/propostas/docx/template.test.ts
@@ -939,7 +997,7 @@ npm test -- src/features/propostas/docx/template.test.ts
 
 Esperado: FAIL — `Failed to resolve import "./render"`.
 
-- [ ] **Step 3: Implementar**
+- [x] **Step 3: Implementar**
 
 Criar `src/features/propostas/docx/render.ts`:
 
@@ -984,7 +1042,7 @@ export function renderContratoDocx(tags: ContratoTags): Buffer {
 }
 ```
 
-- [ ] **Step 4: Rodar os testes**
+- [x] **Step 4: Rodar os testes**
 
 ```bash
 npm test -- src/features/propostas/docx/template.test.ts
@@ -992,7 +1050,12 @@ npm test -- src/features/propostas/docx/template.test.ts
 
 Esperado: PASS (18 testes — 13 da Task 1, 1 do fallback, 4 do render).
 
-- [ ] **Step 5: Commit**
+> **Auditoria:** os testes de render foram para um arquivo **separado**,
+> `render.test.ts` (9 testes: 8 de render + 1 do fallback), e `template.test.ts`
+> ficou com 21 (13 de tags/literais + 8 de realce). Total 30, contra os 18
+> previstos. A divergência é de organização, não de cobertura.
+
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/features/propostas/docx/render.ts src/features/propostas/docx/template.test.ts
@@ -1010,7 +1073,7 @@ git commit -m "feat(contrato): renderer do .docx via docxtemplater"
 - Consumes: `getPropostaPdfData` de `@/services/proposta-pdf.service`; `montarContratoTags` (Task 3); `renderContratoDocx` (Task 5); `nomeArquivoDocumento`/`contentDisposition` (Task 4).
 - Produces: `GET /propostas/[id]/contrato` → 200 com o .docx, ou 404.
 
-- [ ] **Step 1: Implementar a rota**
+- [x] **Step 1: Implementar a rota**
 
 Espelha `src/app/propostas/[id]/contratual/route.ts`. Criar `src/app/propostas/[id]/contrato/route.ts`:
 
@@ -1064,7 +1127,7 @@ export async function GET(
 }
 ```
 
-- [ ] **Step 2: Verificar tipos**
+- [x] **Step 2: Verificar tipos**
 
 ```bash
 npm run typecheck
@@ -1072,7 +1135,7 @@ npm run typecheck
 
 Esperado: sem erros.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/app/propostas/[id]/contrato/route.ts
@@ -1090,7 +1153,7 @@ git commit -m "feat(contrato): rota GET /propostas/[id]/contrato"
 - Consumes: rota da Task 6.
 - Produces: nada (folha da árvore).
 
-- [ ] **Step 1: Renomear os handlers do contratual e acrescentar o do contrato**
+- [x] **Step 1: Renomear os handlers do contratual e acrescentar o do contrato**
 
 Em `src/features/propostas/proposta-workspace.tsx`, substituir:
 
@@ -1115,7 +1178,7 @@ por:
   };
 ```
 
-- [ ] **Step 2: Atualizar os atalhos de emissão**
+- [x] **Step 2: Atualizar os atalhos de emissão**
 
 Substituir:
 
@@ -1138,7 +1201,7 @@ Atualizar também o comentário de `emitirEAbrir` logo acima (linha ~198-199):
   // "Emitir Anexo Contratual".
 ```
 
-- [ ] **Step 3: Trocar os botões**
+- [x] **Step 3: Trocar os botões**
 
 Substituir **integralmente** as linhas 435-457 (os dois blocos "Gerar PDF Contratual" / "Abrir PDF Contratual") pelos quatro blocos abaixo.
 
@@ -1233,7 +1296,16 @@ grep -rn "gerarContratual\|abrirContratual\|PDF Contratual" src/
 
 Esperado: nenhuma saída.
 
-- [ ] **Step 5: Typecheck e lint**
+> **Auditoria:** o comando retorna **6 ocorrências**, todas em **comentários** que
+> descrevem o documento pelo nome histórico da Sprint 2.10.2 —
+> `contratual/route.ts`, `pdf-cabecalho.tsx`, `pdf-cliente.tsx`,
+> `pdf-conteudo-tabela.tsx`, `pdf-rodape-financeiro.tsx` e
+> `proposta-pdf.mapper.ts`. **Nenhum identificador vivo** (`gerarContratual`,
+> `abrirContratual`) sobrou — a intenção do passo foi cumprida, a verificação
+> literal não. Desmarcado por honestidade. Renomear comentários é alteração de
+> código e ficou fora do ciclo de reconciliação documental.
+
+- [x] **Step 5: Typecheck e lint**
 
 ```bash
 npm run typecheck && npm run lint
@@ -1241,7 +1313,7 @@ npm run typecheck && npm run lint
 
 Esperado: sem erros.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/features/propostas/proposta-workspace.tsx
@@ -1255,7 +1327,7 @@ git commit -m "feat(contrato): botões Emitir Contrato e Emitir Anexo Contratual
 **Files:**
 - Modify: `DECISIONS.md`
 
-- [ ] **Step 1: Registrar o ADR-0330**
+- [x] **Step 1: Registrar o ADR-0330**
 
 Acrescentar ao final de `DECISIONS.md` (a numeração 03xx é a da Sprint 3.x; o último é ADR-0321):
 
@@ -1293,7 +1365,7 @@ Contratual. Contrato e Anexo citam o mesmo negócio e não podem divergir.
 documentos react-pdf. O contrato consome o `PropostaPdfDTO` existente.
 ```
 
-- [ ] **Step 2: Suíte completa**
+- [x] **Step 2: Suíte completa**
 
 ```bash
 npm test
@@ -1301,7 +1373,7 @@ npm test
 
 Esperado: todos os testes passam, incluindo os pré-existentes (`totais.test.ts`, `proposta-pdf.mapper.test.ts`, `conteudo-memoria.test.ts`, `format.test.ts`).
 
-- [ ] **Step 3: Build, typecheck e lint**
+- [x] **Step 3: Build, typecheck e lint**
 
 ```bash
 npm run typecheck && npm run lint && npm run build
@@ -1309,7 +1381,23 @@ npm run typecheck && npm run lint && npm run build
 
 Esperado: os três sem erros.
 
-- [ ] **Step 4: Teste manual (obrigatório — não pode ser pulado)**
+- [ ] **Step 4: Teste manual (obrigatório — não pode ser pulado)** — **PENDENTE**
+
+> **Auditoria (2026-08-18): GATE MANUAL PENDENTE.** Não há evidência no
+> repositório de que a comparação lado a lado com o template oficial tenha sido
+> feita para uma proposta **PF** e uma **PJ**.
+>
+> **Evidência parcial que existe:**
+> - `1a6e6c8`: *"A homologação visual pegou: … saíam pintados de amarelo"* e
+>   *"Verificado no endpoint real (proposta 1002): valores limpos, manuais
+>   amarelos."* → inspeção visual **do realce**, corrigida e travada por teste.
+> - ADR-0330: *"Verificado em runtime: proposta real → contrato 'R$ 15.000,00' ==
+>   cadeia do Resumo Financeiro na tela (18.085,50 − 3.085,50)."* → **valor
+>   conferido** (item 5 e item 11 abaixo).
+>
+> **Sem evidência:** os itens 1, 2, 3, 4, 6, 7, 8, 9, 10 e 12, e o par PF + PJ.
+>
+> O ADR-0330 classifica esta homologação como **obrigatória antes do merge**.
 
 O teste automatizado confere texto, não formatação. A preservação visual só é
 verificável abrindo o arquivo.
@@ -1340,7 +1428,7 @@ Para uma proposta **PJ** e uma **PF** (ambas com desconto e frete), abrir
     exatamente o valor da cláusula 2.1 do contrato**.
 12. Os outros dois PDFs abrem normalmente, com os nomes de download inalterados.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add DECISIONS.md
@@ -1351,14 +1439,43 @@ git commit -m "docs(contrato): ADR-0330 — contrato em .docx via docxtemplater"
 
 ## Critérios de aceite (conferir ao final)
 
-- [ ] Botão "PDF Contratual" removido (Task 7)
-- [ ] Botão "Emitir Contrato" criado, gera .docx (Tasks 5-7)
-- [ ] Botão "Emitir Anexo Contratual" criado, gera o PDF existente (Task 7)
+- [x] Botão "PDF Contratual" removido (Task 7)
+      — `proposta-workspace.tsx` não tem mais o rótulo; smoke E2E cobre com
+      `toHaveCount(0)`.
+- [x] Botão "Emitir Contrato" criado, gera .docx (Tasks 5-7)
+      — rota `/contrato` responde com o Content-Type de .docx; 11 testes em
+      `route.test.ts` + smoke E2E.
+- [x] Botão "Emitir Anexo Contratual" criado, gera o PDF existente (Task 7)
+      — rota `/contratual` inalterada; smoke confere `application/pdf`.
 - [ ] Template preservado — fonte, margens, cabeçalho, rodapé, espaçamentos,
       numeração, estilos e estrutura (Task 1 Step 3 + Task 8 Step 4.2)
-- [ ] Campos variáveis preenchidos automaticamente (Task 3)
-- [ ] Os 4 `[Nº]` manuais, `[VALOR]` e `[se houver]` permanecem literais (Task 1)
-- [ ] `{valorTotal}` == `resumo.totalGeral`; Contrato e Anexo com valor idêntico
+      — **PARCIAL.** A prova **estrutural** existe e é forte: o script aborta se
+      algo fora de `<w:t>`/realce mudar. A conferência **visual** no Word (Task 8
+      Step 4.2) **não tem evidência** → gate manual pendente.
+- [x] Campos variáveis preenchidos automaticamente (Task 3)
+      — 13 testes do mapper + 9 do renderer; nenhum `undefined` no documento.
+- [x] Os 4 `[Nº]` manuais, `[VALOR]` e `[se houver]` permanecem literais (Task 1)
+      — travado por `template.test.ts` e conferido no documento renderizado.
+- [x] `{valorTotal}` == `resumo.totalGeral`; Contrato e Anexo com valor idêntico
       (Task 3 + Task 8 Step 4.11)
-- [ ] Nomes de download dos 3 PDFs existentes inalterados (Task 4)
-- [ ] Build, TypeScript e ESLint sem erros (Task 8 Step 3)
+      — travado por teste que roda a fonte oficial de verdade; conferido em
+      runtime no ADR-0330 (R$ 15.000,00 == 18.085,50 − 3.085,50).
+- [x] Nomes de download dos 3 PDFs existentes inalterados (Task 4)
+      — 4 testes de regressão em `filename.test.ts`.
+- [x] Build, TypeScript e ESLint sem erros (Task 8 Step 3)
+      — verificado no gate da Release 1.1.0 (2026-08-18).
+
+---
+
+## Resultado da auditoria (Release 1.1.0 — 2026-08-18)
+
+| Situação | Qtd |
+|---|---|
+| Concluídos com evidência | 43 |
+| Desmarcados — fase vermelha do TDD, sem artefato | 4 |
+| Desmarcado — verificação literal não bate (comentários) | 1 |
+| Desmarcado — **gate manual pendente** (teste no Word) | 1 |
+| Desmarcado — depende do gate manual (preservação visual) | 1 |
+| **Total** | **50** |
+
+O único bloqueio real de release é a **homologação visual do .docx no Word**.

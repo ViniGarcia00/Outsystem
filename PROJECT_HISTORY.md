@@ -4,6 +4,22 @@ Registro cronológico das Sprints. **Atualizado obrigatoriamente ao final de cad
 Sprint** (ver `docs/CHECKLIST_RELEASE.md`). Cada entrada traz objetivo, entregas,
 ADRs, problemas, soluções, lições e o hash do commit.
 
+> **Nota de reconciliação (2026-08-18).** Os ciclos entre a Sprint 2.8 e a
+> Documentação Contratual foram registrados **retroativamente**, a partir dos
+> commits, dos ADRs e do código entregue — o arquivo havia parado em 2026-07-07.
+> Duas particularidades **preservadas como fato histórico**, não corrigidas:
+>
+> 1. **A numeração das Sprints não é cronológica.** As Sprints 3.0, 3.1 (a) e
+>    3.2.1 ocorreram **antes** das 2.9.x e 2.10.x. A ordem deste arquivo é
+>    **cronológica** (a data manda), não numérica.
+> 2. **O rótulo "Sprint 3.1" foi usado duas vezes.** Aqui aparecem como
+>    **3.1 (a) — PDF Apresentação** (ADR-0301) e **3.1 (b) — Documentação
+>    Contratual** (ADR-0330). Os **ADRs**, não o rótulo, são a referência
+>    estável. Nenhum ADR foi renumerado.
+>
+> Onde a evidência não existe no repositório, a entrada diz explicitamente
+> "**não registrado**" em vez de estimar.
+
 ---
 
 ## Sprint 0 — Fundação, Arquitetura e Planejamento
@@ -637,6 +653,419 @@ ADRs, problemas, soluções, lições e o hash do commit.
 - **Status do módulo:** ✔ Homologado · ✔ Estável · ✔ Pronto para produção.
 - **Próximo:** novo módulo independente **"PDF Projeto"** (escopo/arquitetura
   próprios; fora deste módulo).
+
+---
+
+## Sprint 3.0 — Fundação do PDF Apresentação
+
+- **Versão:** 1.0.0 (sem incremento à época, por decisão do próprio ciclo —
+  consolidado em **1.1.0**)
+- **Data:** 2026-07-07
+- **Objetivo:** criar a **fundação estrutural** de um segundo formato de
+  exportação da proposta — o PDF Apresentação, versão institucional para envio
+  ao cliente. Mesma proposta cadastrada; só o layout muda.
+- **Principais entregas:**
+  - Novo gerador `src/features/propostas/pdf/presentation/` (10 páginas):
+    `page-shell`, `pages`, `presentation-document`, `render`, `index`,
+    reutilizando a fundação compartilhada (`theme`/`fonts`/`format`).
+  - **Reuso total dos dados:** mesmo `getPropostaPdfData` → `PropostaPdfDTO` do
+    PDF Comercial. Sem consultas nem regras paralelas.
+  - Endpoint `GET /propostas/[id]/presentation` (runtime Node, `force-dynamic`,
+    `application/pdf`), no padrão do `/pdf`.
+  - Botão "Gerar PDF Apresentação" no workspace.
+  - Páginas dinâmicas (1, 6, 8, 9) ligadas aos dados reais; fixas (2,3,4,5,7,10)
+    com placeholders.
+  - `PropostaPdfDTO` ganhou `nomeProjeto` (aditivo; PDF Comercial inalterado).
+  - Smoke: endpoint `presentation` 200 `application/pdf` + botão.
+- **ADRs criadas:** ADR-0300.
+- **Problemas encontrados:** nenhum registrado.
+- **Lições aprendidas:** separar fundação (3.0) de design visual (3.1) permitiu
+  ligar os dados reais antes de existir arte definitiva.
+- **Gate:** não registrado à época.
+- **Hash do commit:** `2e00064`
+- **Próxima:** 3.1 (a) — detalhamento visual.
+
+---
+
+## Sprint 3.1 (a) — Implementação do PDF Apresentação
+
+> **Desambiguação:** este é o ciclo do **PDF Apresentação** (ADR-0301). O ciclo
+> homônimo da **Documentação Contratual** é a Sprint 3.1 (b), ADR-0330.
+
+- **Versão:** 1.0.0 (sem incremento à época — consolidado em **1.1.0**)
+- **Data:** 2026-07-07 a 2026-07-08
+- **Objetivo:** trocar as páginas desenhadas por **templates gráficos** oficiais
+  como plano de fundo, sobrepondo apenas os campos variáveis.
+- **Principais entregas:**
+  - 10 templates PNG (1920×1080) em `public/templates/presentation/`, usados
+    como **fundo de página inteira**; nenhuma página é redesenhada.
+  - Página em **landscape 16:9** (`size=[960, 540]` pt); escala template→página
+    de 0.5.
+  - `templates.ts` (loader que embute os PNGs como **data URI**, sem cache),
+    `page-shell.tsx` (Image de fundo full-page) e `coords.ts` (posições e cores
+    dos campos variáveis, centralizadas).
+  - Sobreposição por **posicionamento absoluto** só nas 4 páginas dinâmicas.
+  - **Ajustes funcionais (rotulados "Sprint 3.1.1", `3bb0958`):** "Gerar PDF
+    Apresentação" passa a emitir a proposta reutilizando `emitirPropostaAction`
+    (sem duplicar código); legenda de status removida da listagem; Forma de
+    Pagamento vira `Textarea` com valor padrão para propostas novas (registros
+    existentes nunca sobrescritos).
+  - **~14 commits de ajuste fino** de coordenadas, pesos, cores e centralização
+    (páginas 1, 6, 8 e 9), mais `suppressHydrationWarning` no `<body>`
+    (`41cc860`) e bullet `●` (U+25CF) na Forma de Pagamento (`27c443b`).
+- **ADRs criadas:** ADR-0301.
+- **Problemas encontrados:** os templates das 4 páginas dinâmicas ainda continham
+  **conteúdo de exemplo embutido** nas áreas reservadas.
+- **Como foram resolvidos:** pendência assumida no ADR-0301 — ao receber as
+  versões em branco, só `coords.ts` precisaria de ajuste fino.
+- **Lições aprendidas:** centralizar coordenadas num único arquivo permitiu ~14
+  iterações visuais sem tocar na estrutura das páginas.
+- **Gate:** não registrado à época.
+- **Hash dos commits:** `ca59dff` (principal), `a2d3a46`, `cdae5fc`, `93c7b73`,
+  `c8b7fc5`, `41cc860`, `877b68e`, `95a4d94`, `6e26123`, `94e3255`, `3bb0958`,
+  `a94e01e`, `05963a6`, `555e290`, `2d15c64`, `27c443b`, `80bd106`, `74e9395`.
+
+---
+
+## Ajustes de infraestrutura — PDF Projeto e seed do Prisma
+
+- **Versão:** 1.0.0 (sem incremento)
+- **Data:** 2026-07-08
+- **Objetivo:** fechar os ajustes do PDF e a configuração de seed.
+- **Principais entregas:** `prisma.config.ts` ajustado; artes das páginas 6, 8 e
+  9 substituídas por versões mais leves.
+- **Problemas encontrados:** o commit `cea9404` incluiu por engano um arquivo
+  avulso `ma.config.ts`.
+- **Como foram resolvidos:** removido no commit seguinte (`1bcca4d`).
+- **Observação:** ambos os commits estão **sem corpo de mensagem** — as entregas
+  acima foram deduzidas dos arquivos alterados, não de descrição do autor.
+- **Gate:** não registrado.
+- **Hash dos commits:** `cea9404`, `1bcca4d`.
+
+---
+
+## Sprint 3.2.1 — Correção da build de produção (Windows Server)
+
+- **Versão:** 1.0.0 (sem incremento — correção; consolidada em **1.1.0**)
+- **Data:** 2026-07-08
+- **Objetivo:** corrigir a falha de `npm run build` que ocorria **apenas** no
+  Windows Server 2019.
+- **Principais entregas:**
+  - `export const dynamic = "force-dynamic"` no **layout raiz**
+    (`src/app/layout.tsx`) — **uma linha**.
+  - Todas as páginas passam a ser renderizadas sob demanda (`ƒ`), eliminando o
+    caminho de prerender que dispara o bug.
+- **Problemas encontrados:** `Invariant: Expected workStore to be initialized`
+  (bug interno do Next.js, código **E1068**) na etapa de prerender de
+  `/clientes/novo`, com o mesmo commit passando na máquina de dev.
+- **Como foram resolvidos:** causa raiz identificada — o nº de workers vem de
+  `experimental.cpus` = `max(1, núcleos − 1)`: **11** em dev (12 núcleos),
+  **1** no servidor (1–2 vCPU). Só o caminho de worker único dispara o bug.
+  Análise comparativa (por página × layout raiz) registrada no ADR-0321: a via
+  por página deixaria a rota sintética `/_not-found` exposta.
+- **Lições aprendidas:** diferença dev × servidor que "não faz sentido" merece
+  investigação de ambiente (nº de núcleos) antes de qualquer workaround.
+- **Ponto de reavaliação:** ao atualizar o Next.js, verificar se a *invariant*
+  foi corrigida — validando a build em ambiente de 1 vCPU **antes** de reverter.
+- **ADRs criadas:** ADR-0321.
+- **Gate (registrado no commit):** typecheck 0, lint 0, **test 17/17**, build 0,
+  `npm start` serve `/clientes/novo` (200).
+- **Hash do commit:** `df0717e`
+
+---
+
+## Sprint 2.9.1 — Serviços Complementares (estrutura e cadastro)
+
+> **Sem ADR e sem spec.** As Sprints 2.9.x e 2.10.x não produziram ADR em
+> `DECISIONS.md` (que salta de ADR-0228 para ADR-0300) nem documento de design
+> em `docs/superpowers/specs/`. As entradas abaixo foram reconstruídas a partir
+> dos corpos de commit e do código entregue.
+
+- **Versão:** 1.0.0 (sem incremento à época — consolidado em **1.1.0**)
+- **Data:** 2026-07-08
+- **Objetivo:** introduzir os módulos opcionais da proposta comercial previstos
+  desde a VISION (Projeto Som Ambiente e Projeto Wi-Fi Premium).
+- **Principais entregas:**
+  - Nova entidade **`PropostaServico`** (enum `TipoServicoProposta` SOM/WIFI),
+    relação `Proposta` 1→N, **unicidade por (propostaId, tipo)** — no máximo um
+    SOM e um WIFI por proposta.
+  - **Migration aditiva** `20260708000000_servicos_complementares`.
+  - Persistência por *delete-and-recreate* em `salvarProposta`; `valorTotal`
+    recalculado no servidor (produtos + serviços). `ServicoDTO` + carga em
+    `getWorkspace`.
+  - Workspace: seção "Serviços Complementares" entre Conteúdo e Finalização.
+  - Componentes `ProjetoServicoCard` (reutilizável) e `ServicosComplementares`;
+    hook `servicos-memoria` (edição em memória + save-all).
+  - Validações Zod (`servicoSchema`; tipo único por proposta).
+- **Não alterado:** Automação, PDF, cálculos financeiros, emissão e revisões.
+- **ADRs criadas:** nenhuma (**lacuna** — decisão de modelagem sem ADR).
+- **Gate:** não registrado.
+- **Hash do commit:** `b957693`
+
+---
+
+## Sprint 2.9.2 — Integração Financeira dos Serviços Complementares
+
+- **Versão:** 1.0.0 (sem incremento — consolidado em **1.1.0**)
+- **Data:** 2026-07-08
+- **Objetivo:** fazer os serviços complementares comporem o investimento total.
+- **Principais entregas:**
+  - Investimento Geral = Automação + Σ(`valorTotal` dos serviços).
+  - Helpers centralizados em `totais.ts`: `calcularInvestimentoComplementar` e
+    `calcularInvestimento` — **camada aditiva**; `calcularTotais`/`totalProposta`
+    ficaram intactos, seguindo a alimentar PDF e listagem só com a Automação.
+  - Componente `ResumoInvestimento` no workspace.
+  - `totais.test.ts`: 4 cenários + prova de aditividade.
+- **Nada persistido** (derivado); PDF, listagem, banco e cálculo inalterados.
+- **ADRs criadas:** nenhuma (**lacuna**).
+- **Gate:** não registrado.
+- **Hash do commit:** `d183375`
+
+---
+
+## Sprint 2.9.3 — PDF Apresentação com Som Ambiente, Wi-Fi e Investimento Total
+
+- **Versão:** 1.0.0 (sem incremento — consolidado em **1.1.0**)
+- **Data:** 2026-07-08
+- **Objetivo:** refletir os serviços complementares no PDF Apresentação.
+- **Principais entregas:**
+  - Estrutura oficial de **13 templates** (renomeados de 10); loader atualizado,
+    sem nome antigo referenciado.
+  - **Slides condicionais por existência:** 09 Projeto Som Ambiente, 10 Projeto
+    Wi-Fi Premium, 11 Investimento Total. Contagens resultantes:
+    **Automação = 10 · +Som = 12 · +Wi-Fi = 12 · ambos = 13**.
+  - Slide 08 passa a ser o Investimento **da Automação apenas**.
+  - Slide 11 (`PaginaInvestimentoTotal`): Automação + Som/Wi-Fi + divisor +
+    Investimento Total — **valores consumidos do DTO, nunca recalculados**.
+  - `PropostaPdfDTO` ganhou `PdfServico servicos[]` + `investimento`
+    (mapper/service). **PDF Comercial permaneceu byte-idêntico.**
+  - Coordenadas em `coords.ts` (INVESTIMENTO, INVESTIMENTO_TOTAL, SERVICO).
+  - Testes de geração no mapper (serviços + investimento).
+- **ADRs criadas:** nenhuma (**lacuna**).
+- **Gate:** não registrado.
+- **Hash do commit:** `d9bc915`
+
+---
+
+## Sprint 2.9.4 — Refinamentos do Módulo de Propostas
+
+- **Versão:** 1.0.0 (sem incremento — consolidado em **1.1.0**)
+- **Data:** 2026-07-09
+- **Objetivo:** unificar a apresentação financeira e ajustar a regra do desconto.
+- **Principais entregas:**
+  - **Resumo Financeiro único** (`resumo-financeiro.tsx`) substitui o rodapé de
+    totais e o "Resumo do Investimento".
+  - **Mudança de regra:** o Desconto passa a incidir sobre o **Total combinado**
+    (`calcularResumoFinanceiro`): Total Geral = Automação + Serviços − Desconto
+    + Frete. `calcularTotais` (desconto só sobre Automação) permaneceu no código.
+  - Listagem: coluna "Valor" = Total Geral; ordem das colunas ajustada.
+  - Serviços Complementares aparecem na Nova Proposta; **ocultos no modelo
+    Simplificado** (auto-removidos ao trocar).
+  - PDF Apresentação **bloqueado no Simplificado**; ajustes finos dos slides
+    08, 09, 10, 11 e 12 e das artes.
+  - Observações Comerciais/Técnicas removidas da tela (**mantidas no banco**).
+- **Consequência de longo alcance:** `calcularResumoFinanceiro().totalGeral`
+  tornou-se a **fonte oficial do valor** para todos os documentos — regra depois
+  travada por teste na Sprint 3.1 (b).
+- **ADRs criadas:** nenhuma (**lacuna grave** — mudança de regra de negócio
+  financeira sem ADR; a decisão só foi formalizada depois, no ADR-0330).
+- **Gate:** não registrado.
+- **Hash do commit:** `2309c92`
+
+---
+
+## Sprint 2.10.1 — PDF Detalhado
+
+- **Versão:** 1.0.0 (sem incremento — consolidado em **1.1.0**)
+- **Data:** 2026-07-09
+- **Objetivo:** padronizar a nomenclatura dos documentos e refletir os serviços
+  complementares no PDF completo.
+- **Principais entregas:**
+  - PDF Comercial renomeado (botão) para **"PDF Detalhado"**; nomenclatura
+    padronizada (PDF Detalhado / PDF Apresentação).
+  - Seções "Projeto Som Ambiente" e "Projeto Wi-Fi Premium" (título + descrição
+    + Valor do Projeto), condicionais à existência do serviço.
+  - Resumo Financeiro reescrito consumindo `dto.resumo` (regras da 2.9.4):
+    Produtos · Serviços da Automação · Som · Wi-Fi · Desconto · Frete · TOTAL —
+    **estrutura fixa** (linhas sempre visíveis; R$ 0,00 quando ausentes).
+  - Simplificada oculta serviços; mapper força `servicos=[]`.
+  - **Valores 100% do DTO** (nunca recalculados no PDF).
+- **ADRs criadas:** nenhuma (**lacuna**).
+- **Gate:** não registrado.
+- **Hash do commit:** `aed8990`
+
+---
+
+## Sprint 2.10.2 — PDF Contratual (hoje Anexo Contratual)
+
+- **Versão:** 1.0.0 (sem incremento — consolidado em **1.1.0**)
+- **Data:** 2026-07-09
+- **Objetivo:** entregar o anexo do contrato — tudo o que será entregue, **sem
+  preço por item**.
+- **Principais entregas:**
+  - Novo **PDF Contratual**: o cliente vê apenas o Total da Proposta.
+  - **Parametrização do documento** por variante (`"detalhado" | "contratual"`),
+    reutilizando cabeçalho, rodapé, cliente, tabela e financeiro. No contratual:
+    tabela sem colunas de valor (Código/Descrição/Qtd/UN), seções Som/Wi-Fi sem
+    "Valor do Projeto", Resumo só Desconto/Frete/TOTAL, título "ANEXO
+    CONTRATUAL".
+  - Nova rota `GET /propostas/[id]/contratual` e botões "Gerar/Abrir PDF
+    Contratual".
+- **Nota:** este documento é o que a Sprint 3.1 (b) renomeou para **"Anexo
+  Contratual"** — só o rótulo do botão mudou; rota, conteúdo e nome de download
+  permaneceram.
+- **ADRs criadas:** nenhuma (**lacuna**).
+- **Gate:** não registrado.
+- **Hash do commit:** `213e8c4`
+
+---
+
+## Sprint 2.10.3 — Refinamentos do PDF Contratual
+
+- **Versão:** 1.0.0 (sem incremento — consolidado em **1.1.0**)
+- **Data:** 2026-07-10 a 2026-07-13
+- **Objetivo:** fechar o PDF Contratual.
+- **Principais entregas:**
+  - **Subtotais dos projetos contratados:** a tabela segue sem preço por produto,
+    mas o documento fecha a Automação com "Subtotal Automação" (Produtos +
+    Serviços) e cada projeto (Som/Wi-Fi) exibe seu Subtotal. O cliente vê o
+    subtotal de cada projeto e o valor final — **nunca o preço unitário**.
+  - Resumo Financeiro contratual: Automação → Som → Wi-Fi → Subtotal Geral →
+    Desconto → Frete → TOTAL. Estrutura fixa.
+  - **Identificação do contratante por tipo de pessoa:** PF → Nome/CPF/RG;
+    PJ → Razão Social/CNPJ/IE (+ Telefone/E-mail/Endereço). Opcionais vazios
+    ocultados. Somente leitura — `rg`/`inscricaoEstadual` incluídos no
+    select/DTO existentes; **banco e persistência inalterados**.
+  - **Nomes de download padronizados** (`0b79177`): helpers `nomeArquivoPdf` +
+    `contentDispositionPdf` — "OM Proposta Comercial/Detalhada" e "Anexo
+    Contrato", com Primeiro Nome, Número e Revisão; caracteres inválidos para
+    Windows removidos.
+  - PDF Apresentação: fonte do slide 06 aumentada.
+- **Observação:** o corpo do commit `6d372ea` diz "Encerra o desenvolvimento do
+  módulo de Propostas (**v2.0**)". Essa "v2.0" **nunca foi formalizada** em
+  `VERSION`, `CHANGELOG` ou ADR. Ver a decisão de versionamento na Release 1.1.0.
+- **ADRs criadas:** nenhuma (**lacuna**).
+- **Gate:** não registrado.
+- **Hash dos commits:** `6d372ea`, `0b79177`
+
+---
+
+## Correções avulsas e refinamentos de Produtos
+
+- **Versão:** 1.0.0 (sem incremento — consolidado em **1.1.0**)
+- **Data:** 2026-07-10 a 2026-07-13
+- **Principais entregas:**
+  - **`31d5af1`** — ajuste do rodapé financeiro do PDF. *Commit sem corpo de
+    mensagem; entrega deduzida do arquivo alterado.*
+  - **`ee0db73`** — correção de autenticação do banco e configuração do ambiente
+    de desenvolvimento; adição de `backup/db_outsystem.backup`. *Commit sem
+    corpo.* **Consequência colateral relevante:** o banco de desenvolvimento
+    passou a ser restaurado do **catálogo real da Outmat**, deixando de conter os
+    produtos fictícios do `prisma/seed.ts` — origem da falha do smoke E2E
+    registrada em `BACKLOG.md`.
+  - **`3781c03`** — UX da tabela de produtos: **reordenação por Drag & Drop**
+    (`@dnd-kit`) iniciada apenas pela alça, substituindo os botões mover
+    cima/baixo; fonte dos inputs de valor reduzida; descrição em até 2 linhas;
+    ação `reordenarItens` + helper puro `reordenarNaLista` com teste unitário.
+  - **`75db63f`** — refinamentos do cadastro de Produtos: **SKU único em três
+    níveis** (banco, backend `skuDisponivel` + P2002, frontend assíncrono);
+    **Clonar Produto** (`/produtos/novo?clonarDe=<id>`, copia descritivos e zera
+    SKU/valores); nomenclatura **"Código" → "SKU"** em toda a interface (nomes
+    internos e de banco inalterados); listagem preserva posição e destaca o item
+    recém-editado. Componentes compartilhados receberam props **opcionais**, sem
+    impacto nos demais cadastros.
+- **ADRs criadas:** nenhuma (**lacuna** — o Drag & Drop e a regra de SKU único
+  são decisões que mereceriam ADR).
+- **Gate:** não registrado.
+- **Hash dos commits:** `31d5af1`, `ee0db73`, `3781c03`, `0b79177`, `75db63f`.
+
+---
+
+## Sprint 3.1 (b) — Documentação Contratual
+
+> **Desambiguação:** este é o ciclo da **Documentação Contratual** (ADR-0330),
+> distinto da Sprint 3.1 (a) — PDF Apresentação (ADR-0301).
+
+- **Versão:** consolidada em **1.1.0**
+- **Data:** 2026-07-17
+- **Objetivo:** gerar o **Contrato em .docx** a partir do template oficial da
+  Outmat e renomear o PDF Contratual para "Anexo Contratual", **encerrando o
+  módulo Comercial**.
+- **Documentos de processo:** design (`b489b3c`, revisado em `f2b0e79` após
+  inspeção do template real) e plano de implementação (`dd9bc5f`) — o primeiro
+  ciclo desde a 2.8 a seguir o processo completo de spec + plano.
+- **Principais entregas:**
+  - **Template versionado + script reproduzível:** o `.docx` oficial fica em
+    `public/templates/contrato/contrato-outmat.oficial.docx`;
+    `scripts/marcar-template-contrato.mjs` converte `[PLACEHOLDER]` → `{tag}`
+    gerando `contrato-outmat.docx`. O script **aborta** se qualquer parte do XML
+    fora de `<w:t>` (e do realce) mudar — prova mecânica de que fonte, margens,
+    cabeçalho, rodapé, espaçamentos, numeração e estilos ficam intactos.
+  - **Marcação seletiva:** `[Nº]` aparece 5× com 5 significados; só o do Anexo II
+    vira tag. Os 4 restantes, mais `[VALOR]` e `[se houver]`, permanecem
+    literais para preenchimento manual no Word.
+  - `ContratoMapper` (`contrato.mapper.ts`) com **toda** a regra; renderer
+    (`render.ts`) burro; rota `GET /propostas/[id]/contrato` orquestra e trata
+    erro (500 + log).
+  - Valor por extenso via `extenso`; data com timezone fixa `America/Sao_Paulo`
+    a partir de `dto.data` (nunca `new Date()`).
+  - **Fonte única do valor:** `dto.resumo.totalGeral` — a mesma do Anexo
+    Contratual, travada por teste.
+  - `filename.ts` generalizado para `.docx`/`attachment`, **mantendo os três
+    nomes de PDF byte a byte**.
+  - Botões "Emitir Contrato" e "Emitir Anexo Contratual" no workspace.
+  - Novas dependências: `docxtemplater`, `pizzip`, `extenso` (todas MIT).
+- **Problemas encontrados:** a homologação visual revelou que o template oficial
+  **realça os placeholders em amarelo** e o docxtemplater preserva a formatação
+  do run ao trocar o texto — nome, CPF, valor, data e forma de pagamento saíam
+  pintados de amarelo, e a forma de pagamento em itálico.
+- **Como foi resolvido:** o script de marcação passou a limpar `highlight`/`i`
+  **apenas** dos runs que viram tag do sistema; os manuais mantêm o amarelo,
+  sinalizando o que falta preencher. Realces: 18 → 6. Nova invariante do script e
+  8 testes novos em `template.test.ts` (`1a6e6c8`, ADR atualizado em `da64d19`).
+- **Lições aprendidas:** teste automatizado prova texto, não formatação — a
+  inspeção visual no Word continua sendo gate humano obrigatório.
+- **ADRs criadas:** ADR-0330.
+- **Gate:** ver a seção **Release 1.1.0** abaixo.
+- **Hash dos commits:** `b489b3c`, `f2b0e79`, `dd9bc5f` (processo); `2e88180`,
+  `4351e06`, `58ab167`, `707785c`, `7f8da8d`, `1e0f282`, `947820e`, `aba7002`,
+  `1a6e6c8`, `da64d19` (implementação).
+- **Status do módulo Comercial:** ✔ encerrado. Próximos ciclos são operacionais
+  (Pedido de Venda, Ordem de Serviço).
+
+---
+
+## Release 1.1.0 — Reconciliação documental e fechamento do módulo Comercial
+
+- **Versão:** 1.0.0 → **1.1.0**
+- **Data:** 2026-08-18
+- **Objetivo:** **exclusivamente** reconciliação documental e fechamento formal
+  da release. Nenhuma funcionalidade, regra de negócio, refatoração, schema,
+  migration ou alteração de comportamento de PDFs, Contrato, Propostas ou
+  cadastros.
+- **Principais entregas:**
+  - `PROJECT_HISTORY.md`: 16 ciclos reconstruídos a partir do repositório
+    (3.0 → 3.1 b), com desambiguação 3.1 (a)/3.1 (b) e marcação explícita das
+    lacunas de ADR/spec das Sprints 2.9.x e 2.10.x.
+  - `CHANGELOG.md`: seção `[1.1.0]` consolidando tudo o que estava em
+    `[Não lançado]` mais os ciclos ausentes.
+  - Plano da Documentação Contratual: 51 checkboxes auditados item a item contra
+    código, commits e testes; divergências de nomenclatura anotadas; o teste
+    manual no Word permanece **desmarcado**.
+  - `docs/CHECKLIST_RELEASE.md`: **Unit Tests (Vitest)** incluído explicitamente
+    no gate, entre Build e Smoke.
+  - `ARCHITECTURE.md` e `PROJECT_CONTEXT.md` atualizados.
+  - `BACKLOG.md`: registrados o acoplamento do smoke ao catálogo, o guard 400 das
+    rotas de documento, o superusuário no `.env` e a formalização do merge.
+  - `docs/BRIEFING-PROJETO.md` corrigido e versionado.
+- **Justificativa SemVer:** MINOR. Todas as entregas pós-1.0.0 são **aditivas** —
+  nova entidade com migration aditiva, novos endpoints, novos documentos,
+  campos acrescentados ao DTO. Nenhuma remoção de API nem quebra de contrato.
+  A "v2.0" citada no corpo de `6d372ea` não foi adotada: seria um MAJOR sem
+  breaking change.
+- **Gate:** ver o relatório da release.
+- **Pendência humana:** homologação visual do Contrato .docx no Microsoft Word
+  (gate manual, exigido pelo ADR-0330 e pelo plano da Sprint 3.1 b).
 
 ---
 

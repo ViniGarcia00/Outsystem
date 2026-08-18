@@ -2,6 +2,83 @@
 
 > Vazio por design ao final da Sprint 0. Preenchido ao longo das Sprints.
 
+## Apurado na auditoria da Release 1.1.0 (2026-08-18)
+
+Itens levantados durante a reconciliação documental. **Nada aqui foi
+implementado** — o ciclo 1.1.0 foi exclusivamente documental/processual.
+
+### Testes
+
+- [ ] **Smoke E2E acoplado ao conteúdo do catálogo** (prioridade alta)
+      **Contexto:** `e2e/smoke.spec.ts` preenche o autocomplete com códigos de
+      produto fixos. As linhas 136, 149 e 342 usam `"RTR"`, que vem do catálogo
+      **fictício** de `prisma/seed.ts` (`RTR-001`). Desde `ee0db73` (2026-07-10) o
+      banco de desenvolvimento é restaurado de `backup/db_outsystem.backup` — o
+      catálogo **real** da Outmat (22 produtos `OM*`/`CM10`), sem nenhum `RTR`.
+      Os três testes falham. A linha 274 usa `"CM10"` e passa. Verificado em
+      consulta ao banco: `codigo ILIKE 'RTR%'` → nenhum resultado.
+      **Não é regressão** da 1.1.0 — o débito é de 10/07; o teste novo da Sprint
+      3.1 (b) já nasceu usando `CM10`.
+      **Aceite:** o smoke deixa de depender de um código específico. O teste cria
+      o próprio produto (como já faz com o cliente, via `Date.now()`) ou
+      seleciona a primeira opção que o autocomplete oferecer.
+      **Não fazer:** trocar `"RTR"` por `"CM10"` — é workaround; mantém o
+      acoplamento e quebra de novo no próximo restore do banco.
+
+- [ ] **Ampliar a cobertura E2E**
+      **Contexto:** hoje o smoke cobre navegação, CRUD de Clientes, fluxo de
+      proposta, Simplificada e os documentos. Falta Produtos, Vendedores e
+      Configuração.
+
+### Rotas de documento
+
+- [ ] **Guard 400 para proposta sem itens** (ADR-0330, fora de escopo deliberado)
+      **Contexto:** a UI protege (`podeEmitir` exige cliente + item), mas o acesso
+      direto a `/contrato`, `/pdf` ou `/presentation` de uma proposta vazia
+      responde 200 com "R$ 0,00". Comportamento herdado, não regressão.
+      **Aceite:** as três rotas respondem 400 quando a proposta não tem itens,
+      como `/presentation` já faz para o modelo Simplificada. Resolve junto o
+      quirk do `extenso(0)` → "zero centavos".
+
+### Processo
+
+- [ ] **Formalizar (ou não) o merge em `main` como critério de conclusão**
+      **Contexto:** `docs/CHECKLIST_RELEASE.md` exige commit (item 13), não merge.
+      Não há ADR sobre o assunto e o repositório não tem merge commits — até a
+      Sprint 3.1 (b) o trabalho ia direto na `main`. `sprint-3.1` inaugurou o
+      modelo de branch.
+      **Aceite:** decidir e registrar em ADR. Se a resposta for sim, acrescentar
+      o item ao gate.
+
+- [ ] **ADRs retroativos para as Sprints 2.9.x e 2.10.x**
+      **Contexto:** sete ciclos entregaram nova entidade (`PropostaServico` +
+      migration), mudança de regra financeira (desconto sobre o total combinado),
+      dois documentos novos e a parametrização do PDF por variante — **sem
+      nenhum ADR**. `DECISIONS.md` salta de ADR-0228 para ADR-0300.
+      **Aceite:** ADRs registrando ao menos a modelagem dos serviços
+      complementares e a mudança da regra do desconto. É reconstrução
+      arquitetural, merece ciclo próprio — não entrou na 1.1.0.
+
+- [ ] **Atualizar `README.md` e `VISION.md`**
+      **Contexto:** o item 10 do gate ("Documentação atualizada") não fecha.
+      `ARCHITECTURE.md` e `PROJECT_CONTEXT.md` foram atualizados na 1.1.0;
+      `README.md` está na Sprint 2.3 e `VISION.md` na Sprint 1.
+      **Aceite:** `VISION.md` com as regras de serviços complementares e do
+      desconto sobre o total combinado; `README.md` com as trilhas e os quatro
+      documentos.
+
+### Infraestrutura
+
+- [ ] **`.env` usa o superusuário `postgres`** (segurança)
+      **Contexto:** `.env.development` e `.env` apontam
+      `postgresql://postgres:...@localhost:5432/db_outsystem`, contradizendo o
+      comentário do próprio arquivo (*"A aplicação NUNCA usa o superusuário
+      postgres"*) e o ADR-0101, que criou o usuário dedicado `outmat`.
+      Introduzido em `ee0db73`. Além disso `.env.development` e `.env.production`
+      **estão versionados com senha em texto claro**.
+      **Aceite:** voltar ao usuário `outmat` e tirar os `.env` com credencial do
+      versionamento. **Decisão de infraestrutura — não tocado na 1.1.0.**
+
 ## Backlog Futuro (Homologação v1.0.0 — Sprint 2.8)
 
 Oportunidades de melhoria **identificadas durante a homologação** do módulo de

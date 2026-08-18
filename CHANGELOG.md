@@ -4,7 +4,190 @@ Todas as mudanças relevantes deste projeto são documentadas aqui.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o
 projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
-## [Não lançado]
+## [1.1.0] — 2026-08-18
+
+Release consolidada do **módulo Comercial**. Reúne tudo o que foi entregue desde
+a 1.0.0 e nunca havia sido formalizado: Serviços Complementares, PDF Detalhado,
+PDF Contratual, PDF Apresentação, a correção de build do Windows Server e a
+Documentação Contratual.
+
+**MINOR:** todas as entregas são **aditivas** — nova entidade com migration
+aditiva, novos endpoints, novos documentos e campos acrescentados ao DTO.
+Nenhuma remoção de API nem quebra de contrato.
+
+> As Sprints estão listadas da mais recente para a mais antiga. **A numeração não
+> é cronológica:** 3.0, 3.1 (a) e 3.2.1 ocorreram *antes* das 2.9.x e 2.10.x. O
+> rótulo "Sprint 3.1" foi usado duas vezes — **3.1 (a)** é o PDF Apresentação
+> (ADR-0301) e **3.1 (b)** é a Documentação Contratual (ADR-0330).
+
+### Sprint 3.1 (b) — Documentação Contratual. Ver ADR-0330.
+
+Encerra o módulo Comercial. A proposta passa a ter **quatro documentos**: PDF
+Detalhado, PDF Apresentação, Contrato (.docx) e Anexo Contratual (PDF).
+
+#### Adicionado
+
+- **Contrato em .docx** gerado a partir do template oficial da Outmat, via
+  `docxtemplater` + `pizzip`. Editável no Word antes do envio — requisito que
+  nenhum PDF atende. Endpoint `GET /propostas/[id]/contrato`, baixado como
+  `attachment` com o nome `Contrato - Proposta {Nº} - {Nome} Rev.{N}.docx`.
+- **Template versionado e marcação reproduzível:** o `.docx` oficial fica em
+  `public/templates/contrato/contrato-outmat.oficial.docx` e
+  `scripts/marcar-template-contrato.mjs` gera o template marcado. O script
+  **aborta** se qualquer parte do XML fora de `<w:t>` (e do realce) mudar,
+  provando que fonte, margens, cabeçalho, rodapé, espaçamentos, numeração e
+  estilos ficam intactos.
+- **Marcação seletiva dos placeholders:** só os campos que o sistema preenche
+  viram tag. Os 4 `[Nº]` de prazos/multa, `[VALOR]` e `[se houver]` permanecem
+  literais e realçados em amarelo, para preenchimento manual no Word.
+- **Valor por extenso** via `extenso`; data com timezone fixa
+  `America/Sao_Paulo`, vinda da revisão emitida e nunca de `new Date()`.
+- Botões **"Emitir Contrato"** e **"Emitir Anexo Contratual"** no workspace.
+- Novas dependências (todas MIT): `docxtemplater`, `pizzip`, `extenso`.
+
+#### Alterado
+
+- Botão "PDF Contratual" → **"Emitir Anexo Contratual"**. Apenas o rótulo: a rota
+  `/contratual`, o documento e o nome de download continuam inalterados.
+- `filename.ts` generalizado para aceitar extensão e disposição, **mantendo os
+  três nomes de PDF existentes byte a byte**.
+
+#### Corrigido
+
+- **Realce amarelo nos campos automáticos.** O template oficial realça os
+  placeholders e o docxtemplater preserva a formatação do run ao trocar o texto —
+  nome, CPF, valor, data e forma de pagamento saíam pintados de amarelo (e a
+  forma de pagamento em itálico). O script de marcação passou a limpar
+  `highlight`/`i` apenas dos runs que viram tag do sistema. Realces: 18 → 6.
+
+### Refinamentos de Produtos e correções de ambiente
+
+#### Adicionado
+
+- **Reordenação de itens da proposta por Drag & Drop** (`@dnd-kit`), iniciada
+  apenas pela alça, substituindo os botões de mover para cima/baixo.
+- **Clonar Produto:** ação por linha que abre `/produtos/novo?clonarDe=<id>`,
+  copiando os dados descritivos e zerando SKU e valores.
+- **SKU único em três níveis:** banco, backend (`skuDisponivel` + P2002) e
+  frontend (checagem assíncrona + guarda no envio).
+
+#### Alterado
+
+- Nomenclatura **"Código" → "SKU"** em toda a interface (formulário, listagem,
+  busca, validações, tabela, PDF e autocomplete). Nomes internos e de banco
+  (`codigo`) inalterados.
+- Listagem de Produtos preserva busca, ordenação, página e filtro ao voltar da
+  edição, destacando o item recém-editado.
+- Descrição dos itens da proposta em até 2 linhas; fonte dos inputs de valor
+  ajustada.
+
+#### Corrigido
+
+- Rodapé financeiro do PDF.
+- Autenticação do banco e configuração do ambiente de desenvolvimento.
+
+### Sprint 2.10.3 — Refinamentos do PDF Contratual
+
+#### Adicionado
+
+- **Subtotais dos projetos contratados:** a tabela segue sem preço por produto,
+  mas o documento fecha a Automação com "Subtotal Automação" e cada projeto
+  (Som/Wi-Fi) exibe o seu. O cliente vê o subtotal de cada projeto e o valor
+  final — **nunca o preço unitário**.
+- **Identificação do contratante por tipo de pessoa:** PF → Nome/CPF/RG; PJ →
+  Razão Social/CNPJ/Inscrição Estadual, além de telefone, e-mail e endereço.
+  Opcionais vazios são ocultados, sem placeholder.
+- **Nomes de download padronizados** para os três PDFs (`nomeArquivoPdf` +
+  `contentDispositionPdf`), com primeiro nome, número e revisão; caracteres
+  inválidos no Windows removidos.
+
+#### Alterado
+
+- Resumo Financeiro contratual: Automação → Som → Wi-Fi → Subtotal Geral →
+  Desconto → Frete → TOTAL, em estrutura fixa (R$ 0,00 quando ausente).
+- PDF Apresentação: fonte do slide 06 aumentada.
+
+### Sprint 2.10.2 — PDF Contratual (hoje Anexo Contratual)
+
+#### Adicionado
+
+- **PDF Contratual:** mostra tudo o que será entregue **sem preço por item** — o
+  cliente vê apenas o Total da Proposta. Endpoint
+  `GET /propostas/[id]/contratual` e botões no workspace.
+- **Parametrização do documento** por variante (`detalhado` | `contratual`),
+  reutilizando cabeçalho, rodapé, cliente, tabela e financeiro. No contratual a
+  tabela perde as colunas de valor e o título vira "ANEXO CONTRATUAL".
+
+### Sprint 2.10.1 — PDF Detalhado
+
+#### Alterado
+
+- PDF Comercial renomeado para **"PDF Detalhado"**; nomenclatura padronizada
+  (PDF Detalhado / PDF Apresentação).
+- Resumo Financeiro reescrito consumindo `dto.resumo`: Produtos · Serviços da
+  Automação · Projeto Som Ambiente · Projeto Wi-Fi Premium · Desconto · Frete ·
+  TOTAL DA PROPOSTA, em **estrutura fixa**. Valores 100% do DTO, nunca
+  recalculados no PDF.
+
+#### Adicionado
+
+- Seções "Projeto Som Ambiente" e "Projeto Wi-Fi Premium" no PDF, condicionais à
+  existência do serviço. A Simplificada oculta serviços.
+
+### Sprint 2.9.4 — Refinamentos do Módulo de Propostas
+
+#### Alterado
+
+- **Resumo Financeiro único** substitui o rodapé de totais e o "Resumo do
+  Investimento".
+- **O Desconto passa a incidir sobre o Total combinado**
+  (`calcularResumoFinanceiro`): Total Geral = Automação + Serviços − Desconto +
+  Frete. Esta passou a ser a **fonte oficial do valor** para todos os documentos.
+- Listagem: coluna "Valor" exibe o Total Geral; ordem das colunas ajustada.
+- Serviços Complementares passam a aparecer na Nova Proposta e ficam **ocultos no
+  modelo Simplificado** (auto-removidos ao trocar).
+- Observações Comerciais/Técnicas removidas da tela (mantidas no banco).
+
+#### Corrigido
+
+- PDF Apresentação bloqueado no modelo Simplificado; ajustes finos dos slides.
+
+### Sprint 2.9.3 — PDF Apresentação com Som Ambiente, Wi-Fi e Investimento Total
+
+#### Adicionado
+
+- Estrutura oficial de **13 templates** (antes 10), com **slides condicionais por
+  existência**: 09 Projeto Som Ambiente, 10 Projeto Wi-Fi Premium, 11
+  Investimento Total. Contagem final: Automação = 10 · +Som = 12 · +Wi-Fi = 12 ·
+  ambos = 13.
+- Slide 11 (Investimento Total): Automação + Som/Wi-Fi + divisor + total, com
+  valores consumidos do DTO.
+- `PropostaPdfDTO` ganhou `servicos[]` e `investimento` (aditivo).
+
+#### Alterado
+
+- Slide 08 passa a exibir o Investimento **da Automação apenas**.
+
+### Sprint 2.9.2 — Integração Financeira dos Serviços Complementares
+
+#### Adicionado
+
+- Investimento Geral = Automação + Σ(valor total dos serviços), via
+  `calcularInvestimentoComplementar` e `calcularInvestimento` em `totais.ts` —
+  **camada aditiva**, com `calcularTotais` intacto.
+- Componente "Resumo do Investimento" no workspace.
+- Testes financeiros: 4 cenários + prova de aditividade.
+
+### Sprint 2.9.1 — Serviços Complementares (estrutura e cadastro)
+
+#### Adicionado
+
+- Entidade **`PropostaServico`** (Som Ambiente / Wi-Fi Premium), relação
+  `Proposta` 1→N com **unicidade por tipo** — no máximo um de cada por proposta.
+- **Migration aditiva** `20260708000000_servicos_complementares`.
+- Seção "Serviços Complementares" no workspace, entre Conteúdo e Finalização,
+  com edição em memória e salvamento único.
+- Validações Zod para os serviços.
 
 ### Sprint 3.2.1 — Correção da build de produção (Windows Server). Ver ADR-0321.
 
@@ -41,7 +224,18 @@ cálculo, PDF ou tela foi alterada.
   comportamento. Verificado por build: sobram estáticas apenas `/_global-error` e
   `/favicon.ico` (internas, sem resolução de metadados → sem risco).
 
+### Ajustes de infraestrutura — PDF Projeto e seed do Prisma
 
+#### Corrigido
+
+- Configuração do `prisma.config.ts` e artes das páginas 6, 8 e 9 do PDF
+  Apresentação substituídas por versões mais leves.
+- Removido o arquivo avulso `ma.config.ts`, incluído por engano no commit
+  anterior.
+
+### Sprint 3.1 (a) — PDF Apresentação com templates gráficos. Ver ADR-0301.
+
+#### Alterado
 
 - **PDF Apresentação passou a usar os templates gráficos** (`public/templates/
   presentation/page-01..10.png`) como **plano de fundo de página inteira**, em
@@ -54,6 +248,14 @@ cálculo, PDF ou tela foi alterada.
 - Coordenadas dos campos centralizadas em `coords.ts` (provisórias — ajuste fino
   quando os templates com áreas em branco forem recebidos). PDF Comercial
   inalterado; sem banco/migration/Prisma.
+
+#### Adicionado (ajustes funcionais, rotulados "Sprint 3.1.1")
+
+- "Gerar PDF Apresentação" passa a **emitir a proposta**, reutilizando o mesmo
+  `emitirPropostaAction` do PDF Comercial.
+- **Forma de Pagamento** vira `Textarea` editável, com valor padrão nas propostas
+  novas — registros existentes nunca são sobrescritos.
+- Legenda de cores de status removida da listagem.
 
 ### Sprint 3.0 — Fundação do PDF Apresentação. Ver ADR-0300.
 
