@@ -1139,7 +1139,7 @@ ADRs, problemas, soluções, lições e o hash do commit.
   custo e **nenhuma** tabela de responsável existem.
 - **Hash dos commits:** `d2654fd` (design + plano), `f965f26` (schema/migration),
   `e78f1ab` (endereço e rótulos), `8103b41` (service/schemas/actions), `9bc40e0`
-  (telas), `31e81e3` (E2E), + commit de documentação.
+  (telas), `31e81e3` (E2E), `b89d1e9` (documentação).
 - **Próxima:** **Sprint 4.0.2 — Cronologia e Custos** (`InstalacaoRegistro`,
   `InstalacaoCusto`, timeline, totais derivados), que fecha o módulo em 1.2.0.
 
