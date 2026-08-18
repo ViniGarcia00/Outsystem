@@ -15,10 +15,25 @@
 - **Responsável é TEXTO LIVRE e OBRIGATÓRIO** no registro. Proibido criar usuário, login, responsável operacional, FK para `Vendedor` ou FK para qualquer pessoa. O nome é snapshot histórico.
 - **`datas.ts` é ESTENDIDO, nunca duplicado (D12).** Proibido criar um segundo módulo de datas. Os helpers de data-hora compartilham a constante `FUSO_BRASIL` do arquivo existente.
 - **Proibido alterar `src/utils/format/date.ts`.** O `formatDateTime` compartilhado não fixa timezone e é usado por Propostas; o fuso fixo de `aconteceuEm` vive em `datas.ts`.
-- **Timeline ordena por `aconteceuEm` desc**, com `createdAt` desc como desempate (D13). Nunca só por `createdAt`.
+- **Timeline ordena por `aconteceuEm` desc**, com `createdAt` desc e `id` desc como desempates (D13). Nunca só por `createdAt`.
 - **Fatos históricos são permitidos** — sem validação de piso em `aconteceuEm`. Há teto: não pode ser futuro.
 - **Nenhum total é persistido.** Sem `totalRegistro`, sem `custoExtraTotal` no banco.
-- **Monetário nunca é `float` no banco:** `Decimal @db.Decimal(12, 2)`. Valor de custo **estritamente maior que zero**.
+- **Monetário é `Decimal @db.Decimal(12, 2)` no banco — sempre.** O arredondamento
+  a 2 casas de `custos.ts` é endurecimento da *função de cálculo*; ele **não
+  substitui** a persistência monetária segura. Proibido usar `Float` para valor
+  monetário sob a justificativa de que o cálculo arredonda. A cadeia é:
+
+  ```
+  Banco        Decimal(12,2)
+     ↓
+  Service      toNumber na borda, representação consistente
+     ↓
+  custos.ts    soma + normalização em 2 casas
+     ↓
+  UI           formatCurrency
+  ```
+
+  Valor de custo **estritamente maior que zero**.
 - **Cronologia NÃO gera auditoria técnica (D17).** Criar, editar ou excluir registro não escreve em `InstalacaoAuditoria`.
 - **Exclusão (D16):** registro sem custos pode ser excluído; **com custos, bloqueado** com mensagem orientando editar. A checagem é do **service** — o `onDelete: Cascade` do banco apagaria os custos, e é exatamente o que a regra impede.
 - **Componente nunca importa Prisma.** Fluxo `app/` → `features/` → `services/` → `infrastructure/`.
@@ -1004,13 +1019,23 @@ const trimOrNull = (v?: string | null): string | null => {
 const toNumber = (v: { toString(): string }): number => Number(v.toString());
 
 /**
- * Ordenação da timeline: aconteceuEm desc, createdAt desc como desempate.
- * Ordenar por createdAt colocaria um registro criado hoje acima de um fato de
- * ontem — exatamente o caso que a spec exige tratar.
+ * Ordenação da timeline, em três níveis:
+ *
+ *   aconteceuEm desc  — o fato, não o cadastro. Ordenar por createdAt colocaria
+ *                       um registro criado hoje acima de um fato de ontem.
+ *   createdAt   desc  — desempate quando dois fatos compartilham o instante.
+ *   id          desc  — desempate TÉCNICO final. Sem ele, dois registros com
+ *                       aconteceuEm e createdAt idênticos sairiam em ordem
+ *                       indefinida do PostgreSQL, e a mesma consulta poderia
+ *                       devolver ordens diferentes entre execuções.
+ *
+ * O `id` (cuid) continua SEM significado comercial — é só critério de
+ * determinismo, nunca exibido nem usado como numeração.
  */
 export const ORDEM_TIMELINE = [
   { aconteceuEm: "desc" as const },
   { createdAt: "desc" as const },
+  { id: "desc" as const },
 ];
 
 /** Custos de um registro sempre na ordem em que foram lançados. */
@@ -1691,7 +1716,7 @@ Técnicos:
 - [ ] Criação de registro + custos é atômica
 - [ ] Edição substitui os custos na mesma transação
 - [ ] Exclusão bloqueada com custos, permitida sem custos, com a checagem no service
-- [ ] Timeline ordenada por `aconteceuEm`, não por `createdAt`
+- [ ] Timeline ordenada por `aconteceuEm`, não por `createdAt`, com desempate determinístico por `id`
 - [ ] Acontecimento histórico aceito; futuro rejeitado
 - [ ] `datas.ts` estendido, sem módulo de datas paralelo
 - [ ] `src/utils/format/date.ts` **não** alterado

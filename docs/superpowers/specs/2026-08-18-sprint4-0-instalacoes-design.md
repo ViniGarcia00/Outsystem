@@ -586,12 +586,24 @@ o formatador compartilhado mudaria o comportamento de Propostas, o que está
 proibido; então o fuso fixo vive em `datas.ts`, junto do resto da infraestrutura
 de datas do módulo.
 
-### D13 — Ordenação da timeline
+### D13 — Ordenação da timeline (revisado)
 
-`aconteceuEm desc`, com `createdAt desc` como desempate. Ordenar por `createdAt`
-colocaria no topo um registro criado hoje sobre um fato de ontem — exatamente o
-caso que a spec exige tratar (§43, §44). O desempate torna a ordem inequívoca
-quando dois fatos compartilham o mesmo instante.
+Três níveis, nesta ordem:
+
+```
+aconteceuEm DESC   ← o fato, não o cadastro
+createdAt   DESC   ← desempate quando dois fatos compartilham o instante
+id          DESC   ← desempate TÉCNICO final, para determinismo
+```
+
+Ordenar por `createdAt` colocaria no topo um registro criado hoje sobre um fato
+de ontem — exatamente o caso que a spec exige tratar (§43, §44).
+
+O terceiro nível existe porque, sem ele, dois registros com `aconteceuEm` **e**
+`createdAt` idênticos sairiam em ordem indefinida do PostgreSQL: a mesma consulta
+poderia devolver ordens diferentes entre execuções, e a timeline "tremeria" sem
+nada ter mudado. O `id` (cuid) continua **sem significado comercial** — é
+critério de determinismo, nunca exibido nem usado como numeração.
 
 Fatos anteriores à criação da instalação são **permitidos** (§44): não há
 validação de piso. Há validação de teto — `aconteceuEm` não pode estar no
@@ -606,8 +618,24 @@ src/features/instalacoes/custos.ts
   totaisPorCategoria(registros)  → Record<CategoriaCustoInstalacao, number>
 ```
 
-Nenhum total é persistido (ADR-0219). `Decimal @db.Decimal(12, 2)` no banco;
-conversão para `number` só na borda, com o `toNumber` já usado no projeto.
+Nenhum total é persistido (ADR-0219).
+
+**O arredondamento não substitui a persistência segura.** O valor mora no banco
+como `Decimal @db.Decimal(12, 2)` — nunca `Float` — e a conversão para `number`
+acontece só na borda, com o `toNumber` já usado no projeto. A cadeia é:
+
+```
+Banco        Decimal(12,2)
+   ↓
+Service      toNumber na borda
+   ↓
+custos.ts    soma + normalização em 2 casas
+   ↓
+UI           formatCurrency
+```
+
+O arredondamento endurece a *função de cálculo*; o `Decimal` garante o *dado*.
+São proteções diferentes e ambas são obrigatórias.
 
 **Divergência consciente de `totais.ts`:** aquele módulo soma `number` direto,
 sem arredondar. Aqui a soma passa por arredondamento a 2 casas, porque um total
