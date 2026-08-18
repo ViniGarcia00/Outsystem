@@ -1,7 +1,8 @@
 # Sprint 4.0 — Módulo de Instalações (design técnico)
 
 Data: 2026-08-18
-Status: **aprovado** — plano da 4.0.1 escrito; nenhum código de produção escrito.
+Status: **aprovado**. Sprint 4.0.1 **concluída** (gate verde, ADR-0400).
+Plano da 4.0.2 escrito; implementação da 4.0.2 não iniciada.
 Branch: `sprint-4.0` (criada de `sprint-3.1`; ver "Estratégia Git" ao final).
 
 Spec funcional: fornecida pelo usuário em 2026-08-18 (§1–§52). Este documento
@@ -553,6 +554,103 @@ Os 22 itens do §45 da spec, mais:
 - [ ] `numero` nunca exibido a partir do `id`
 - [ ] Nenhum total de custo persistido no banco
 - [ ] Nenhuma entidade, tabela, tela ou FK de responsável (D1)
+
+---
+
+## Decisões acrescentadas para a Sprint 4.0.2
+
+> Escritas em 2026-08-18, após a auditoria da base entregue pela 4.0.1.
+
+### D12 — `datas.ts` é **estendido**, nunca duplicado
+
+`aconteceuEm` é **data + hora** ("28/08/2026 16:40"), enquanto o `datas.ts` da
+4.0.1 trata **data pura** (`<input type="date">`). A 4.0.2 **acrescenta helpers
+de data-hora ao mesmo módulo**, compartilhando a constante `FUSO_BRASIL` e a
+mesma filosofia. Nenhum segundo módulo de datas é criado.
+
+| Existente (4.0.1, data pura) | Novo (4.0.2, data-hora) |
+|---|---|
+| `dataDeInput` | `dataHoraDeInput` |
+| `dataParaInput` | `dataHoraParaInput` |
+| `ehDataDeInputValida` | `ehDataHoraDeInputValida` |
+| — | `dataHoraParaExibicao` |
+
+Uma diferença de comportamento, deliberada: a data pura é **ancorada ao
+meio-dia** para o dia não virar na conversão; a data-hora **não é ancorada** —
+ali a hora é informação real do fato e precisa ser preservada como digitada.
+
+**Por que `dataHoraParaExibicao` e não o `formatDateTime` do projeto:**
+`src/utils/format/date.ts` **não fixa timezone** — usa o fuso do runtime. Serve
+para `updatedAt`, mas não para `aconteceuEm`, cuja timezone é requisito. Alterar
+o formatador compartilhado mudaria o comportamento de Propostas, o que está
+proibido; então o fuso fixo vive em `datas.ts`, junto do resto da infraestrutura
+de datas do módulo.
+
+### D13 — Ordenação da timeline
+
+`aconteceuEm desc`, com `createdAt desc` como desempate. Ordenar por `createdAt`
+colocaria no topo um registro criado hoje sobre um fato de ontem — exatamente o
+caso que a spec exige tratar (§43, §44). O desempate torna a ordem inequívoca
+quando dois fatos compartilham o mesmo instante.
+
+Fatos anteriores à criação da instalação são **permitidos** (§44): não há
+validação de piso. Há validação de teto — `aconteceuEm` não pode estar no
+futuro, porque um fato ainda não aconteceu.
+
+### D14 — Cálculo de custos em módulo puro, espelhando `totais.ts`
+
+```
+src/features/instalacoes/custos.ts
+  totalDoRegistro(custos)        → number
+  totalDaInstalacao(registros)   → number
+  totaisPorCategoria(registros)  → Record<CategoriaCustoInstalacao, number>
+```
+
+Nenhum total é persistido (ADR-0219). `Decimal @db.Decimal(12, 2)` no banco;
+conversão para `number` só na borda, com o `toNumber` já usado no projeto.
+
+**Divergência consciente de `totais.ts`:** aquele módulo soma `number` direto,
+sem arredondar. Aqui a soma passa por arredondamento a 2 casas, porque um total
+de custos agrega N linhas independentes e o erro de ponto flutuante acumula
+(`0.1 + 0.2`). É um endurecimento local, não uma mudança no módulo do Comercial.
+
+### D15 — Transação e edição
+
+- **Criar:** registro + custos numa única `prisma.$transaction`. Falhou um
+  custo, o registro não permanece.
+- **Editar:** `deleteMany` dos custos seguido de recriação, dentro da mesma
+  transação — o padrão já usado em `proposta.service.ts:480` para
+  `PropostaServico`.
+
+### D16 — Exclusão (confirmando D7)
+
+| Situação | Comportamento |
+|---|---|
+| Registro **sem** custos | Excluir permitido |
+| Registro **com** custos | **Bloqueado**, com mensagem orientando editar |
+
+A checagem é do **service**, não da interface. O `onDelete: Cascade` do banco
+apagaria os custos junto; é justamente o que a regra impede. A interface nunca
+apaga custos em cascata só para viabilizar a exclusão do registro.
+
+### D17 — Registro operacional **não** gera auditoria técnica
+
+Criar, editar ou excluir um `InstalacaoRegistro` **não** escreve em
+`InstalacaoAuditoria`. Espelhar cada acontecimento operacional numa entrada
+textual de auditoria produziria um log redundante e embaralharia os dois
+mecanismos, que a spec (§33) manda manter separados:
+
+```
+InstalacaoAuditoria  = mudança estrutural/técnica do agregado
+InstalacaoRegistro   = histórico operacional escrito pelos responsáveis
+```
+
+A auditoria continua registrando o que a 4.0.1 já registra: criação, alteração
+de cabeçalho, mudança de status e cancelamento da **instalação**.
+
+Consequência assumida: a exclusão de um registro (só possível sem custos) não
+deixa rastro. É o preço da separação limpa, e o dado descartável nesse caso é
+texto recém-digitado. Fica no backlog, caso a operação peça rastro depois.
 
 ---
 
