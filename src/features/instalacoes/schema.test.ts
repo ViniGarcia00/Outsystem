@@ -52,18 +52,22 @@ describe("novaInstalacaoSchema", () => {
     ).toBe(true);
   });
 
-  it("converte a data do input em Date preservando o dia", () => {
+  it("aceita a data do input e a mantém como texto", () => {
+    // O schema VALIDA o formato; a conversão para Date é da Server Action
+    // (ver `datas.ts`). Transformar aqui faria o tipo de entrada divergir do de
+    // saída, e o React Hook Form manipula o de entrada.
     const r = novaInstalacaoSchema.safeParse({
       ...base,
       dataAgendada: "2026-08-18",
     });
     expect(r.success).toBe(true);
-    expect(r.success && r.data.dataAgendada).toBeInstanceOf(Date);
+    expect(r.success && r.data.dataAgendada).toBe("2026-08-18");
   });
 
-  it("data vazia vira null", () => {
+  it("aceita data vazia", () => {
     const r = novaInstalacaoSchema.safeParse({ ...base, dataPrevista: "" });
-    expect(r.success && r.data.dataPrevista).toBeNull();
+    expect(r.success).toBe(true);
+    expect(r.success && r.data.dataPrevista).toBe("");
   });
 
   it("recusa data em formato inválido", () => {

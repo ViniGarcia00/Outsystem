@@ -1081,5 +1081,69 @@ ADRs, problemas, soluções, lições e o hash do commit.
 
 ---
 
+## Sprint 4.0.1 — Fundação de Instalações
+
+- **Versão:** 1.1.0 (sem incremento — o módulo fecha em **1.2.0** ao final da
+  Sprint 4.0.2, como a 3.0 fez)
+- **Data:** 2026-08-18
+- **Objetivo:** abrir o primeiro módulo **operacional** do sistema, entregando o
+  cadastro de Instalações: criar manualmente, listar, buscar, filtrar por status,
+  abrir, editar o cabeçalho, concluir e cancelar.
+- **Decisão de roadmap:** Instalações V1 passa **à frente** de Pedido de Venda e
+  Ordem de Serviço. A Outmat já tem instalações em andamento sem controle, e o
+  módulo precisa funcionar sem depender de entidades que ainda não existem.
+- **Documentos de processo:** design técnico e plano de implementação escritos e
+  aprovados antes do código (`d2654fd`).
+- **Principais entregas:**
+  - `Instalacao` e `InstalacaoAuditoria`, com os enums `StatusInstalacao` e
+    `EventoInstalacao`. Migration aditiva.
+  - **Numeração comercial própria** por sequência do PostgreSQL, iniciando em
+    1001 e independente de Propostas (padrão do ADR-0201).
+  - **Endereço por snapshot do Cliente, derivado no service.**
+  - **Responsável em texto livre**, sem entidade, CRUD, tela ou FK, e sem
+    reutilizar `Vendedor`.
+  - **Proposta relacionada opcional** — vínculo puro, sem importar itens.
+  - Listagem com busca por número, cliente, projeto, endereço e responsável, e
+    filtro por status; workspace com cabeçalho editável e cancelamento com
+    motivo; conclusão por mudança de status.
+  - `datas.ts` — conversão entre `<input type="date">` e `Date` com fuso fixo
+    `America/Sao_Paulo` (o projeto não tinha campo de data em formulário).
+  - Item **Instalações** no menu principal.
+- **Problemas encontrados e como foram resolvidos:**
+  - *Snapshot na tela.* O design original deixava o formulário formar o endereço.
+    Corrigido antes da implementação: `criarInstalacao` recebe só o `clienteId` e
+    lê o Cliente persistido na mesma transação. Os schemas Zod nem declaram os
+    campos de endereço, então o parse descarta qualquer valor vindo do navegador.
+  - *Tipagem do Zod com `transform`.* Converter a data no schema fazia o tipo de
+    entrada divergir do de saída, e o React Hook Form manipula o de entrada — o
+    atrito contaminava `CrudFormShell` inteiro. A conversão foi para a Server
+    Action; o schema só valida o formato.
+  - *Locators do E2E.* O Radix Select mantém um `<option>` nativo **oculto** que
+    casa com `getByText`, e o texto do diálogo de cancelamento contém "marcada
+    como Cancelada." — que casava com a asserção do toast. Resolvido lendo o
+    status pelo `combobox` e usando o fechamento do diálogo como sinal.
+  - *`setState` em `useEffect`.* O primeiro diálogo usava `useState` + `useEffect`
+    e o lint barrou. Alinhado ao precedente (`cancelar-dialog.tsx`), que usa
+    `form.reset()`.
+- **Lições aprendidas:** regra de integridade não pode depender do estado de um
+  formulário — a garantia tem de estar onde qualquer chamador passa. E o
+  acoplamento de um teste ao componente de UI (opções ocultas, textos de diálogo)
+  custa tanto quanto o acoplamento a dados.
+- **ADRs criadas:** ADR-0400.
+- **Gate:** ESLint 0 · Typecheck 0 · Build 0 · **unit 140/140** · **smoke 11/11**
+  (3 de Instalações + 8 pré-existentes) · `/api/health` 200 (v1.1.0, db up) ·
+  `/dev/diagnostics` 200 (Saudável) · PostgreSQL 18.1 · Prisma conectado.
+- **Verificação em banco:** primeira instalação recebeu **1001**; numeração
+  sequencial e preservada após cancelamento; auditoria gravou `CRIACAO`,
+  `MUDANCA_STATUS` (com a transição) e `CANCELAMENTO`; **nenhuma** coluna de
+  custo e **nenhuma** tabela de responsável existem.
+- **Hash dos commits:** `d2654fd` (design + plano), `f965f26` (schema/migration),
+  `e78f1ab` (endereço e rótulos), `8103b41` (service/schemas/actions), `9bc40e0`
+  (telas), `31e81e3` (E2E), + commit de documentação.
+- **Próxima:** **Sprint 4.0.2 — Cronologia e Custos** (`InstalacaoRegistro`,
+  `InstalacaoCusto`, timeline, totais derivados), que fecha o módulo em 1.2.0.
+
+---
+
 > Próximas Sprints: adicionar uma nova seção ao final, seguindo este mesmo
 > formato, ao concluir cada Sprint.

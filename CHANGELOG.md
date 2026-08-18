@@ -4,6 +4,50 @@ Todas as mudanças relevantes deste projeto são documentadas aqui.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o
 projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [Não lançado]
+
+### Sprint 4.0.1 — Fundação de Instalações. Ver ADR-0400.
+
+Primeiro módulo **operacional** do sistema, aberto após o encerramento do
+Comercial. O roadmap foi reordenado: Instalações vem antes de Pedido de Venda e
+Ordem de Serviço, porque já existem instalações em andamento sem controle.
+
+`VERSION` permanece **1.1.0**: o incremento para 1.2.0 acontece ao final da
+Sprint 4.0.2, quando o módulo estiver completo.
+
+#### Adicionado
+
+- **Cadastro manual de Instalação**, com numeração comercial própria iniciando em
+  **1001**, independente da numeração de Propostas.
+- **Cliente obrigatório**, escolhido por autocomplete sobre o cadastro existente
+  — nenhum cadastro paralelo de cliente foi criado.
+- **Endereço por snapshot do Cliente**, derivado no servidor: a instalação
+  guarda o endereço do momento da criação e **alterar o cadastro do cliente
+  depois não muda instalações antigas**. Os campos são somente leitura.
+- **Proposta relacionada opcional** — vínculo puro, sem importar itens nem
+  sincronizar valores.
+- **Responsável atual** em texto livre, sem cadastro, sem login e sem vínculo com
+  Vendedor.
+- **Status operacional**: A agendar · Agendada · Aguardando material · Em
+  andamento · Adiada · Concluída · Cancelada. Concluir é mudar o status.
+- **Datas** prevista e agendada, período e observações gerais.
+- **Listagem** `/instalacoes` com busca instantânea por número, cliente, projeto,
+  endereço e responsável, e filtro por status.
+- **Workspace** `/instalacoes/[id]` com cabeçalho editável e cancelamento com
+  motivo. Instalação cancelada abre em modo somente leitura e **permanece na
+  listagem** — nada é excluído.
+- **Auditoria técnica** da instalação (criação, alteração, mudança de status e
+  cancelamento), gravada na mesma transação da escrita.
+- Item **Instalações** no menu principal.
+
+#### Notas
+
+- A seção **Cronologia** do workspace é um placeholder: registros de visita,
+  atualizações internas, materiais e custos são da Sprint 4.0.2.
+- Nenhum arquivo do módulo Comercial foi alterado, nenhum cálculo financeiro de
+  Proposta foi tocado e nenhum campo antecipa Pedido de Venda ou Ordem de
+  Serviço.
+
 ## [1.1.0] — 2026-08-18
 
 Release consolidada do **módulo Comercial**. Reúne tudo o que foi entregue desde

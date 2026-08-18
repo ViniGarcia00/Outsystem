@@ -111,6 +111,11 @@ UX, testes e preparação)** concluídas.
   Ver ADR-0223, ADR-0300, ADR-0301 e ADR-0330.
 - ✅ **Refinamentos de Produtos:** SKU único em três níveis, Clonar Produto,
   nomenclatura "Código" → "SKU" na interface.
+- ✅ **Instalações — fundação (Sprint 4.0.1):** primeiro módulo **operacional**.
+  Cadastro manual com numeração própria (1001+), cliente obrigatório, endereço
+  por **snapshot derivado no servidor**, proposta opcional, responsável em texto
+  livre, status, datas, listagem com busca e filtro, workspace, conclusão e
+  cancelamento. Ver ADR-0400. A cronologia e os custos são da Sprint 4.0.2.
 - ✅ `lint`, `build` e `typecheck` sem erros.
 
 ## Tela "About" (planejada — não implementada)
@@ -128,11 +133,13 @@ About é voltada ao usuário final e existirá também em produção.
 > do Windows Server (3.2.1) e a Documentação Contratual (3.1 b, ADR-0330) —
 > consolidados na release **1.1.0**. Ver PROJECT_HISTORY.md e CHANGELOG.md.
 >
-> **Próximos ciclos são operacionais:** **Pedido de Venda** e **Ordem de
-> Serviço** (ADR-0330). Nenhum dos dois tem design ou plano escritos; pelo
-> processo do projeto, cada um exige spec aprovada antes de qualquer código.
-> Seguem abertos do roadmap original o **Dashboard** (rota existe como
-> placeholder) e a tela **About**.
+> **Roadmap operacional (reordenado em 2026-08-18, ADR-0400):**
+> **Instalações V1** vem **antes** de Pedido de Venda e Ordem de Serviço, porque
+> a Outmat já tem instalações em andamento sem controle. Em curso:
+> **Sprint 4.0.1 — Fundação** (concluída) e **Sprint 4.0.2 — Cronologia e
+> custos**. Depois seguem **Pedido de Venda** e **Ordem de Serviço**, nenhum dos
+> dois com design ou plano escritos. Seguem abertos do roadmap original o
+> **Dashboard** (rota existe como placeholder) e a tela **About**.
 >
 > **Pendência de release:** homologação visual do Contrato .docx no Microsoft
 > Word — gate manual obrigatório pelo ADR-0330.

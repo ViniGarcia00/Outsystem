@@ -1065,3 +1065,75 @@ Sprint de refinamento (escopo estrito):
   teste automatizado prova fidelidade de fonte/margem/layout; só a inspeção no
   Word. O script de marcação dá a garantia estrutural (XML fora de `<w:t>`
   idêntico), mas a conferência visual final é humana.
+
+---
+
+## Sprint 4.0.1 — Fundação de Instalações
+
+### ADR-0400 — Instalação independente de Pedido de Venda; endereço e responsável por snapshot
+
+- **Contexto:** a Outmat já tem vendas e instalações em andamento que precisam de
+  controle operacional antes de existirem os módulos de Pedido de Venda e Ordem
+  de Serviço. O roadmap foi reordenado: **Instalações V1 vem antes dos dois**.
+- **Decisão — Instalação não depende de Pedido:** a Instalação é criada
+  manualmente, a partir de um Cliente. **Nenhum campo, coluna ou enum antecipa
+  Pedido de Venda ou Ordem de Serviço.** Quando existirem, entram por migration
+  aditiva. A Proposta relacionada é vínculo **opcional** e não importa itens nem
+  sincroniza nada — nenhuma regra do Comercial é duplicada.
+- **Numeração própria:** `Instalacao.numero` é sequência nativa do PostgreSQL
+  (`instalacoes_numero_seq`, `RESTART WITH 1001`), independente da de Propostas.
+  Mesmo padrão e mesmos motivos do ADR-0201: atômica sob concorrência, nunca
+  reutilizada, não volta após cancelamento. O `id` (cuid) nunca é exibido.
+- **Endereço é SNAPSHOT do Cliente, garantido no SERVICE (decisão crítica):**
+  `criarInstalacao` recebe **apenas `clienteId`**, lê o Cliente **persistido** na
+  mesma transação e deriva os campos com `snapshotEndereco`. Nenhum dado de
+  endereço vindo do navegador é gravado — os schemas Zod sequer declaram esses
+  campos, então o parse os descarta.
+  A alternativa descartada era formar o snapshot na tela: ela funciona no
+  caminho feliz e falha em todos os outros. A regra precisa valer para qualquer
+  chamador — tela, Server Action, teste, importação ou integração futura —, e
+  uma regra de integridade não pode depender do estado de um formulário no
+  navegador. `atualizarInstalacao` **não toca** no endereço: o snapshot é
+  imutável depois da criação.
+  Nomes ajustados na cópia: `endereco`/`numero` do Cliente viram
+  `enderecoLogradouro`/`enderecoNumero`, porque `numero` já é a numeração
+  comercial da instalação.
+- **Sem endereço alternativo de obra nesta versão:** não há múltiplos endereços,
+  "endereço da obra", seletor "usar outro endereço" nem entidade de endereço. Os
+  campos são **somente leitura** na interface. Se surgir necessidade real de
+  instalar em local diferente do cadastro, vira refinamento próprio.
+- **Responsável é TEXTO LIVRE — decisão deliberada, não provisória.** Não existe
+  entidade, tabela, FK, CRUD ou tela de responsável, e `Vendedor` **não** é
+  reutilizado: um instalador, técnico ou comprador não é vendedor, e reaproveitar
+  aquele cadastro poluiria o autocomplete da Proposta e distorceria a regra de
+  exclusão "já foi usado em uma proposta".
+  O nome digitado é **snapshot histórico do fato**: quem executou a visita
+  continua sendo aquele nome mesmo que a pessoa saia da empresa ou nunca venha a
+  ter login. Quando houver autenticação, o sistema distinguirá "responsável pelo
+  acontecimento" (este texto, preservado) de "registrado no sistema por" (campo
+  **novo e aditivo**, vindo do usuário autenticado). Converter o primeiro em FK
+  reescreveria o histórico — por isso ele permanece texto.
+- **Cancelar, nunca excluir:** instalação com histórico não é apagada; recebe
+  status `CANCELADA` e continua na listagem sob o filtro correspondente. Ao
+  reabrir, a tela fica somente leitura.
+- **Concluir é mudar o status**, não uma ação separada. A spec pede estado
+  operacional, e uma máquina de estados simples é o que a V1 autoriza.
+- **Auditoria técnica separada da cronologia:** `InstalacaoAuditoria` registra
+  criação, alteração, mudança de status e cancelamento, gravada na **mesma
+  transação** da escrita — o padrão de `PropostaAuditoria`. A cronologia
+  operacional (Sprint 4.0.2) é outra coisa: conteúdo que o usuário lê, não trilha
+  de sistema.
+- **Datas com fuso fixo:** o projeto não tinha campo de data em formulário.
+  `features/instalacoes/datas.ts` converte nos dois sentidos entre
+  `<input type="date">` e `Date` com fuso **`America/Sao_Paulo` explícito**,
+  ancorando ao meio-dia para que o dia escolhido não vire na conversão. A
+  conversão acontece na Server Action, não no schema: transformar no Zod faria o
+  tipo de entrada divergir do de saída, e o React Hook Form manipula o de
+  entrada.
+- **Listagem segue o molde de Propostas, não o dos cadastros:** `CrudListView`
+  exige o par `ativo`/`toggleAtivoAction`; Instalação tem **status**, então usa
+  `CrudLayout` + `useCrudList` com colunas TanStack, como `propostas-list.tsx`.
+- **Consequência:** o módulo funciona imediatamente sobre o cadastro de Clientes
+  existente, sem tocar em nada do Comercial. A Sprint 4.0.2 acrescenta cronologia
+  e custos sobre esta fundação, quando entram `InstalacaoRegistro` e
+  `InstalacaoCusto`.

@@ -112,6 +112,8 @@ Prisma 7 com o generator `prisma-client` (saída em `src/generated/prisma`) e
 | `PropostaItem`        | `proposta_itens`        | Item dentro de uma seção (`produtoId` com `onDelete: Restrict`) |
 | `PropostaServico`     | `proposta_servicos`     | Serviço complementar (SOM/WIFI), único por tipo por proposta |
 | `PropostaAuditoria`   | `proposta_auditorias`   | Trilha de eventos do ciclo de vida               |
+| `Instalacao`          | `instalacoes`           | Raiz do módulo operacional (`numero` próprio, endereço por snapshot) |
+| `InstalacaoAuditoria` | `instalacao_auditorias` | Trilha técnica da instalação                     |
 | `ConfiguracaoSistema` | `configuracao_sistema`  | **Singleton** de configuração                    |
 
 ### Hierarquia da proposta
@@ -288,6 +290,37 @@ Route Handler (runtime nodejs, force-dynamic, no-store)
   preenchimento manual no Word. As chaves do `ContratoTemplateDTO` **são** as tags
   do `.docx` — renomear um campo exige remarcar o template.
 - **Nomes de download** centralizados em `pdf/filename.ts`, para PDF e .docx.
+
+## 4.5. Instalações — módulo operacional (Sprint 4.0.1)
+
+Primeiro módulo fora do Comercial. Acompanha a execução de uma instalação para
+um cliente e **não depende de Pedido de Venda nem de Ordem de Serviço** — nenhum
+campo os antecipa.
+
+```
+Cliente
+   └── Instalação  (numero próprio 1001+, status, endereço por snapshot)
+         ├── Proposta relacionada (OPCIONAL, vínculo puro)
+         └── Auditoria técnica
+```
+
+- **Numeração** por sequência nativa (`instalacoes_numero_seq`, `RESTART WITH
+  1001`), independente de Propostas. Mesmo padrão do ADR-0201.
+- **Endereço por snapshot, derivado no service.** `criarInstalacao` recebe só o
+  `clienteId`, lê o Cliente **persistido** na mesma transação e copia os campos.
+  Nenhum endereço vindo do navegador é gravado — os schemas Zod nem declaram
+  esses campos. Alterar o cadastro do Cliente depois **não** muda instalações
+  antigas, e `atualizarInstalacao` não toca no endereço.
+- **Responsável é texto livre**, sem entidade, FK ou cadastro, e sem reutilizar
+  `Vendedor`. É snapshot histórico do fato — ver ADR-0400.
+- **Cancelar, nunca excluir.** Concluir é mudar o status.
+- **Cronologia operacional × auditoria técnica** são separadas: a primeira
+  (Sprint 4.0.2) é conteúdo que o usuário lê; a segunda é trilha de sistema,
+  gravada na mesma transação da escrita.
+- **Datas** convertidas por `features/instalacoes/datas.ts`, com fuso fixo
+  `America/Sao_Paulo`. A conversão acontece na Server Action, não no schema.
+- **Listagem** usa `CrudLayout` + `useCrudList` (molde de Propostas), não
+  `CrudListView` — a entidade tem *status*, não `ativo`.
 
 ## 5. Configuração e Storage (Windows Server 2019)
 
