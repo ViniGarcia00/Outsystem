@@ -1063,9 +1063,21 @@ ADRs, problemas, soluções, lições e o hash do commit.
   campos acrescentados ao DTO. Nenhuma remoção de API nem quebra de contrato.
   A "v2.0" citada no corpo de `6d372ea` não foi adotada: seria um MAJOR sem
   breaking change.
-- **Gate:** ver o relatório da release.
+- **Gate:** ESLint 0 · Typecheck 0 · Build 0 · **unit 105/105** · smoke **6/8** ·
+  `/api/health` 200 (v1.1.0, db up) · `/dev/diagnostics` 200 (Saudável) ·
+  PostgreSQL 18.1 conectado · Prisma conectado (121 ms conexão, 2 ms consulta).
+  - **As 2 falhas do smoke são débito preexistente**, não regressão: os testes
+    das linhas 136/149 e 342 preenchem o autocomplete com `"RTR"`, produto do
+    catálogo fictício do `prisma/seed.ts`. Desde `ee0db73` (2026-07-10) o banco
+    de dev é restaurado do catálogo **real** da Outmat, que não tem `RTR`
+    (verificado: `codigo ILIKE 'RTR%'` → nenhum resultado). O teste novo da
+    Sprint 3.1 (b), que usa `CM10`, **passa**. Correção registrada em
+    `BACKLOG.md`; **nenhum workaround aplicado**.
 - **Pendência humana:** homologação visual do Contrato .docx no Microsoft Word
-  (gate manual, exigido pelo ADR-0330 e pelo plano da Sprint 3.1 b).
+  (gate manual, exigido pelo ADR-0330 e pelo plano da Sprint 3.1 b). O banco de
+  desenvolvimento **não possui proposta PJ** — será preciso criar uma para
+  cumprir o par PF + PJ que o plano exige.
+- **Hash do commit:** `a5b21db`
 
 ---
 
