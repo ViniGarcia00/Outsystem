@@ -14,8 +14,23 @@ import {
 } from "@/services/instalacao.service";
 import { fail, ok, type ActionResult } from "@/types";
 
+import { dataDeInput } from "./datas";
 import { snapshotEndereco, type EnderecoInstalacao } from "./endereco";
 import { cabecalhoInstalacaoSchema, novaInstalacaoSchema } from "./schema";
+
+/**
+ * Converte as datas do formulário (texto do `<input type="date">`) em `Date`.
+ * O fuso é fixo em `America/Sao_Paulo` — ver `datas.ts`.
+ */
+function comDatas<T extends { dataPrevista: string; dataAgendada: string }>(
+  values: T,
+) {
+  return {
+    ...values,
+    dataPrevista: dataDeInput(values.dataPrevista),
+    dataAgendada: dataDeInput(values.dataAgendada),
+  };
+}
 
 export async function listInstalacoesAction(): Promise<InstalacaoListItem[]> {
   return listInstalacoes();
@@ -50,7 +65,7 @@ export async function criarInstalacaoAction(
     return fail("Dados inválidos. Verifique os campos destacados.");
   }
   try {
-    const criada = await criarInstalacao(parsed.data);
+    const criada = await criarInstalacao(comDatas(parsed.data));
     revalidatePath("/instalacoes");
     return ok(criada);
   } catch (error) {
@@ -67,7 +82,7 @@ export async function atualizarInstalacaoAction(
     return fail("Dados inválidos. Verifique os campos destacados.");
   }
   try {
-    await atualizarInstalacao(id, parsed.data);
+    await atualizarInstalacao(id, comDatas(parsed.data));
     revalidatePath("/instalacoes");
     revalidatePath(`/instalacoes/${id}`);
     return ok(undefined);

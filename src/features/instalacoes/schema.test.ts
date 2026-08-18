@@ -8,8 +8,9 @@ const base = {
   propostaId: null,
   responsavelAtual: "",
   status: "A_AGENDAR" as const,
-  dataPrevista: null,
-  dataAgendada: null,
+  // Datas chegam do <input type="date"> como texto ("" quando não informadas).
+  dataPrevista: "",
+  dataAgendada: "",
   periodo: "",
   observacoes: "",
 };
@@ -49,6 +50,27 @@ describe("novaInstalacaoSchema", () => {
     expect(
       novaInstalacaoSchema.safeParse({ ...base, propostaId: null }).success,
     ).toBe(true);
+  });
+
+  it("converte a data do input em Date preservando o dia", () => {
+    const r = novaInstalacaoSchema.safeParse({
+      ...base,
+      dataAgendada: "2026-08-18",
+    });
+    expect(r.success).toBe(true);
+    expect(r.success && r.data.dataAgendada).toBeInstanceOf(Date);
+  });
+
+  it("data vazia vira null", () => {
+    const r = novaInstalacaoSchema.safeParse({ ...base, dataPrevista: "" });
+    expect(r.success && r.data.dataPrevista).toBeNull();
+  });
+
+  it("recusa data em formato inválido", () => {
+    expect(
+      novaInstalacaoSchema.safeParse({ ...base, dataAgendada: "18/08/2026" })
+        .success,
+    ).toBe(false);
   });
 
   it("IGNORA endereço vindo do cliente — o snapshot é do servidor", () => {

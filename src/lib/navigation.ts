@@ -5,6 +5,7 @@ import {
   Settings,
   Users,
   UserSquare,
+  Wrench,
 } from "lucide-react";
 
 import type { NavItem } from "@/types";
@@ -16,6 +17,7 @@ import type { NavItem } from "@/types";
 export const mainNavigation: NavItem[] = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { title: "Propostas", href: "/propostas", icon: FileText },
+  { title: "Instalações", href: "/instalacoes", icon: Wrench },
   { title: "Clientes", href: "/clientes", icon: Users },
   { title: "Produtos", href: "/produtos", icon: Package },
   { title: "Vendedores", href: "/vendedores", icon: UserSquare },

@@ -1,0 +1,233 @@
+"use client";
+
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Ban, ClipboardList } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { FormProvider, useForm, useWatch } from "react-hook-form";
+import { toast } from "sonner";
+
+import { PageEmpty, PageHeader } from "@/components/app";
+import {
+  FormSection,
+  SelectField,
+  TextField,
+  TextareaField,
+} from "@/components/forms";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import type { InstalacaoDetalhe } from "@/services/instalacao.service";
+
+import { atualizarInstalacaoAction, cancelarInstalacaoAction } from "./actions";
+import { CancelarInstalacaoDialog } from "./cancelar-instalacao-dialog";
+import { dataParaInput } from "./datas";
+import { EnderecoSnapshot } from "./endereco-snapshot";
+import { STATUS_BADGE_VARIANT, STATUS_LABEL, STATUS_ORDER } from "./labels";
+import { PropostaAutocomplete } from "./proposta-autocomplete";
+import {
+  cabecalhoInstalacaoSchema,
+  type CabecalhoInstalacaoValues,
+} from "./schema";
+
+const STATUS_OPTIONS = STATUS_ORDER.map((value) => ({
+  value,
+  label: STATUS_LABEL[value],
+}));
+
+const NOTA_ENDERECO =
+  "Copiado do cadastro do cliente na criação da instalação. " +
+  "O endereço da instalação não muda quando o cadastro do cliente é alterado.";
+
+/**
+ * Workspace operacional da Instalação (Sprint 4.0.1).
+ *
+ * Cliente e endereço NÃO são editáveis — o snapshot é imutável depois da
+ * criação (ADR-0400) e `cabecalhoInstalacaoSchema` sequer os declara.
+ *
+ * Concluir é escolher o status "Concluída" e salvar; não há botão próprio.
+ *
+ * A seção Cronologia é um placeholder: registros, custos e timeline são da
+ * Sprint 4.0.2.
+ */
+export function InstalacaoWorkspace({ data }: { data: InstalacaoDetalhe }) {
+  const router = useRouter();
+  const [saving, setSaving] = useState(false);
+  const [cancelando, setCancelando] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [propostaLabel, setPropostaLabel] = useState<string | null>(
+    data.propostaLabel,
+  );
+  const [status, setStatus] = useState(data.status);
+
+  const readOnly = status === "CANCELADA";
+
+
+  const form = useForm<CabecalhoInstalacaoValues>({
+    resolver: zodResolver(cabecalhoInstalacaoSchema),
+    defaultValues: {
+      nomeProjeto: data.nomeProjeto,
+      propostaId: data.propostaId,
+      responsavelAtual: data.responsavelAtual ?? "",
+      status: data.status,
+      dataPrevista: dataParaInput(data.dataPrevista),
+      dataAgendada: dataParaInput(data.dataAgendada),
+      periodo: data.periodo ?? "",
+      observacoes: data.observacoes ?? "",
+    },
+  });
+
+  // useWatch em vez de form.watch(): watch() devolve função não-memoizável e o
+  // React Compiler pula a memoização do componente inteiro.
+  const propostaIdAtual = useWatch({
+    control: form.control,
+    name: "propostaId",
+  });
+
+  async function onSubmit(values: CabecalhoInstalacaoValues) {
+    setSaving(true);
+    const result = await atualizarInstalacaoAction(data.id, values);
+
+    if (result.success) {
+      form.reset(values);
+      setStatus(values.status);
+      toast.success("Instalação atualizada.");
+      router.refresh();
+    } else {
+      toast.error(result.error);
+    }
+    setSaving(false);
+  }
+
+  async function confirmCancelar(motivo: string) {
+    setCancelando(true);
+    const result = await cancelarInstalacaoAction(data.id, motivo);
+    if (result.success) {
+      toast.success(`Instalação ${data.numero} cancelada.`);
+      setCancelOpen(false);
+      setStatus("CANCELADA");
+      form.setValue("status", "CANCELADA");
+      router.refresh();
+    } else {
+      toast.error(result.error);
+    }
+    setCancelando(false);
+  }
+
+  return (
+    <FormProvider {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <PageHeader
+          title={`Instalação ${data.numero}`}
+          description={data.clienteNome}
+          titleSuffix={
+            <Badge variant={STATUS_BADGE_VARIANT[status]}>
+              {STATUS_LABEL[status]}
+            </Badge>
+          }
+        />
+
+        <FormSection title="Dados da instalação">
+          <div className="space-y-2">
+            <Label htmlFor="instalacao-cliente">Cliente</Label>
+            <Input
+              id="instalacao-cliente"
+              value={data.clienteNome}
+              readOnly
+              disabled
+              aria-label="Cliente"
+            />
+          </div>
+          <PropostaAutocomplete
+            value={propostaIdAtual}
+            initialLabel={propostaLabel}
+            onSelect={(p) => {
+              form.setValue("propostaId", p?.id ?? null, { shouldDirty: true });
+              setPropostaLabel(p?.label ?? null);
+            }}
+            disabled={readOnly}
+          />
+          <TextField name="nomeProjeto" label="Nome do projeto" disabled={readOnly} />
+          <TextField
+            name="responsavelAtual"
+            label="Responsável atual"
+            placeholder="Ex.: Carlos"
+            disabled={readOnly}
+          />
+          <SelectField name="status" label="Status" options={STATUS_OPTIONS} />
+        </FormSection>
+
+        <EnderecoSnapshot endereco={data} nota={NOTA_ENDERECO} />
+
+        <FormSection title="Programação">
+          <TextField
+            name="dataPrevista"
+            label="Data prevista"
+            type="date"
+            disabled={readOnly}
+          />
+          <TextField
+            name="dataAgendada"
+            label="Data agendada"
+            type="date"
+            disabled={readOnly}
+          />
+          <TextField
+            name="periodo"
+            label="Período"
+            placeholder="Ex.: manhã, 14h às 17h"
+            disabled={readOnly}
+          />
+        </FormSection>
+
+        <FormSection title="Observações" cols={1}>
+          <TextareaField
+            name="observacoes"
+            label="Observações gerais"
+            rows={4}
+            disabled={readOnly}
+          />
+        </FormSection>
+
+        <FormSection title="Cronologia" cols={1}>
+          <PageEmpty
+            icon={ClipboardList}
+            title="A cronologia chega na próxima etapa do módulo"
+            description="Registros de visita, atualizações internas, materiais e custos serão adicionados aqui."
+          />
+        </FormSection>
+
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => router.push("/instalacoes")}
+          >
+            Voltar
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            onClick={() => setCancelOpen(true)}
+            disabled={readOnly || saving}
+          >
+            <Ban className="h-4 w-4" />
+            Cancelar instalação
+          </Button>
+          <Button type="submit" disabled={readOnly || saving}>
+            Salvar Alterações
+          </Button>
+        </div>
+      </form>
+
+      <CancelarInstalacaoDialog
+        open={cancelOpen}
+        onOpenChange={setCancelOpen}
+        instalacaoLabel={`Instalação ${data.numero}`}
+        submitting={cancelando}
+        onConfirm={confirmCancelar}
+      />
+    </FormProvider>
+  );
+}

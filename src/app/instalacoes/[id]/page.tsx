@@ -1,0 +1,21 @@
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+
+import { InstalacaoWorkspace } from "@/features/instalacoes";
+import { getInstalacao } from "@/services/instalacao.service";
+
+export const metadata: Metadata = { title: "Instalação" };
+
+export const dynamic = "force-dynamic";
+
+export default async function InstalacaoPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const instalacao = await getInstalacao(id);
+  if (!instalacao) notFound();
+
+  return <InstalacaoWorkspace data={instalacao} />;
+}
