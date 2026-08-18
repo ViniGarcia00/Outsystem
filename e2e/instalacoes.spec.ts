@@ -161,3 +161,191 @@ test("Instalações: cancelar preserva a instalação no histórico", async ({
   await expect(linha).toBeVisible();
   await expect(linha).toContainText("Cancelada");
 });
+
+// ---------------------------------------------------------------------------
+// Cronologia e custos (Sprint 4.0.2)
+// ---------------------------------------------------------------------------
+
+/** Abre o diálogo, preenche o acontecimento e salva. */
+async function criarRegistro(
+  page: Page,
+  dados: {
+    tipo: string;
+    aconteceuEm: string;
+    responsavel: string;
+    relatorio: string;
+    custos?: { categoria: string; valor: string }[];
+  },
+): Promise<void> {
+  await page.getByRole("button", { name: "Novo registro" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+
+  await dialog.getByLabel("Tipo").click();
+  await page.getByRole("option", { name: dados.tipo, exact: true }).click();
+  await dialog.getByLabel("Data e hora").fill(dados.aconteceuEm);
+  await dialog.getByLabel("Responsável").fill(dados.responsavel);
+  await dialog.getByLabel("Relatório").fill(dados.relatorio);
+
+  for (const custo of dados.custos ?? []) {
+    await dialog.getByRole("button", { name: "Adicionar custo" }).click();
+    const linha = dialog.getByTestId("linha-custo").last();
+    await linha.getByLabel("Categoria").click();
+    await page.getByRole("option", { name: custo.categoria, exact: true }).click();
+    await linha.getByLabel("Valor").fill(custo.valor);
+  }
+
+  await dialog.getByRole("button", { name: "Salvar" }).click();
+  // O diálogo fechar é o sinal de conclusão — o texto do próprio diálogo não
+  // serve como asserção (lição da 4.0.1).
+  await expect(dialog).toBeHidden();
+}
+
+test("Instalações: cronologia completa — registros, custos, ordem e exclusão", async ({
+  page,
+}) => {
+  const clienteNome = await criarCliente(page, "Cronologia Cliente");
+  const projeto = `Projeto Cronologia ${Date.now()}`;
+  const instalacaoPath = await criarInstalacao(page, clienteNome, projeto);
+
+  // 3. Visita ao cliente, com um custo de deslocamento.
+  await criarRegistro(page, {
+    tipo: "Visita ao cliente",
+    aconteceuEm: "2026-08-15T10:00",
+    responsavel: "Carlos",
+    relatorio: "Realizada vistoria inicial. Cliente pediu mudanca de dois pontos.",
+    custos: [{ categoria: "Deslocamento", valor: "8000" }],
+  });
+
+  // 4. Material comprado, com DOIS custos.
+  await criarRegistro(page, {
+    tipo: "Material comprado",
+    aconteceuEm: "2026-08-16T15:20",
+    responsavel: "Bruno",
+    relatorio: "Comprados dois modulos adicionais para a alteracao pedida.",
+    custos: [
+      { categoria: "Material", valor: "34000" },
+      { categoria: "Frete", valor: "3500" },
+    ],
+  });
+
+  // 5. Alteração de escopo, SEM custo.
+  await criarRegistro(page, {
+    tipo: "Alteração de escopo",
+    aconteceuEm: "2026-08-17T09:00",
+    responsavel: "Vinicius",
+    relatorio: "Confirmada a inclusao dos dois novos pontos.",
+  });
+
+  await page.goto(instalacaoPath);
+
+  // 6. Os três acontecimentos estão na timeline.
+  const cards = page.getByTestId("registro-card");
+  await expect(cards).toHaveCount(3);
+
+  // 7. Os três responsáveis aparecem.
+  await expect(page.getByText("Responsável: Carlos")).toBeVisible();
+  await expect(page.getByText("Responsável: Bruno")).toBeVisible();
+  await expect(page.getByText("Responsável: Vinicius")).toBeVisible();
+
+  // 8. Total acumulado: 80 + (340 + 35) + 0 = 455.
+  await expect(page.getByText("R$ 455,00")).toBeVisible();
+
+  // 9-10. Fato RETROATIVO criado por último aparece POR ÚLTIMO na timeline.
+  await criarRegistro(page, {
+    tipo: "Atualização interna",
+    aconteceuEm: "2026-08-05T08:30",
+    responsavel: "Carlos",
+    relatorio: "Vistoria antiga, cadastrada depois.",
+  });
+  await page.goto(instalacaoPath);
+
+  const cards4 = page.getByTestId("registro-card");
+  await expect(cards4).toHaveCount(4);
+  await expect(cards4.first()).toContainText("Alteração de escopo");
+  await expect(cards4.last()).toContainText("Vistoria antiga");
+  // A ordem é por aconteceuEm, não por criação: o registro mais novo no banco
+  // é o mais antigo no mundo real e por isso fica no fim.
+
+  // 11. Excluir registro COM custo é bloqueado.
+  const comCusto = cards4.filter({ hasText: "Material comprado" });
+  await comCusto.getByRole("button", { name: "Excluir" }).click();
+  await page.getByRole("button", { name: "Confirmar" }).click();
+  await expect(page.getByText(/não pode ser excluído/i)).toBeVisible();
+  await page.goto(instalacaoPath);
+  await expect(
+    page.getByTestId("registro-card").filter({ hasText: "Material comprado" }),
+  ).toHaveCount(1);
+
+  // 12. Excluir registro SEM custo funciona.
+  await page
+    .getByTestId("registro-card")
+    .filter({ hasText: "Vistoria antiga" })
+    .getByRole("button", { name: "Excluir" })
+    .click();
+  await page.getByRole("button", { name: "Confirmar" }).click();
+  await page.goto(instalacaoPath);
+  await expect(page.getByTestId("registro-card")).toHaveCount(3);
+});
+
+test("Instalações: edição de registro substitui os custos, não duplica", async ({
+  page,
+}) => {
+  const clienteNome = await criarCliente(page, "Edicao Cliente");
+  const projeto = `Projeto Edicao ${Date.now()}`;
+  const instalacaoPath = await criarInstalacao(page, clienteNome, projeto);
+
+  await criarRegistro(page, {
+    tipo: "Visita ao cliente",
+    aconteceuEm: "2026-08-15T10:00",
+    responsavel: "Carlos",
+    relatorio: "Relatorio original.",
+    custos: [{ categoria: "Deslocamento", valor: "8000" }],
+  });
+  await criarRegistro(page, {
+    tipo: "Material comprado",
+    aconteceuEm: "2026-08-16T15:20",
+    responsavel: "Bruno",
+    relatorio: "Compra de modulos.",
+    custos: [
+      { categoria: "Material", valor: "34000" },
+      { categoria: "Frete", valor: "3500" },
+    ],
+  });
+
+  await page.goto(instalacaoPath);
+  await expect(page.getByText("R$ 455,00")).toBeVisible();
+
+  // 13. Editar o RELATÓRIO.
+  const visita = page.getByTestId("registro-card").filter({ hasText: "Visita ao cliente" });
+  await visita.getByRole("button", { name: "Editar" }).click();
+  let dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Relatório").fill("Relatorio corrigido pelo Carlos.");
+  await dialog.getByRole("button", { name: "Salvar" }).click();
+  await expect(dialog).toBeHidden();
+
+  await page.goto(instalacaoPath);
+  await expect(page.getByText("Relatorio corrigido pelo Carlos.")).toBeVisible();
+
+  // 14. Editar os CUSTOS: 340 vira 300. Total 455 -> 415.
+  // Se a edição fizesse append em vez de substituir, o total SUBIRIA para 795.
+  const material = page
+    .getByTestId("registro-card")
+    .filter({ hasText: "Material comprado" });
+  await material.getByRole("button", { name: "Editar" }).click();
+  dialog = page.getByRole("dialog");
+  await dialog.getByTestId("linha-custo").first().getByLabel("Valor").fill("30000");
+  await dialog.getByRole("button", { name: "Salvar" }).click();
+  await expect(dialog).toBeHidden();
+
+  await page.goto(instalacaoPath);
+  await expect(page.getByText("R$ 415,00")).toBeVisible();
+  await expect(page.getByText("R$ 795,00")).toHaveCount(0);
+  // O registro continua com DOIS custos (300 + 35), não quatro: substituição,
+  // não duplicação. O total do registro é a prova numérica direta.
+  await expect(
+    page
+      .getByTestId("registro-card")
+      .filter({ hasText: "Material comprado" }),
+  ).toContainText("R$ 335,00");
+});
