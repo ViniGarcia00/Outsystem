@@ -1191,7 +1191,7 @@ ADRs, problemas, soluções, lições e o hash do commit.
 - **Verificação em banco:** registros com `aconteceuEm` distinto de `createdAt`;
   custos em `numeric(12,2)`; **nenhuma** coluna de total nas tabelas novas;
   **nenhuma** entrada de auditoria gerada por operação de registro.
-- **Hash dos commits:** ver relatório da Sprint.
+- **Hash dos commits:** `e90f000` (design + plano), `0d92009` (ajustes aprovados), `b845e71` (schema, datas, cálculo, validação), `ac791ef` (service, actions, timeline), `ab7c708` (E2E), `93634fd` (documentação e VERSION).
 - **Status do módulo de Instalações:** ✔ concluído em **1.2.0**.
 - **Próximos ciclos:** **Pedido de Venda** e **Ordem de Serviço**, ambos ainda
   sem design aprovado.
