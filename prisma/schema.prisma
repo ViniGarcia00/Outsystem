@@ -110,6 +110,27 @@ enum EventoInstalacao {
   CANCELAMENTO
 }
 
+/// Tipo do acontecimento na cronologia operacional (Sprint 4.0.2).
+enum TipoRegistroInstalacao {
+  VISITA_CLIENTE
+  ATUALIZACAO_INTERNA
+  MATERIAL_COMPRADO
+  ALTERACAO_ESCOPO
+  PENDENCIA
+  CONCLUSAO
+  OUTRO
+}
+
+/// Categoria do custo extra do acontecimento (Sprint 4.0.2).
+enum CategoriaCustoInstalacao {
+  MATERIAL
+  MAO_DE_OBRA
+  DESLOCAMENTO
+  TERCEIROS
+  FRETE
+  OUTROS
+}
+
 // ---------------------------------------------------------------------------
 // Cadastros base
 // ---------------------------------------------------------------------------
@@ -502,6 +523,7 @@ model Instalacao {
   updatedAt DateTime @updatedAt
 
   auditorias InstalacaoAuditoria[]
+  registros  InstalacaoRegistro[]
 
   @@index([clienteId])
   @@index([status])
@@ -523,4 +545,54 @@ model InstalacaoAuditoria {
 
   @@index([instalacaoId])
   @@map("instalacao_auditorias")
+}
+
+/// Acontecimento da cronologia operacional (Sprint 4.0.2).
+///
+/// É CONTEÚDO escrito pelos responsáveis, não trilha de sistema — não confundir
+/// com InstalacaoAuditoria (ADR-0401). Criar, editar ou excluir um registro NÃO
+/// gera entrada de auditoria.
+model InstalacaoRegistro {
+  id String @id @default(cuid())
+
+  instalacaoId String
+  instalacao   Instalacao @relation(fields: [instalacaoId], references: [id], onDelete: Cascade)
+
+  tipo TipoRegistroInstalacao
+
+  /// Quando o fato OCORREU. Pode ser anterior à criação da instalação (fatos
+  /// históricos são permitidos). A timeline ordena por este campo.
+  aconteceuEm DateTime
+
+  /// Texto livre OBRIGATÓRIO. Snapshot histórico — NUNCA vira FK.
+  responsavel String
+
+  relatorio String @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  custos InstalacaoCusto[]
+
+  @@index([instalacaoId, aconteceuEm])
+  @@map("instalacao_registros")
+}
+
+/// Custo extra pertencente a um acontecimento (Sprint 4.0.2).
+/// Custo interno operacional: NÃO altera a Proposta nem gera cobrança.
+model InstalacaoCusto {
+  id String @id @default(cuid())
+
+  registroId String
+  registro   InstalacaoRegistro @relation(fields: [registroId], references: [id], onDelete: Cascade)
+
+  categoria CategoriaCustoInstalacao
+  descricao String?
+  /// Monetário: Decimal, NUNCA Float. Sempre > 0 (validado no Zod e no service).
+  valor     Decimal                  @db.Decimal(12, 2)
+
+  createdAt DateTime @default(now())
+
+  @@index([registroId])
+  @@map("instalacao_custos")
 }

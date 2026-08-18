@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { dataDeInput, dataParaInput, ehDataDeInputValida } from "./datas";
+import {
+  dataDeInput,
+  dataHoraDeInput,
+  dataHoraParaExibicao,
+  dataHoraParaInput,
+  dataParaInput,
+  ehDataDeInputValida,
+  ehDataHoraDeInputValida,
+} from "./datas";
 
 describe("dataDeInput", () => {
   it("converte YYYY-MM-DD numa data do dia escolhido", () => {
@@ -65,5 +73,75 @@ describe("ehDataDeInputValida", () => {
 
   it("recusa formato inválido", () => {
     expect(ehDataDeInputValida("18/08/2026")).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Data-hora (Sprint 4.0.2) — `aconteceuEm` da cronologia
+// ---------------------------------------------------------------------------
+
+describe("dataHoraDeInput", () => {
+  it("converte YYYY-MM-DDTHH:mm preservando a hora", () => {
+    const d = dataHoraDeInput("2026-08-18T16:40");
+    expect(d).toBeInstanceOf(Date);
+    expect(dataHoraParaInput(d)).toBe("2026-08-18T16:40");
+  });
+
+  it("NÃO ancora ao meio-dia — a hora do fato é preservada", () => {
+    // A data pura é ancorada ao meio-dia; a data-hora não pode ser.
+    expect(dataHoraParaInput(dataHoraDeInput("2026-08-18T00:05"))).toBe(
+      "2026-08-18T00:05",
+    );
+    expect(dataHoraParaInput(dataHoraDeInput("2026-08-18T23:55"))).toBe(
+      "2026-08-18T23:55",
+    );
+  });
+
+  it("devolve null para vazio e formato inválido", () => {
+    expect(dataHoraDeInput("")).toBeNull();
+    expect(dataHoraDeInput("18/08/2026 16:40")).toBeNull();
+    expect(dataHoraDeInput("2026-08-18")).toBeNull();
+  });
+});
+
+describe("dataHoraParaInput", () => {
+  it("formata no fuso de São Paulo, não no do servidor", () => {
+    // 01:00 UTC de 19/08 é 22:00 de 18/08 em São Paulo.
+    expect(dataHoraParaInput(new Date("2026-08-19T01:00:00Z"))).toBe(
+      "2026-08-18T22:00",
+    );
+  });
+
+  it("devolve vazio para null e data inválida", () => {
+    expect(dataHoraParaInput(null)).toBe("");
+    expect(dataHoraParaInput(new Date("nada"))).toBe("");
+  });
+});
+
+describe("dataHoraParaExibicao", () => {
+  it("formata dd/mm/aaaa HH:mm no fuso de São Paulo", () => {
+    expect(dataHoraParaExibicao(dataHoraDeInput("2026-08-18T16:40")!)).toBe(
+      "18/08/2026 16:40",
+    );
+  });
+
+  it("não depende do fuso do runtime", () => {
+    expect(dataHoraParaExibicao(new Date("2026-08-19T01:00:00Z"))).toBe(
+      "18/08/2026 22:00",
+    );
+  });
+});
+
+describe("ehDataHoraDeInputValida", () => {
+  it("recusa vazio — aconteceuEm é obrigatório", () => {
+    expect(ehDataHoraDeInputValida("")).toBe(false);
+  });
+
+  it("aceita o formato do input", () => {
+    expect(ehDataHoraDeInputValida("2026-08-18T16:40")).toBe(true);
+  });
+
+  it("recusa formato inválido", () => {
+    expect(ehDataHoraDeInputValida("2026-08-18")).toBe(false);
   });
 });

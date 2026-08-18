@@ -1,3 +1,5 @@
+import type { CategoriaCustoInstalacao } from "./custos";
+
 /**
  * Rótulos e cores de Instalação (Sprint 4.0.1). Fonte única — a UI nunca
  * escreve o texto de um status à mão.
@@ -55,4 +57,52 @@ export const STATUS_BADGE_VARIANT: Record<
   ADIADA: "warning",
   CONCLUIDA: "success",
   CANCELADA: "danger",
+};
+
+// ---------------------------------------------------------------------------
+// Cronologia e custos (Sprint 4.0.2)
+// ---------------------------------------------------------------------------
+
+export type TipoRegistroInstalacao =
+  | "VISITA_CLIENTE"
+  | "ATUALIZACAO_INTERNA"
+  | "MATERIAL_COMPRADO"
+  | "ALTERACAO_ESCOPO"
+  | "PENDENCIA"
+  | "CONCLUSAO"
+  | "OUTRO";
+
+export const TIPO_REGISTRO_LABEL: Record<TipoRegistroInstalacao, string> = {
+  VISITA_CLIENTE: "Visita ao cliente",
+  ATUALIZACAO_INTERNA: "Atualização interna",
+  MATERIAL_COMPRADO: "Material comprado",
+  ALTERACAO_ESCOPO: "Alteração de escopo",
+  PENDENCIA: "Pendência",
+  CONCLUSAO: "Conclusão",
+  OUTRO: "Outro",
+};
+
+/** Ordem de exibição no seletor — do mais frequente ao genérico. */
+export const TIPOS_REGISTRO_ORDER: TipoRegistroInstalacao[] = [
+  "VISITA_CLIENTE",
+  "ATUALIZACAO_INTERNA",
+  "MATERIAL_COMPRADO",
+  "ALTERACAO_ESCOPO",
+  "PENDENCIA",
+  "CONCLUSAO",
+  "OUTRO",
+];
+
+/**
+ * O tipo `CategoriaCustoInstalacao` mora em `custos.ts` (onde é usado pelo
+ * cálculo). Aqui só os rótulos — declarar o tipo de novo faria uma categoria
+ * nova passar despercebida pelo typecheck em um dos dois arquivos.
+ */
+export const CATEGORIA_CUSTO_LABEL: Record<CategoriaCustoInstalacao, string> = {
+  MATERIAL: "Material",
+  MAO_DE_OBRA: "Mão de obra",
+  DESLOCAMENTO: "Deslocamento",
+  TERCEIROS: "Terceiros",
+  FRETE: "Frete",
+  OUTROS: "Outros",
 };
