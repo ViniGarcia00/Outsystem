@@ -7,6 +7,13 @@ import {
 import type { StatusInstalacao } from "@/features/instalacoes/labels";
 import { prisma } from "@/infrastructure/database";
 
+import {
+  INCLUDE_CUSTOS,
+  mapRegistro,
+  ORDEM_TIMELINE,
+  type RegistroDTO,
+} from "./instalacao-registro.service";
+
 /**
  * Serviço de Instalações (Sprint 4.0.1).
  *
@@ -48,6 +55,8 @@ export interface InstalacaoDetalhe extends EnderecoInstalacao {
   observacoes: string | null;
   createdAt: Date;
   updatedAt: Date;
+  /** Cronologia operacional, já ordenada pelo service (Sprint 4.0.2). */
+  registros: RegistroDTO[];
 }
 
 export interface PropostaSuggestion {
@@ -161,6 +170,7 @@ export async function getInstalacao(
     include: {
       cliente: { select: CLIENTE_SELECT },
       proposta: { select: { proposalNumber: true } },
+      registros: { orderBy: ORDEM_TIMELINE, include: INCLUDE_CUSTOS },
     },
   });
   if (!i) return null;
@@ -188,6 +198,7 @@ export async function getInstalacao(
     estado: i.estado,
     createdAt: i.createdAt,
     updatedAt: i.updatedAt,
+    registros: i.registros.map(mapRegistro),
   };
 }
 

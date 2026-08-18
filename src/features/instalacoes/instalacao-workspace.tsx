@@ -1,13 +1,13 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Ban, ClipboardList } from "lucide-react";
+import { Ban } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 
-import { PageEmpty, PageHeader } from "@/components/app";
+import { PageHeader } from "@/components/app";
 import {
   FormSection,
   SelectField,
@@ -22,10 +22,12 @@ import type { InstalacaoDetalhe } from "@/services/instalacao.service";
 
 import { atualizarInstalacaoAction, cancelarInstalacaoAction } from "./actions";
 import { CancelarInstalacaoDialog } from "./cancelar-instalacao-dialog";
+import { Cronologia } from "./cronologia";
 import { dataParaInput } from "./datas";
 import { EnderecoSnapshot } from "./endereco-snapshot";
 import { STATUS_BADGE_VARIANT, STATUS_LABEL, STATUS_ORDER } from "./labels";
 import { PropostaAutocomplete } from "./proposta-autocomplete";
+import { ResumoCustos } from "./resumo-custos";
 import {
   cabecalhoInstalacaoSchema,
   type CabecalhoInstalacaoValues,
@@ -48,8 +50,8 @@ const NOTA_ENDERECO =
  *
  * Concluir é escolher o status "Concluída" e salvar; não há botão próprio.
  *
- * A seção Cronologia é um placeholder: registros, custos e timeline são da
- * Sprint 4.0.2.
+ * A seção Cronologia (Sprint 4.0.2) traz o resumo de custos e a timeline de
+ * acontecimentos. Os registros chegam já ordenados do service.
  */
 export function InstalacaoWorkspace({ data }: { data: InstalacaoDetalhe }) {
   const router = useRouter();
@@ -191,10 +193,11 @@ export function InstalacaoWorkspace({ data }: { data: InstalacaoDetalhe }) {
         </FormSection>
 
         <FormSection title="Cronologia" cols={1}>
-          <PageEmpty
-            icon={ClipboardList}
-            title="A cronologia chega na próxima etapa do módulo"
-            description="Registros de visita, atualizações internas, materiais e custos serão adicionados aqui."
+          <ResumoCustos registros={data.registros} />
+          <Cronologia
+            instalacaoId={data.id}
+            registros={data.registros}
+            readOnly={readOnly}
           />
         </FormSection>
 
