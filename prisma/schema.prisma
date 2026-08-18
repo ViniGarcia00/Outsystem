@@ -87,6 +87,30 @@ enum TipoServicoProposta {
 }
 
 // ---------------------------------------------------------------------------
+// Instalações (Sprint 4.0.1) — módulo operacional
+// ---------------------------------------------------------------------------
+
+/// Estado operacional da instalação. Cancelada NUNCA é excluída (ADR-0400).
+enum StatusInstalacao {
+  A_AGENDAR
+  AGENDADA
+  AGUARDANDO_MATERIAL
+  EM_ANDAMENTO
+  ADIADA
+  CONCLUIDA
+  CANCELADA
+}
+
+/// Trilha TÉCNICA da instalação. Não confundir com a cronologia operacional
+/// (InstalacaoRegistro, Sprint 4.0.2) — ver ADR-0400.
+enum EventoInstalacao {
+  CRIACAO
+  ALTERACAO
+  MUDANCA_STATUS
+  CANCELAMENTO
+}
+
+// ---------------------------------------------------------------------------
 // Cadastros base
 // ---------------------------------------------------------------------------
 
@@ -96,7 +120,7 @@ model Cliente {
   tipoPessoa TipoPessoa @default(PF)
 
   /// Obrigatório quando PF (validado no Zod).
-  nome String?
+  nome    String?
   /// Obrigatório quando PJ (validado no Zod).
   empresa String?
 
@@ -123,7 +147,8 @@ model Cliente {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  propostas Proposta[]
+  propostas   Proposta[]
+  instalacoes Instalacao[]
 
   @@index([ativo])
   @@map("clientes")
@@ -209,11 +234,11 @@ model Proposta {
   formaPagamento     String? @db.Text
   previsaoInstalacao String? @db.Text
   /// Observações comerciais e técnicas (multilinha; futuro PDF).
-  obsComerciais String? @db.Text
-  obsTecnicas   String? @db.Text
+  obsComerciais      String? @db.Text
+  obsTecnicas        String? @db.Text
 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
   /// Datas de status — carimbadas apenas na 1ª transição; nunca sobrescritas.
   emitidaAt   DateTime?
   canceladaAt DateTime?
@@ -242,6 +267,10 @@ model Proposta {
   /// revisão) e NÃO entram nos cálculos da proposta nesta Sprint.
   servicos PropostaServico[]
 
+  /// Vínculo OPCIONAL do módulo operacional (Sprint 4.0.1). A Instalação pode
+  /// existir sem Proposta; associar NÃO importa itens nem sincroniza nada.
+  instalacoes Instalacao[]
+
   @@index([clienteId])
   @@index([vendedorId])
   @@index([status])
@@ -258,7 +287,7 @@ model PropostaAuditoria {
   evento         EventoAuditoria
   /// Número da revisão vigente no momento do evento (quando aplicável).
   revisionNumber Int?
-  observacao     String? @db.Text
+  observacao     String?         @db.Text
 
   createdAt DateTime @default(now())
 
@@ -273,8 +302,8 @@ model PropostaRevisao {
   /// a interface é responsável por exibir "Rev.0", "Rev.1" etc.
   revisionNumber Int
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   /// Momento em que ESTA revisão foi emitida (Gerar PDF). Congela a versão e
   /// alimenta o histórico/PDF por revisão. Null enquanto rascunho.
   emittedAt DateTime?
@@ -336,7 +365,7 @@ model PropostaItem {
   valorServico Decimal @db.Decimal(12, 2)
 
   /// Quantidade (permite frações — cabo, metros, litros…).
-  quantidade Decimal @db.Decimal(12, 3) @default(1)
+  quantidade Decimal @default(1) @db.Decimal(12, 3)
   /// Ordem contígua (0,1,2…) dentro da seção. ADR-0208.
   ordem      Int     @default(0)
 
@@ -424,4 +453,74 @@ model ConfiguracaoSistema {
   updatedAt DateTime @updatedAt
 
   @@map("configuracao_sistema")
+}
+
+// ---------------------------------------------------------------------------
+// Instalações — módulo operacional (Sprint 4.0.1)
+// ---------------------------------------------------------------------------
+
+/// Instalação — raiz do agregado operacional.
+///
+/// Independente de Pedido de Venda: existe por cadastro manual. O endereço é
+/// SNAPSHOT do Cliente no momento da criação, derivado no service a partir do
+/// registro persistido — alterar o cadastro do Cliente depois NÃO muda
+/// instalações antigas (ADR-0400).
+model Instalacao {
+  id String @id @default(cuid())
+
+  /// Numeração COMERCIAL (sequência própria, inicia em 1001). Nunca usar o id.
+  numero Int @unique @default(autoincrement())
+
+  clienteId String
+  cliente   Cliente @relation(fields: [clienteId], references: [id])
+
+  /// Vínculo OPCIONAL. Não importa itens nem sincroniza nada.
+  propostaId String?
+  proposta   Proposta? @relation(fields: [propostaId], references: [id], onDelete: Restrict)
+
+  /// Texto livre. Snapshot histórico de quem acompanha — NUNCA vira FK.
+  responsavelAtual String?
+
+  nomeProjeto String
+  status      StatusInstalacao @default(A_AGENDAR)
+
+  // Snapshot do endereço do Cliente. `enderecoNumero` evita colisão com `numero`.
+  cep                String?
+  enderecoLogradouro String?
+  enderecoNumero     String?
+  complemento        String?
+  bairro             String?
+  cidade             String?
+  estado             String?
+
+  dataPrevista DateTime?
+  dataAgendada DateTime?
+  periodo      String?
+  observacoes  String?   @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  auditorias InstalacaoAuditoria[]
+
+  @@index([clienteId])
+  @@index([status])
+  @@map("instalacoes")
+}
+
+/// Trilha técnica da instalação. Gravada na MESMA transação da escrita, como
+/// PropostaAuditoria. NÃO confundir com a cronologia operacional (Sprint 4.0.2).
+model InstalacaoAuditoria {
+  id String @id @default(cuid())
+
+  instalacaoId String
+  instalacao   Instalacao @relation(fields: [instalacaoId], references: [id], onDelete: Cascade)
+
+  evento     EventoInstalacao
+  observacao String?          @db.Text
+
+  createdAt DateTime @default(now())
+
+  @@index([instalacaoId])
+  @@map("instalacao_auditorias")
 }
