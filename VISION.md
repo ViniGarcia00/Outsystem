@@ -1,7 +1,7 @@
 # VISION.md — Regras de negócio
 
 > Fonte de verdade das regras de negócio do sistema. Atualizado na versão
-> **1.1.0**, com o **módulo Comercial concluído**.
+> **1.2.0**: módulo **Comercial** e módulo **Instalações** concluídos.
 
 ## Contexto do produto
 
@@ -10,7 +10,7 @@
 - **Sem autenticação.**
 - Servidor Windows Server 2019; banco PostgreSQL.
 
-## Estado funcional (1.1.0)
+## Estado funcional (1.2.0)
 
 O **módulo Comercial está concluído**. A proposta cobre o ciclo do documento
 comercial de ponta a ponta:
@@ -21,6 +21,9 @@ comercial de ponta a ponta:
 - **Serviços complementares:** Projeto Som Ambiente e Projeto Wi-Fi Premium.
 - **Quatro documentos:** PDF Detalhado, PDF Apresentação, Contrato (.docx) e
   Anexo Contratual (PDF).
+
+O **módulo de Instalações** (operacional) também está concluído — ver a seção
+"Regra: instalações" adiante.
 
 **Próximos módulos, ambos operacionais e ainda sem design aprovado:**
 
@@ -177,6 +180,59 @@ Regras que valem para o Contrato:
 
 - Todos os caminhos de arquivo são **configuráveis** (`.env`), nunca fixos.
 - Compatível com Windows Server 2019.
+
+## Regra: instalações
+
+Acompanhamento **operacional** de uma instalação para um cliente. Independe de
+Pedido de Venda e de Ordem de Serviço — a instalação é cadastrada manualmente.
+
+- **Cliente é obrigatório** e vem do cadastro existente.
+- **Endereço é copiado do cliente** no momento da criação e passa a pertencer à
+  instalação: alterar o cadastro do cliente depois **não** muda instalações
+  antigas. Não existe endereço alternativo de obra.
+- **Numeração própria**, começando em 1001, independente das propostas e nunca
+  reutilizada.
+- **Proposta relacionada é opcional** e é apenas um vínculo: não importa itens,
+  não sincroniza valores.
+- **Responsável é texto livre** — não há cadastro de pessoas nem login. O nome é
+  um registro histórico de quem fez o quê.
+- **Status:** A agendar · Agendada · Aguardando material · Em andamento ·
+  Adiada · Concluída · Cancelada. **Concluir é mudar o status.**
+- **Instalação nunca é excluída quando tem histórico** — é cancelada, e continua
+  visível na listagem.
+
+### Cronologia
+
+O histórico operacional é formado por **registros independentes**, um por
+acontecimento — nunca um campo único que se sobrescreve.
+
+- Tipos: visita ao cliente, atualização interna, material comprado, alteração de
+  escopo, pendência, conclusão e outro.
+- Todo registro exige **responsável** e **relatório**.
+- A **data do acontecimento é independente da data de cadastro**: uma visita
+  feita ontem e registrada hoje aparece **ontem** na cronologia. Isso permite
+  trazer o histórico de instalações que já estavam em andamento.
+- Um acontecimento **não pode estar no futuro** — ainda não aconteceu.
+- A cronologia é ordenada pelo **acontecimento**, não pelo cadastro.
+
+### Custos extras
+
+- Pertencem ao **acontecimento**, não à instalação. Um registro pode ter zero,
+  um ou vários custos.
+- Categorias: Material, Mão de obra, Deslocamento, Terceiros, Frete e Outros.
+- O valor precisa ser **maior que zero**.
+- **Total do registro** = soma dos seus custos. **Total da instalação** = soma de
+  todos os custos de todos os registros. Nada é armazenado pronto; tudo é
+  calculado a partir dos lançamentos.
+- **Custos extras são internos.** Não alteram o valor da proposta, não geram
+  cobrança, não criam aditivo e não tocam contrato, PDF ou comissão. Servirão
+  para análise de margem no futuro.
+
+### Exclusão de registro
+
+- Registro **sem custos** pode ser excluído.
+- Registro **com custos** não pode: a exclusão é bloqueada e o sistema orienta a
+  editar o registro. Histórico financeiro não desaparece por engano.
 
 ## Ciclo de vida da proposta
 

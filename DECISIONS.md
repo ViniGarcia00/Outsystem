@@ -1137,3 +1137,73 @@ Sprint de refinamento (escopo estrito):
   existente, sem tocar em nada do Comercial. A Sprint 4.0.2 acrescenta cronologia
   e custos sobre esta fundação, quando entram `InstalacaoRegistro` e
   `InstalacaoCusto`.
+
+---
+
+## Sprint 4.0.2 — Cronologia e Custos
+
+### ADR-0401 — Cronologia operacional × auditoria técnica; custos derivados
+
+- **Contexto:** a Instalação precisa de um histórico que responda, meses depois,
+  o que aconteceu, quando, quem fez e quanto custou. A 4.0.1 entregou a fundação;
+  falta a cronologia — o coração do módulo, segundo a spec (§3).
+- **Cronologia e auditoria são mecanismos SEPARADOS:**
+
+  ```
+  InstalacaoAuditoria  = trilha TÉCNICA do agregado
+                         (criação, alteração, mudança de status, cancelamento)
+  InstalacaoRegistro   = conteúdo OPERACIONAL escrito pelos responsáveis
+                         (visita, material, alteração de escopo, pendência…)
+  ```
+
+  **Criar, editar ou excluir um registro NÃO grava auditoria.** Espelhar cada
+  acontecimento numa entrada textual de auditoria produziria um log redundante e
+  embaralharia as duas coisas. **Consequência assumida:** a exclusão de um
+  registro — só possível quando ele não tem custos — não deixa rastro. É o preço
+  da separação limpa, e o dado descartável nesse caso é texto recém-digitado.
+- **`aconteceuEm` × `createdAt`:** o registro guarda **quando o fato ocorreu**,
+  independente de quando entrou no sistema. Carlos faz a visita às 14h, Bruno
+  cadastra às 17h: a timeline mostra 14h. Isso também permite cadastrar
+  acontecimentos **anteriores à criação da instalação** — não há validação de
+  piso. Há teto: `aconteceuEm` não pode ser futuro, porque um fato ainda não
+  aconteceu.
+- **Ordenação determinística, em três níveis:** `aconteceuEm desc`,
+  `createdAt desc`, `id desc`. Ordenar por `createdAt` colocaria um registro
+  criado hoje acima de um fato de ontem. O terceiro nível existe porque, sem ele,
+  dois registros com `aconteceuEm` **e** `createdAt` idênticos sairiam em ordem
+  indefinida do PostgreSQL: a mesma consulta poderia devolver ordens diferentes
+  entre execuções. O `id` (cuid) continua **sem significado comercial** — é
+  critério de determinismo, nunca exibido nem usado como numeração.
+- **Datas: `datas.ts` foi ESTENDIDO, não duplicado.** O módulo da 4.0.1 tratava
+  data pura; ganhou quatro helpers de data-hora compartilhando a mesma constante
+  de fuso. Uma diferença deliberada entre os dois: a data pura é **ancorada ao
+  meio-dia** para o dia não virar na conversão; a data-hora **não é ancorada**,
+  porque ali a hora é informação real do fato.
+  `dataHoraParaExibicao` existe porque o `formatDateTime` de `@/utils` **não fixa
+  timezone** (usa a do runtime) e é compartilhado com Propostas — alterá-lo
+  mudaria aquele módulo.
+- **Custos: totais derivados, valor em `Decimal`.** Nenhum total é persistido
+  (ADR-0219): `totalDoRegistro` e `totalDaInstalacao` vivem em `custos.ts`, módulo
+  puro e testado sem banco, e a interface só apresenta o resultado.
+  O valor mora no banco como **`Decimal(12, 2)` — nunca `Float`**. O
+  arredondamento a 2 casas do cálculo é proteção **adicional**, não substituta: um
+  total agrega N linhas independentes e o erro de ponto flutuante acumula
+  (`0.1 + 0.2`). A cadeia é `Banco Decimal → service toNumber na borda →
+  custos.ts soma e normaliza → UI formatCurrency`. Divergência consciente de
+  `features/propostas/totais.ts`, que soma direto e **não** é alterado.
+- **Transação:** criar registro + custos é atômico. Na edição, os custos usam
+  **delete-and-recreate dentro da mesma transação** — padrão de `PropostaServico`
+  em `proposta.service.ts`. Substituição, nunca append: um teste E2E trava isso
+  numericamente (455 → 415; um append daria 795).
+- **Exclusão — a regra é do domínio, não do banco:** registro **sem** custos pode
+  ser excluído; **com** custos, bloqueado, com mensagem orientando editar. A
+  checagem está no **service**, porque o `onDelete: Cascade` apagaria os custos
+  junto — que é exatamente o que a regra impede. A interface **não** oferece
+  caminho que use a cascade para contornar a regra.
+- **Custos são INTERNOS:** não alteram a Proposta, não recalculam total
+  comercial, não geram cobrança, aditivo, contrato, PDF nem comissão. Servirão
+  para análise de margem no futuro.
+- **Responsável do registro continua texto livre e obrigatório** (ADR-0400).
+  Nenhuma entidade, FK, cadastro ou login foi criado.
+- **Consequência:** o módulo de Instalações fecha em **1.2.0**. Os próximos
+  ciclos são Pedido de Venda e Ordem de Serviço, ambos ainda sem design.

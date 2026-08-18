@@ -1147,3 +1147,53 @@ ADRs, problemas, soluções, lições e o hash do commit.
 
 > Próximas Sprints: adicionar uma nova seção ao final, seguindo este mesmo
 > formato, ao concluir cada Sprint.
+
+## Sprint 4.0.2 — Cronologia e Custos
+
+- **Versão:** 1.1.0 → **1.2.0** — fechamento do módulo de Instalações
+- **Data:** 2026-08-18
+- **Objetivo:** entregar o coração do módulo — a cronologia operacional, com um
+  registro independente por acontecimento e os custos extras associados.
+- **Documentos de processo:** design atualizado com as decisões D12–D17 e plano
+  de implementação escritos e aprovados antes do código.
+- **Principais entregas:**
+  - `InstalacaoRegistro` e `InstalacaoCusto`, com os enums
+    `TipoRegistroInstalacao` (7 tipos) e `CategoriaCustoInstalacao` (6
+    categorias). Migration aditiva.
+  - **Cronologia** no workspace, com um card por acontecimento (data/hora do
+    fato, tipo, responsável, relatório, custos e total) e resumo de custos no
+    topo, com quebra por categoria.
+  - **`datas.ts` estendido** com quatro helpers de data-hora, compartilhando o
+    fuso fixo da 4.0.1. **Nenhum módulo de datas paralelo foi criado.**
+  - **`custos.ts`** — fonte única de cálculo, módulo puro. Nada persistido.
+  - Criação e edição transacionais; edição substitui os custos por
+    delete-and-recreate.
+  - Exclusão de registro bloqueada quando há custos, com a checagem no service.
+- **Problemas encontrados e como foram resolvidos:**
+  - *`setState` em `useEffect` no diálogo.* A primeira versão guardava os custos
+    em `useState` e o lint barrou — o mesmo tropeço da 4.0.1. Os custos passaram
+    a viver **dentro do formulário (RHF)**, o que resolveu o lint e, de quebra,
+    eliminou a fonte dupla que poderia gerar custo fantasma na edição.
+  - *Datas do exemplo da spec no E2E.* O cenário de homologação usa 18, 19 e
+    20/08 — datas **futuras** em relação ao dia da implementação, e o schema
+    rejeita fato futuro. O fixture passou a usar 15, 16 e 17/08.
+  - *Asserção ambígua no E2E.* `/^Material/` casava tanto com o badge do tipo
+    "Material comprado" quanto com a linha de custo "Material". Trocada pelo
+    total do registro (R$ 335,00), que é prova numérica direta.
+- **Lições aprendidas:** quando um valor precisa existir no formulário e fora
+  dele, escolher o formulário — estado paralelo custa um `setState` em efeito e
+  abre espaço para divergência. E fixture de teste com data absoluta envelhece:
+  o exemplo da spec virou data futura no dia da implementação.
+- **ADRs criadas:** ADR-0401.
+- **Gate:** ESLint 0 · Typecheck 0 · Build 0 · **unit 172/172** · **smoke 13/13**
+  (5 de Instalações + 8 de Propostas) · `/api/health` 200 (v1.2.0, db up) ·
+  `/dev/diagnostics` 200 (Saudável) · PostgreSQL 18.1 · Prisma conectado.
+- **Verificação em banco:** registros com `aconteceuEm` distinto de `createdAt`;
+  custos em `numeric(12,2)`; **nenhuma** coluna de total nas tabelas novas;
+  **nenhuma** entrada de auditoria gerada por operação de registro.
+- **Hash dos commits:** ver relatório da Sprint.
+- **Status do módulo de Instalações:** ✔ concluído em **1.2.0**.
+- **Próximos ciclos:** **Pedido de Venda** e **Ordem de Serviço**, ambos ainda
+  sem design aprovado.
+
+---

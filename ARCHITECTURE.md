@@ -114,6 +114,8 @@ Prisma 7 com o generator `prisma-client` (saída em `src/generated/prisma`) e
 | `PropostaAuditoria`   | `proposta_auditorias`   | Trilha de eventos do ciclo de vida               |
 | `Instalacao`          | `instalacoes`           | Raiz do módulo operacional (`numero` próprio, endereço por snapshot) |
 | `InstalacaoAuditoria` | `instalacao_auditorias` | Trilha técnica da instalação                     |
+| `InstalacaoRegistro`  | `instalacao_registros`  | Acontecimento da cronologia operacional          |
+| `InstalacaoCusto`     | `instalacao_custos`     | Custo extra do acontecimento (`Decimal(12,2)`)   |
 | `ConfiguracaoSistema` | `configuracao_sistema`  | **Singleton** de configuração                    |
 
 ### Hierarquia da proposta
@@ -301,7 +303,9 @@ campo os antecipa.
 Cliente
    └── Instalação  (numero próprio 1001+, status, endereço por snapshot)
          ├── Proposta relacionada (OPCIONAL, vínculo puro)
-         └── Auditoria técnica
+         ├── Auditoria técnica       ← trilha de sistema
+         └── Registros da cronologia ← conteúdo operacional
+               └── Custos extras
 ```
 
 - **Numeração** por sequência nativa (`instalacoes_numero_seq`, `RESTART WITH
@@ -321,6 +325,23 @@ Cliente
   `America/Sao_Paulo`. A conversão acontece na Server Action, não no schema.
 - **Listagem** usa `CrudLayout` + `useCrudList` (molde de Propostas), não
   `CrudListView` — a entidade tem *status*, não `ativo`.
+
+### Cronologia e custos (Sprint 4.0.2)
+
+- **Cronologia ≠ auditoria.** `InstalacaoRegistro` é conteúdo escrito pelos
+  responsáveis; `InstalacaoAuditoria` é trilha de sistema. Operações de
+  registro **não** geram auditoria (ADR-0401).
+- **`aconteceuEm` × `createdAt`:** a timeline ordena pelo fato
+  (`aconteceuEm desc`), com `createdAt desc` e `id desc` como desempates —
+  o terceiro garante ordem determinística. Fatos históricos são aceitos;
+  futuros, não.
+- **Totais derivados** em `features/instalacoes/custos.ts`, módulo puro. Nada
+  de total persistido. Valor em `Decimal(12, 2)`; o arredondamento a 2 casas do
+  cálculo é proteção adicional, não substituta da coluna decimal.
+- **Transações:** criar registro + custos é atômico; editar substitui os custos
+  por delete-and-recreate na mesma transação.
+- **Exclusão de registro** é bloqueada quando há custos — regra do **service**,
+  não da interface: o `onDelete: Cascade` do banco apagaria os custos junto.
 
 ## 5. Configuração e Storage (Windows Server 2019)
 

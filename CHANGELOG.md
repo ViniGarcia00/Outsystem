@@ -4,7 +4,47 @@ Todas as mudanças relevantes deste projeto são documentadas aqui.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o
 projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
-## [Não lançado]
+## [1.2.0] — 2026-08-18
+
+Entrega do **módulo de Instalações** — o primeiro módulo operacional do sistema,
+aberto depois do encerramento do Comercial. Reúne as Sprints 4.0.1 (fundação) e
+4.0.2 (cronologia e custos).
+
+**MINOR:** módulo novo, inteiramente aditivo. Nenhum comportamento existente
+muda; nada do módulo Comercial foi alterado.
+
+### Sprint 4.0.2 — Cronologia e Custos. Ver ADR-0401.
+
+#### Adicionado
+
+- **Cronologia da instalação:** cada acontecimento é um **registro independente**
+  com tipo, data/hora do fato, responsável e relatório. Tipos: visita ao cliente,
+  atualização interna, material comprado, alteração de escopo, pendência,
+  conclusão e outro.
+- **Data do acontecimento separada da data de cadastro:** uma visita feita ontem
+  e registrada hoje aparece **ontem** na cronologia. Acontecimentos anteriores à
+  criação da instalação são aceitos — o que permite trazer o histórico de
+  instalações que já estavam em andamento.
+- **Custos extras por acontecimento**, com categorias Material, Mão de obra,
+  Deslocamento, Terceiros, Frete e Outros. Um registro pode ter zero, um ou
+  vários custos; descrição é opcional e o valor precisa ser maior que zero.
+- **Totais derivados:** total por registro e total acumulado da instalação, mais
+  a quebra por categoria. Nada é persistido — tudo é calculado a partir dos
+  custos lançados.
+- **Timeline no workspace**, com o resumo de custos no topo e um card por
+  acontecimento mostrando data/hora, tipo, responsável, relatório, custos e total.
+- **Edição** de registro e de seus custos, com substituição transacional dos
+  custos.
+
+#### Regras
+
+- **Exclusão de registro:** permitida quando não há custos lançados; **bloqueada**
+  quando há, com mensagem orientando editar. O histórico financeiro não some sem
+  querer.
+- **Custos extras são internos:** não alteram o valor da Proposta, não geram
+  cobrança e não tocam contrato, PDF ou comissão.
+- A cronologia **não** é auditoria técnica: criar ou editar um acontecimento não
+  gera evento de auditoria do sistema.
 
 ### Sprint 4.0.1 — Fundação de Instalações. Ver ADR-0400.
 
@@ -12,8 +52,7 @@ Primeiro módulo **operacional** do sistema, aberto após o encerramento do
 Comercial. O roadmap foi reordenado: Instalações vem antes de Pedido de Venda e
 Ordem de Serviço, porque já existem instalações em andamento sem controle.
 
-`VERSION` permanece **1.1.0**: o incremento para 1.2.0 acontece ao final da
-Sprint 4.0.2, quando o módulo estiver completo.
+Parte da release **1.2.0**, fechada ao final da Sprint 4.0.2.
 
 #### Adicionado
 

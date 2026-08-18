@@ -111,11 +111,13 @@ UX, testes e preparação)** concluídas.
   Ver ADR-0223, ADR-0300, ADR-0301 e ADR-0330.
 - ✅ **Refinamentos de Produtos:** SKU único em três níveis, Clonar Produto,
   nomenclatura "Código" → "SKU" na interface.
-- ✅ **Instalações — fundação (Sprint 4.0.1):** primeiro módulo **operacional**.
-  Cadastro manual com numeração própria (1001+), cliente obrigatório, endereço
-  por **snapshot derivado no servidor**, proposta opcional, responsável em texto
-  livre, status, datas, listagem com busca e filtro, workspace, conclusão e
-  cancelamento. Ver ADR-0400. A cronologia e os custos são da Sprint 4.0.2.
+- ✅ **Instalações — módulo completo (Sprints 4.0.1 e 4.0.2, versão 1.2.0):**
+  primeiro módulo **operacional**. Cadastro manual com numeração própria (1001+),
+  cliente obrigatório, endereço por **snapshot derivado no servidor**, proposta
+  opcional, responsável em texto livre, status, datas, listagem com busca e
+  filtro, workspace, conclusão e cancelamento (ADR-0400). **Cronologia** com um
+  registro por acontecimento (tipo, data do fato, responsável, relatório) e
+  **custos extras** por registro, com totais derivados (ADR-0401).
 - ✅ `lint`, `build` e `typecheck` sem erros.
 
 ## Tela "About" (planejada — não implementada)
@@ -133,12 +135,15 @@ About é voltada ao usuário final e existirá também em produção.
 > do Windows Server (3.2.1) e a Documentação Contratual (3.1 b, ADR-0330) —
 > consolidados na release **1.1.0**. Ver PROJECT_HISTORY.md e CHANGELOG.md.
 >
-> **Roadmap operacional (reordenado em 2026-08-18, ADR-0400):**
-> **Instalações V1** vem **antes** de Pedido de Venda e Ordem de Serviço, porque
-> a Outmat já tem instalações em andamento sem controle. Em curso:
-> **Sprint 4.0.1 — Fundação** (concluída) e **Sprint 4.0.2 — Cronologia e
-> custos**. Depois seguem **Pedido de Venda** e **Ordem de Serviço**, nenhum dos
-> dois com design ou plano escritos. Seguem abertos do roadmap original o
+> **Estado atual (2026-08-18): módulo de Instalações concluído na versão 1.2.0.**
+> O roadmap operacional foi reordenado (ADR-0400): Instalações veio **antes** de
+> Pedido de Venda e Ordem de Serviço, porque a Outmat já tinha instalações em
+> andamento sem controle. Sprints 4.0.1 (fundação) e 4.0.2 (cronologia e custos)
+> concluídas.
+>
+> **Próximos ciclos:** **Pedido de Venda** e **Ordem de Serviço**, nenhum dos
+> dois com design ou plano escritos — pelo processo do projeto, cada um exige
+> spec aprovada antes de qualquer código. Seguem abertos do roadmap original o
 > **Dashboard** (rota existe como placeholder) e a tela **About**.
 >
 > **Pendência de release:** homologação visual do Contrato .docx no Microsoft
