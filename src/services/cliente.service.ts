@@ -277,3 +277,27 @@ export async function setClienteAtivo(
 ): Promise<void> {
   await prisma.cliente.update({ where: { id }, data: { ativo } });
 }
+
+/**
+ * Endereço do Cliente para PRÉ-VISUALIZAÇÃO na tela de Instalações
+ * (Sprint 4.0.1).
+ *
+ * ATENÇÃO: isto NÃO é a fonte do snapshot. O que é gravado vem de
+ * `criarInstalacao`, que lê o Cliente na própria transação (ADR-0400). Esta
+ * função existe só para o usuário conferir, antes de salvar, qual endereço será
+ * copiado.
+ */
+export async function getClienteEnderecoSnapshot(id: string) {
+  return prisma.cliente.findUnique({
+    where: { id },
+    select: {
+      cep: true,
+      endereco: true,
+      numero: true,
+      complemento: true,
+      bairro: true,
+      cidade: true,
+      estado: true,
+    },
+  });
+}
