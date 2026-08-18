@@ -1,11 +1,16 @@
 # Outmat Propostas
 
-Sistema **interno** de geração de propostas da Outmat (Next.js 16 + Prisma 7 +
-PostgreSQL). Não é SaaS; uso restrito à empresa (rede local/VPN); sem
-autenticação na v1. Versão atual em [`VERSION`](./VERSION).
+Sistema **interno** de geração de propostas comerciais da Outmat (Next.js 16 +
+React 19 + Prisma 7 + PostgreSQL). Não é SaaS; uso restrito à empresa (rede
+local/VPN); sem autenticação. Alvo de deploy: Windows Server 2019.
+
+**Versão atual: 1.1.0** (ver [`VERSION`](./VERSION)) — o **módulo Comercial está
+concluído**. Os próximos ciclos são operacionais (Pedido de Venda, Ordem de
+Serviço) e ainda não têm design aprovado.
 
 ## Documentação
 
+- **[docs/BRIEFING-PROJETO.md](./docs/BRIEFING-PROJETO.md)** — contexto consolidado (visão geral rápida).
 - **[PROJECT_CONTEXT.md](./PROJECT_CONTEXT.md)** — visão geral, stack, estado.
 - **[ARCHITECTURE.md](./ARCHITECTURE.md)** — camadas, banco e convenções.
 - **[DECISIONS.md](./DECISIONS.md)** — decisões arquiteturais (ADRs).
@@ -13,20 +18,60 @@ autenticação na v1. Versão atual em [`VERSION`](./VERSION).
 - **[CHANGELOG.md](./CHANGELOG.md)** — histórico de versões.
 - **[PROJECT_HISTORY.md](./PROJECT_HISTORY.md)** — histórico por Sprint.
 - **[docs/CHECKLIST_RELEASE.md](./docs/CHECKLIST_RELEASE.md)** — gate de conclusão de Sprint.
-- **[BACKLOG.md](./BACKLOG.md)** — próximas Sprints.
+- **[BACKLOG.md](./BACKLOG.md)** — melhorias e pendências conhecidas.
+
+## Stack
+
+| Camada | Tecnologia |
+| --- | --- |
+| Framework | Next.js 16 (App Router) + React 19 |
+| Linguagem | TypeScript strict |
+| Estilo / UI | Tailwind CSS v4 + shadcn/ui (Radix) + Lucide |
+| Formulários | React Hook Form + Zod |
+| Tabelas · Drag & drop | TanStack Table · `@dnd-kit` |
+| ORM / Banco | Prisma 7 (driver adapter Pg) + PostgreSQL |
+| Dados UI→DB | Server Actions → `services/` → Prisma (`ActionResult`) |
+| PDF · DOCX | `@react-pdf/renderer` · `docxtemplater` + `pizzip` + `extenso` |
+| Testes | Vitest (unidade) + Playwright (smoke E2E) |
+
+Fontes de sistema (Segoe UI), sem CDN — build e deploy funcionam offline.
 
 ## Módulos
 
-- **Cadastros:** Configuração do Sistema, Clientes, Produtos, Vendedores (CRUD
-  completo).
-- **Propostas (workspace):** tela única para criar/editar/revisar; cabeçalho +
-  seções + produtos, editados em memória e persistidos em **"Salvar Alterações"**/
-  **"Criar Proposta"**; cada produto carrega **valor de produto + valor de
-  serviço** (editáveis na proposta) com **totais por linha**; **"Gerar PDF"** emite
-  e congela a revisão; **revisão automática** no salvamento após emitida;
-  duplicação, cancelamento e auditoria. Status: Rascunho/Emitida/Cancelada.
-  **Sem** totais/descontos/frete/PDF binário ainda (próximas Sprints).
+- **Cadastros:** Configuração do Sistema (singleton, com upload de logo),
+  Clientes (PF/PJ), Produtos e Vendedores — CRUD completo, com inativação e
+  bloqueio de exclusão para registros já usados em proposta. Produtos têm **SKU
+  único** e ação **Clonar**.
+- **Propostas (workspace):** tela única para criar, editar e revisar. Cabeçalho +
+  seções + itens editados em memória e persistidos em **"Salvar Alterações"** /
+  **"Criar Proposta"**. Itens reordenáveis por **drag & drop**; cada item carrega
+  valor de produto + valor de serviço, com total por linha. **Desconto** (valor ou
+  percentual) e **frete**, consolidados no **Resumo Financeiro**. Emissão congela
+  a revisão; alterar depois cria a **revisão seguinte** automaticamente.
+  Duplicação, cancelamento com motivo e auditoria. Status:
+  Rascunho / Emitida / Cancelada. Modelos **Comercial** e **Simplificada**.
+- **Serviços complementares:** Projeto **Som Ambiente** e Projeto **Wi-Fi
+  Premium**, no máximo um de cada por proposta, integrados ao Resumo Financeiro.
+  Não existem no modelo Simplificada.
 - **Dev:** `/api/health` e `/dev/diagnostics` (somente desenvolvimento).
+
+## Documentos da proposta
+
+A mesma proposta gera quatro documentos, todos sob demanda e sem gravar arquivo
+em disco. Todos consomem o **mesmo carregador de dados** e o **mesmo total
+oficial** — nenhum recalcula valores.
+
+| Documento | Rota | Formato |
+| --- | --- | --- |
+| **PDF Detalhado** | `/propostas/[id]/pdf` | PDF — documento comercial completo, com preços |
+| **PDF Apresentação** | `/propostas/[id]/presentation` | PDF — institucional, landscape 16:9, slides condicionais |
+| **Contrato** | `/propostas/[id]/contrato` | **.docx** — jurídico, editável no Word antes do envio |
+| **Anexo Contratual** | `/propostas/[id]/contratual` | PDF — escopo aprovado, sem preço por item |
+
+O Contrato é preenchido a partir do template oficial versionado em
+`public/templates/contrato/`. **O template nunca é alterado pelo sistema** — só
+os placeholders são substituídos, e os campos que o sistema não conhece
+permanecem realçados para preenchimento manual no Word.
 
 ---
 
@@ -62,6 +107,11 @@ DATABASE_URL="postgresql://outmat:outmat123@localhost:5432/outmat_propostas?sche
 
 Arquivos de referência: `.env.example`, `.env.development`, `.env.production`.
 
+> ⚠️ **O `.env` versionado hoje diverge desta instrução:** aponta para o banco
+> `db_outsystem` com o superusuário `postgres`. É uma pendência registrada no
+> [BACKLOG](./BACKLOG.md) — a configuração correta é a acima, com o usuário
+> dedicado `outmat`.
+
 ## 3. Instalar, migrar, semear e rodar
 
 ```bash
@@ -77,6 +127,27 @@ npm run build       # build de produção (Turbopack)
 npm run start       # serve o build em produção
 ```
 
+## Antes de concluir uma Sprint
+
+O projeto tem um **gate obrigatório** em
+[docs/CHECKLIST_RELEASE.md](./docs/CHECKLIST_RELEASE.md). Na ordem:
+
+```bash
+npm run lint
+npm run typecheck
+npm run build
+npm run test        # Vitest
+npm run test:e2e    # Playwright
+```
+
+Mais `/api/health`, `/dev/diagnostics`, documentação, CHANGELOG, VERSION e
+commit. Se algum item falhar, a Sprint **não** está concluída.
+
+> Os smoke tests **escrevem no banco** e rodam em série. Cada cenário cria os
+> próprios dados (cliente e produto com identificador único, prefixados por
+> `E2E`) — nenhum teste depende do conteúdo do catálogo. Feche qualquer processo
+> `node` ocupando a porta 3000 antes de rodar.
+
 ## Scripts
 
 | Script                      | Descrição                                     |
@@ -88,6 +159,8 @@ npm run start       # serve o build em produção
 | `npm run typecheck`         | Verificação de tipos (tsc)                    |
 | `npm run test`              | Testes de unidade (Vitest)                    |
 | `npm run test:e2e`          | Smoke tests (Playwright) — sobe a app sozinho |
+| `npm run test:e2e:ui`       | Smoke tests em modo interativo                |
+| `npm run db:generate`       | Gera o Prisma Client                          |
 | `npm run db:bootstrap`      | Cria usuário `outmat` + banco (requer postgres) |
 | `npm run db:migrate:deploy` | Aplica migrations                             |
 | `npm run db:seed`           | Popula dados de exemplo                       |

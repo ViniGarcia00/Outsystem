@@ -11,6 +11,71 @@ import { expect, test } from "@playwright/test";
 const nav = (page: import("@playwright/test").Page) =>
   page.getByRole("navigation", { name: "Navegação principal" });
 
+/**
+ * Cartão do Resumo Financeiro. As asserções são escopadas a ele porque rótulos
+ * como "Produtos" e "Serviços" também existem na navegação lateral e nos títulos
+ * de seção — sem escopo, o strict mode do Playwright acusa ambiguidade.
+ */
+const resumoFinanceiro = (page: import("@playwright/test").Page) =>
+  page
+    .locator("div")
+    .filter({ has: page.getByRole("heading", { name: "Resumo Financeiro" }) })
+    .last();
+
+/** Desempata SKUs criados no mesmo milissegundo. */
+let seqProduto = 0;
+
+/**
+ * Cria, pelos fluxos normais da aplicação, um produto exclusivo do cenário e
+ * devolve o SKU.
+ *
+ * **Por que existe:** o smoke não pode depender de nenhum produto preexistente.
+ * Os cenários usavam SKUs fixos do catálogo fictício do `prisma/seed.ts`, e
+ * passaram a falhar quando o banco de desenvolvimento virou o catálogo real
+ * restaurado (`backup/db_outsystem.backup`). Trocar por outro SKU fixo só moveria
+ * o acoplamento; cada cenário passa a ser dono dos dados de que precisa — o mesmo
+ * princípio já aplicado aos clientes (nome único por `Date.now()`).
+ *
+ * O prefixo `E2E-` mais o carimbo de tempo tornam o SKU inequivocamente de teste
+ * e sem colisão com dado real. O SKU é único no banco (índice + checagem no
+ * backend), então nomes repetidos seriam rejeitados pela própria aplicação.
+ */
+async function criarProdutoDeTeste(
+  page: import("@playwright/test").Page,
+  rotulo: string,
+): Promise<string> {
+  const sku = `E2E-${rotulo}-${Date.now()}-${++seqProduto}`;
+
+  await page.goto("/produtos/novo");
+  await page.getByLabel("SKU", { exact: true }).fill(sku);
+  await page
+    .getByLabel("Descrição", { exact: true })
+    .fill(`Produto de teste E2E (${rotulo})`);
+  // CurrencyField recebe os dígitos como centavos: 150000 → R$ 1.500,00.
+  await page.getByLabel("Valor do produto").fill("150000");
+  await page.getByLabel("Valor do serviço (pode ser zero)").fill("25000");
+  await page.getByRole("button", { name: "Salvar" }).click();
+
+  // Salvou de fato: o formulário redireciona para a listagem.
+  await expect(page).toHaveURL(/\/produtos$/);
+  return sku;
+}
+
+/**
+ * Escolhe no autocomplete o produto de SKU exato. Como o SKU é único, a busca
+ * (`contains`, mínimo de 3 caracteres) devolve exatamente uma opção — o teste
+ * não depende da ordem nem do conteúdo do catálogo.
+ */
+async function adicionarProduto(
+  page: import("@playwright/test").Page,
+  sku: string,
+): Promise<void> {
+  await page.getByRole("button", { name: "Adicionar produto" }).click();
+  await page.getByLabel("Produto", { exact: true }).fill(sku);
+  await page.getByRole("option", { name: sku }).click();
+  await page.getByRole("button", { name: "Adicionar", exact: true }).click();
+}
+
 test("home redireciona para Propostas", async ({ page }) => {
   await page.goto("/");
   await expect(page).toHaveURL(/\/propostas$/);
@@ -104,6 +169,9 @@ test("Propostas: criação diferida, emitir e revisão automática", async ({
   await page.getByRole("button", { name: "Salvar" }).click();
   await expect(page).toHaveURL(/\/clientes$/);
 
+  // Produto próprio do cenário — nada preexistente no catálogo.
+  const sku = await criarProdutoDeTeste(page, "PROPOSTA");
+
   await page.goto("/propostas");
   await expect(
     page.getByRole("heading", { level: 1, name: "Propostas" }),
@@ -132,10 +200,7 @@ test("Propostas: criação diferida, emitir e revisão automática", async ({
   await page.getByRole("button", { name: "Adicionar seção" }).click();
   await expect(page.getByRole("heading", { name: "Sala E2E" })).toBeVisible();
 
-  await page.getByRole("button", { name: "Adicionar produto" }).click();
-  await page.getByLabel("Produto", { exact: true }).fill("RTR");
-  await page.getByRole("option").first().click();
-  await page.getByRole("button", { name: "Adicionar", exact: true }).click();
+  await adicionarProduto(page, sku);
   await expect(
     page.getByRole("columnheader", { name: "Total", exact: true }),
   ).toBeVisible();
@@ -145,20 +210,29 @@ test("Propostas: criação diferida, emitir e revisão automática", async ({
   ).toBeVisible();
 
   // Não permite o mesmo produto duas vezes na MESMA seção.
-  await page.getByRole("button", { name: "Adicionar produto" }).click();
-  await page.getByLabel("Produto", { exact: true }).fill("RTR");
-  await page.getByRole("option").first().click();
-  await page.getByRole("button", { name: "Adicionar", exact: true }).click();
+  await adicionarProduto(page, sku);
   await expect(page.getByText(/já foi adicionado/i)).toBeVisible();
   await page.getByRole("button", { name: "Cancelar" }).click();
-  // Rodapé de totais (Completo): Total Produtos, Total Serviços, Subtotal,
-  // Desconto e Total da Proposta.
-  await expect(page.getByText("Total Produtos", { exact: true })).toBeVisible();
-  await expect(page.getByText("Total Serviços", { exact: true })).toBeVisible();
-  await expect(page.getByText("Subtotal", { exact: true })).toBeVisible();
+
+  // Resumo Financeiro (Sprint 2.9.4 — substituiu o antigo rodapé de totais).
+  // No modelo Completa o grupo Automação traz Produtos, Serviços e Subtotal; o
+  // fechamento é o Total Geral. Sem serviços complementares adicionados, as
+  // linhas Som/Wi-Fi não aparecem.
+  const resumo = resumoFinanceiro(page);
   await expect(
-    page.getByText("Total da Proposta", { exact: true }),
+    page.getByRole("heading", { name: "Resumo Financeiro" }),
   ).toBeVisible();
+  await expect(resumo.getByText("Automação", { exact: true })).toBeVisible();
+  await expect(resumo.getByText("Produtos", { exact: true })).toBeVisible();
+  await expect(resumo.getByText("Serviços", { exact: true })).toBeVisible();
+  await expect(resumo.getByText("Subtotal", { exact: true })).toBeVisible();
+  await expect(resumo.getByText("Total Geral", { exact: true })).toBeVisible();
+  await expect(
+    resumo.getByText("Projeto Som Ambiente", { exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    resumo.getByText("Projeto Wi-Fi Premium", { exact: true }),
+  ).toHaveCount(0);
 
   // Desconto inteligente: "10%" é interpretado como percentual e formatado.
   const desconto = page.getByLabel("Desconto");
@@ -182,12 +256,11 @@ test("Propostas: criação diferida, emitir e revisão automática", async ({
   ).toBeVisible();
   await page.getByLabel("Forma de pagamento").fill("PIX à vista");
   await page.getByLabel("Previsão de instalação").fill("2 dias úteis");
-  await page
-    .getByLabel("Observações comerciais")
-    .fill("Valores válidos conforme a validade da proposta.");
-  await page
-    .getByLabel("Observações técnicas")
-    .fill("Necessário Wi-Fi 2.4 GHz.");
+  // Observações comerciais/técnicas saíram da tela na Sprint 2.9.4 (os campos
+  // continuam no banco). Travado aqui para que a volta seja uma decisão, não um
+  // acidente.
+  await expect(page.getByLabel("Observações comerciais")).toHaveCount(0);
+  await expect(page.getByLabel("Observações técnicas")).toHaveCount(0);
 
   // "Criar Proposta" persiste tudo e abre o workspace definitivo.
   await page.getByRole("button", { name: "Criar Proposta" }).click();
@@ -203,12 +276,6 @@ test("Propostas: criação diferida, emitir e revisão automática", async ({
   );
   await expect(page.getByLabel("Previsão de instalação")).toHaveValue(
     "2 dias úteis",
-  );
-  await expect(page.getByLabel("Observações comerciais")).toHaveValue(
-    "Valores válidos conforme a validade da proposta.",
-  );
-  await expect(page.getByLabel("Observações técnicas")).toHaveValue(
-    "Necessário Wi-Fi 2.4 GHz.",
   );
 
   // Proposta existente: edição fica pendente até "Salvar Alterações".
@@ -265,16 +332,15 @@ test("Propostas: Contrato (.docx) e Anexo Contratual (Sprint 3.1)", async ({
   await page.getByRole("button", { name: "Salvar" }).click();
   await expect(page).toHaveURL(/\/clientes$/);
 
+  // Produto próprio do cenário — nada preexistente no catálogo.
+  const sku = await criarProdutoDeTeste(page, "CONTRATO");
+
   await page.goto("/propostas/nova");
   await page.getByLabel("Cliente", { exact: true }).fill(clienteNome);
   await page.getByRole("option", { name: clienteNome }).click();
   await page.getByPlaceholder("Nome da nova seção (ex.: Sala)").fill("Sala E2E");
   await page.getByRole("button", { name: "Adicionar seção" }).click();
-  await page.getByRole("button", { name: "Adicionar produto" }).click();
-  await page.getByLabel("Produto", { exact: true }).fill("CM10");
-  await page.getByRole("option").first().waitFor();
-  await page.getByRole("option").first().click();
-  await page.getByRole("button", { name: "Adicionar", exact: true }).click();
+  await adicionarProduto(page, sku);
   await page.getByLabel("Forma de pagamento").fill("PIX à vista");
   await page.getByRole("button", { name: "Criar Proposta" }).click();
   await expect(page).toHaveURL(/\/propostas\/(?!nova$)[^/]+$/);
@@ -321,6 +387,9 @@ test("Propostas: modelo Simplificada (produtos sem seções)", async ({
   await page.getByRole("button", { name: "Salvar" }).click();
   await expect(page).toHaveURL(/\/clientes$/);
 
+  // Produto próprio do cenário — nada preexistente no catálogo.
+  const sku = await criarProdutoDeTeste(page, "SIMPLIFICADA");
+
   await page.goto("/propostas/nova");
   await expect(
     page.getByRole("heading", { level: 1, name: "Nova proposta" }),
@@ -338,21 +407,20 @@ test("Propostas: modelo Simplificada (produtos sem seções)", async ({
   await page.getByRole("option", { name: clienteNome }).click();
 
   // Produto direto na proposta (sem card de seção).
-  await page.getByRole("button", { name: "Adicionar produto" }).click();
-  await page.getByLabel("Produto", { exact: true }).fill("RTR");
-  await page.getByRole("option").first().click();
-  await page.getByRole("button", { name: "Adicionar", exact: true }).click();
+  await adicionarProduto(page, sku);
   await expect(
     page.getByRole("columnheader", { name: "Total", exact: true }),
   ).toBeVisible();
-  // Simplificada: rodapé sem "Total Serviços"; Subtotal = Total Produtos;
-  // Total da Proposta presente.
-  await expect(page.getByText("Total Produtos", { exact: true })).toBeVisible();
-  await expect(page.getByText("Subtotal", { exact: true })).toBeVisible();
+  // Resumo Financeiro na Simplificada: o grupo Automação mostra apenas Produtos
+  // e Subtotal — a linha "Serviços" é omitida —, e fecha no Total Geral.
+  const resumo = resumoFinanceiro(page);
   await expect(
-    page.getByText("Total da Proposta", { exact: true }),
+    page.getByRole("heading", { name: "Resumo Financeiro" }),
   ).toBeVisible();
-  await expect(page.getByText("Total Serviços", { exact: true })).toHaveCount(0);
+  await expect(resumo.getByText("Produtos", { exact: true })).toBeVisible();
+  await expect(resumo.getByText("Subtotal", { exact: true })).toBeVisible();
+  await expect(resumo.getByText("Total Geral", { exact: true })).toBeVisible();
+  await expect(resumo.getByText("Serviços", { exact: true })).toHaveCount(0);
   await expect(
     page.getByRole("columnheader", { name: "Valor Serviço" }),
   ).toHaveCount(0);
