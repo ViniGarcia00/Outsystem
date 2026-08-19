@@ -1,0 +1,17 @@
+-- Sprint 4.0.3 — remove Instalacao.nomeProjeto (ADR-0404).
+--
+-- O campo não agregava valor ao fluxo operacional e foi retirado de forma
+-- estrutural, não apenas escondido na interface.
+--
+-- CONTEÚDO VERIFICADO ANTES DO DROP (2026-08-19), linha a linha:
+--   1001..1044  "Apartamento E2E …", "Projeto Snapshot …", "Projeto Cancelar …",
+--               "Projeto Cronologia …", "Projeto Edicao …"  → resíduo de E2E
+--   1045        "134324"                                    → preenchimento de
+--                                                             homologação
+-- Nenhum dado real a preservar. As 44 linhas de resíduo já haviam sido
+-- removidas pela limpeza E2E desta mesma Sprint (ADR-0403).
+--
+-- NÃO CONFUNDIR: Proposta.nomeProjeto (ADR-0227, migration
+-- 20260707090000_nome_projeto) PERMANECE — alimenta a capa do PDF Apresentação
+-- e o cabeçalho da Proposta. Esta migration toca apenas a tabela `instalacoes`.
+ALTER TABLE "instalacoes" DROP COLUMN "nomeProjeto";

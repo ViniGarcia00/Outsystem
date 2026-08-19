@@ -69,7 +69,6 @@ export function InstalacaoWorkspace({ data }: { data: InstalacaoDetalhe }) {
   const form = useForm<CabecalhoInstalacaoValues>({
     resolver: zodResolver(cabecalhoInstalacaoSchema),
     defaultValues: {
-      nomeProjeto: data.nomeProjeto,
       propostaId: data.propostaId,
       responsavelAtual: data.responsavelAtual ?? "",
       status: data.status,
@@ -150,7 +149,6 @@ export function InstalacaoWorkspace({ data }: { data: InstalacaoDetalhe }) {
             }}
             disabled={readOnly}
           />
-          <TextField name="nomeProjeto" label="Nome do projeto" disabled={readOnly} />
           <TextField
             name="responsavelAtual"
             label="Responsável atual"

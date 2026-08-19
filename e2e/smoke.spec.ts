@@ -136,7 +136,14 @@ test("Clientes: criar e editar (CRUD básico)", async ({ page }) => {
   await page.getByRole("button", { name: "Ações" }).click();
   await page.getByRole("menuitem", { name: "Editar" }).click();
   await expect(page).toHaveURL(/\/clientes\/.+$/);
+  // Esperar o valor carregado antes de digitar: `toHaveURL` passa assim que a
+  // URL muda, e o formulário ainda pode remontar com os `defaultValues` do
+  // Server Component, descartando o que foi digitado antes da hidratação.
+  await expect(page.getByLabel("Nome", { exact: true })).toHaveValue(nome);
   await page.getByLabel("Nome", { exact: true }).fill(nomeEditado);
+  await expect(page.getByLabel("Nome", { exact: true })).toHaveValue(
+    nomeEditado,
+  );
   await page.getByRole("button", { name: "Salvar" }).click();
 
   // De volta à listagem, o nome editado é encontrado.

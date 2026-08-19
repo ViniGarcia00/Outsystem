@@ -32,7 +32,6 @@ export interface InstalacaoListItem {
   id: string;
   numero: number;
   clienteNome: string;
-  nomeProjeto: string;
   dataAgendada: Date | null;
   responsavelAtual: string | null;
   status: StatusInstalacao;
@@ -47,7 +46,6 @@ export interface InstalacaoDetalhe extends EnderecoInstalacao {
   clienteNome: string;
   propostaId: string | null;
   propostaLabel: string | null;
-  nomeProjeto: string;
   responsavelAtual: string | null;
   status: StatusInstalacao;
   dataPrevista: Date | null;
@@ -71,7 +69,6 @@ export interface PropostaSuggestion {
  * derivado do Cliente persistido, dentro do service.
  */
 export interface InstalacaoInput {
-  nomeProjeto: string;
   propostaId: string | null;
   responsavelAtual: string;
   status: StatusInstalacao;
@@ -137,7 +134,6 @@ export async function listInstalacoes(): Promise<InstalacaoListItem[]> {
     select: {
       id: true,
       numero: true,
-      nomeProjeto: true,
       dataAgendada: true,
       responsavelAtual: true,
       status: true,
@@ -154,7 +150,6 @@ export async function listInstalacoes(): Promise<InstalacaoListItem[]> {
     id: r.id,
     numero: r.numero,
     clienteNome: nomeCliente(r.cliente),
-    nomeProjeto: r.nomeProjeto,
     dataAgendada: r.dataAgendada,
     responsavelAtual: r.responsavelAtual,
     status: r.status as StatusInstalacao,
@@ -183,7 +178,6 @@ export async function getInstalacao(
     clienteNome: nomeCliente(i.cliente),
     propostaId: i.propostaId,
     propostaLabel: i.proposta ? `Proposta ${i.proposta.proposalNumber}` : null,
-    nomeProjeto: i.nomeProjeto,
     responsavelAtual: i.responsavelAtual,
     status: i.status as StatusInstalacao,
     dataPrevista: i.dataPrevista,
@@ -210,7 +204,6 @@ export async function getInstalacao(
 /** Campos de escrita comuns a criação e edição. Nunca inclui endereço. */
 function toData(input: InstalacaoInput) {
   return {
-    nomeProjeto: input.nomeProjeto.trim(),
     propostaId: input.propostaId,
     responsavelAtual: trimOrNull(input.responsavelAtual),
     status: input.status,

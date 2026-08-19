@@ -4,7 +4,7 @@ import { FormSection } from "@/components/forms";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-import { enderecoEmLinha, type EnderecoInstalacao } from "./endereco";
+import type { EnderecoInstalacao } from "./endereco";
 
 const VAZIO: EnderecoInstalacao = {
   cep: null,
@@ -36,6 +36,10 @@ const CAMPOS: { key: keyof EnderecoInstalacao; label: string }[] = [
  *
  * Não há endereço alternativo de obra nesta Sprint — para mudar o endereço,
  * corrige-se o cadastro do cliente antes de criar a instalação.
+ *
+ * O endereço aparece UMA vez (Sprint 4.0.3, ADR-0404). Antes havia também um
+ * resumo em linha logo abaixo dos campos, repetindo o mesmo conteúdo — a
+ * duplicação apontada na homologação.
  */
 export function EnderecoSnapshot({
   endereco,
@@ -60,9 +64,6 @@ export function EnderecoSnapshot({
           />
         </div>
       ))}
-      <p className="text-xs text-muted-foreground sm:col-span-2">
-        {enderecoEmLinha(e)}
-      </p>
       <p className="text-xs text-muted-foreground sm:col-span-2">{nota}</p>
     </FormSection>
   );

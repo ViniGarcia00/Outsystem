@@ -53,22 +53,3 @@ export function snapshotEndereco(cliente: EnderecoCliente): EnderecoInstalacao {
     estado: nn(cliente.estado),
   };
 }
-
-/**
- * Endereço em linha única para exibição. Mesmo separador (" · ") usado pelo
- * `montarEndereco` dos PDFs, para que as duas telas leiam igual.
- */
-export function enderecoEmLinha(e: EnderecoInstalacao): string {
-  const logradouro = [e.enderecoLogradouro, e.enderecoNumero]
-    .filter(Boolean)
-    .join(", ");
-  const cidadeUf = [e.cidade, e.estado].filter(Boolean).join("/");
-  const partes = [
-    logradouro || null,
-    e.complemento,
-    e.bairro,
-    cidadeUf || null,
-    e.cep ? `CEP ${e.cep}` : null,
-  ].filter(Boolean);
-  return partes.length ? partes.join(" · ") : "—";
-}

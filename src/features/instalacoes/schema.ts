@@ -52,7 +52,6 @@ const dataOpcional = z
   .refine(ehDataDeInputValida, "Data inválida.");
 
 const camposComuns = {
-  nomeProjeto: requiredText("Nome do projeto", 200),
   propostaId: z.string().nullable(),
   responsavelAtual: texto(120),
   status: z.enum(STATUS),

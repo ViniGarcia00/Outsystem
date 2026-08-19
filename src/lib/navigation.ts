@@ -11,15 +11,21 @@ import {
 import type { NavItem } from "@/types";
 
 /**
- * Fonte única da navegação principal. O Dashboard é placeholder; a home da
- * aplicação (`/`) abre Propostas enquanto o Dashboard não é implementado.
+ * Fonte única da navegação principal.
+ *
+ * A ordem é deliberada (Sprint 4.0.3) e travada por teste: o Dashboard abre,
+ * depois vêm os cadastros que alimentam uma proposta (Cliente e Produto), então
+ * o fluxo comercial (Propostas) e o operacional (Instalações), e por fim
+ * Vendedores e Configurações.
+ *
+ * A home da aplicação (`/`) continua abrindo Propostas.
  */
 export const mainNavigation: NavItem[] = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { title: "Propostas", href: "/propostas", icon: FileText },
-  { title: "Instalações", href: "/instalacoes", icon: Wrench },
   { title: "Clientes", href: "/clientes", icon: Users },
   { title: "Produtos", href: "/produtos", icon: Package },
+  { title: "Propostas", href: "/propostas", icon: FileText },
+  { title: "Instalações", href: "/instalacoes", icon: Wrench },
   { title: "Vendedores", href: "/vendedores", icon: UserSquare },
   { title: "Configurações", href: "/configuracoes", icon: Settings },
 ];

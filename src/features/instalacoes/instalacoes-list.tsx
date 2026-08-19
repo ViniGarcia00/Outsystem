@@ -2,6 +2,7 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 import { Ban, MoreHorizontal, Pencil, Wrench } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -45,12 +46,17 @@ import {
  * e Instalação tem **status**.
  */
 
-/** Busca instantânea: número, cliente, projeto, endereço e responsável. */
+/**
+ * Busca instantânea: número, cliente, endereço, responsável e status.
+ *
+ * O antigo campo "Projeto" saiu na Sprint 4.0.3 (ADR-0404) e não deixou
+ * referência aqui. A normalização de acento vem de `useCrudList`, que consome a
+ * fonte única `@/utils/busca`.
+ */
 const searchAccessor = (i: InstalacaoListItem) =>
   [
     String(i.numero),
     i.clienteNome,
-    i.nomeProjeto,
     i.enderecoResumo,
     i.responsavelAtual ?? "",
     STATUS_LABEL[i.status],
@@ -116,20 +122,25 @@ export function InstalacoesList({
     return [
       {
         id: "numero",
+        // O número é a porta de entrada do workspace (Sprint 4.0.3, ADR-0404).
+        // `next/link` renderiza um <a> de verdade: navegável por Tab, com foco
+        // visível e Ctrl/Cmd+clique abrindo em nova aba. Nada disso funcionaria
+        // com onClick na <tr>, que é o motivo de não fazermos assim.
         header: () => sortHeader("numero", "Número"),
         cell: ({ row }) => (
-          <span className="font-medium">{row.original.numero}</span>
+          <Link
+            href={`/instalacoes/${row.original.id}`}
+            aria-label={`Abrir instalação ${row.original.numero}`}
+            className="rounded-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+          >
+            {row.original.numero}
+          </Link>
         ),
       },
       {
         id: "clienteNome",
         header: () => sortHeader("clienteNome", "Cliente"),
         cell: ({ row }) => row.original.clienteNome,
-      },
-      {
-        id: "nomeProjeto",
-        header: () => sortHeader("nomeProjeto", "Projeto"),
-        cell: ({ row }) => row.original.nomeProjeto,
       },
       {
         id: "enderecoResumo",
@@ -234,7 +245,7 @@ export function InstalacoesList({
         description="Acompanhamento operacional das instalações."
         searchValue={list.search}
         onSearchChange={list.setSearch}
-        searchPlaceholder="Buscar por número, cliente, projeto, endereço, responsável..."
+        searchPlaceholder="Buscar por número, cliente, endereço, responsável..."
         onNew={() => router.push("/instalacoes/nova")}
         newLabel="Nova instalação"
         columns={columns}

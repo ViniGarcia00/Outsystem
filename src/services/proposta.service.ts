@@ -563,6 +563,27 @@ export async function emitirProposta(id: string): Promise<void> {
   });
 }
 
+/**
+ * Duplica a proposta com todo o **conteúdo comercial aplicável** (Sprint 4.0.3,
+ * ADR-0406).
+ *
+ * Antes a cópia levava só cliente, vendedor, modelo, validade, `obsProposta` e o
+ * conteúdo da revisão. Ficavam para trás os **serviços complementares**
+ * (Som/Wi-Fi) — o defeito relatado na homologação —, além de nome do projeto,
+ * desconto, frete e a finalização. Duplicar precisa devolver a mesma proposta
+ * comercialmente: o que muda é o número, o status e o que é interno.
+ *
+ * **Nunca copiado:** `obsInternas` (ADR-0203), `proposalNumber`, `status`, datas
+ * de status, cancelamento e auditoria da origem.
+ *
+ * Os serviços são **criados** na proposta nova; nenhum `id` da origem é
+ * reaproveitado e nenhuma linha é compartilhada — alterar a duplicada não pode
+ * tocar na original. `SIMPLIFICADA` não recebe serviços, mesma regra de
+ * `criarPropostaCompleta` e `salvarProposta`.
+ *
+ * `valorTotal` é copiado como está: já é derivado e persistido pela regra da
+ * Sprint 2.9.1. Nada é recalculado aqui.
+ */
 export async function duplicarProposta(
   id: string,
 ): Promise<{ id: string; proposalNumber: number }> {
@@ -574,9 +595,28 @@ export async function duplicarProposta(
         clienteId: true,
         vendedorId: true,
         modelo: true,
+        nomeProjeto: true,
         validadeDias: true,
         obsProposta: true,
+        tipoDesconto: true,
+        valorDesconto: true,
+        frete: true,
+        formaPagamento: true,
+        previsaoInstalacao: true,
+        obsComerciais: true,
+        obsTecnicas: true,
         currentRevisionId: true,
+        servicos: {
+          orderBy: { ordem: "asc" },
+          select: {
+            tipo: true,
+            descricao: true,
+            valorProdutos: true,
+            valorServicos: true,
+            valorTotal: true,
+            ordem: true,
+          },
+        },
       },
     });
 
@@ -585,8 +625,16 @@ export async function duplicarProposta(
         clienteId: orig.clienteId,
         vendedorId: orig.vendedorId,
         modelo: orig.modelo,
+        nomeProjeto: orig.nomeProjeto,
         validadeDias: orig.validadeDias,
         obsProposta: orig.obsProposta, // NÃO copia obsInternas (ADR-0203)
+        tipoDesconto: orig.tipoDesconto,
+        valorDesconto: orig.valorDesconto,
+        frete: orig.frete,
+        formaPagamento: orig.formaPagamento,
+        previsaoInstalacao: orig.previsaoInstalacao,
+        obsComerciais: orig.obsComerciais,
+        obsTecnicas: orig.obsTecnicas,
         status: "RASCUNHO",
       },
       select: { id: true, proposalNumber: true },
@@ -603,6 +651,24 @@ export async function duplicarProposta(
       where: { id: nova.id },
       data: { currentRevisionId: rev.id },
     });
+
+    // Serviços complementares: registros NOVOS na proposta nova. A Simplificada
+    // não os suporta e sai com o conjunto vazio.
+    const servicosCopiar =
+      orig.modelo === "SIMPLIFICADA" ? [] : orig.servicos;
+    for (const sv of servicosCopiar) {
+      await tx.propostaServico.create({
+        data: {
+          propostaId: nova.id,
+          tipo: sv.tipo,
+          descricao: sv.descricao,
+          valorProdutos: sv.valorProdutos,
+          valorServicos: sv.valorServicos,
+          valorTotal: sv.valorTotal,
+          ordem: sv.ordem,
+        },
+      });
+    }
     await tx.propostaAuditoria.create({
       data: {
         propostaId: nova.id,

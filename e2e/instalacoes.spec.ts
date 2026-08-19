@@ -1,11 +1,19 @@
 import { expect, test, type Page } from "@playwright/test";
 
 /**
- * Smoke de Instalações (Sprint 4.0.1).
+ * Smoke de Instalações (Sprint 4.0.1; atualizado na 4.0.3).
  *
  * Cada cenário cria os próprios dados, com identificador único — nenhuma
  * dependência do catálogo, de clientes ou de instalações preexistentes, seguindo
  * a correção feita no smoke de Propostas na Release 1.1.0.
+ *
+ * Os dados criados aqui são varridos pelo `globalTeardown` (ADR-0403) através do
+ * marcador `E2E ` no nome do cliente — instalações, registros e custos caem
+ * junto, por pertencerem a ele.
+ *
+ * O campo "Nome do projeto" saiu na Sprint 4.0.3 (ADR-0404). Os cenários passaram
+ * a localizar a instalação pelo **cliente** e pelo **número**, que é o que a
+ * listagem realmente oferece.
  */
 
 /** Cria um cliente exclusivo do cenário e devolve o nome. */
@@ -32,13 +40,11 @@ async function criarCliente(
 async function criarInstalacao(
   page: Page,
   clienteNome: string,
-  projeto: string,
   responsavel?: string,
 ): Promise<string> {
   await page.goto("/instalacoes/nova");
   await page.getByLabel("Cliente", { exact: true }).fill(clienteNome);
   await page.getByRole("option", { name: clienteNome }).click();
-  await page.getByLabel("Nome do projeto").fill(projeto);
   if (responsavel) {
     await page.getByLabel("Responsável atual").fill(responsavel);
   }
@@ -56,7 +62,6 @@ test("Instalações: criar, conferir snapshot, mudar status e concluir", async (
     bairro: "Barcelona",
     cidade: "São Caetano do Sul",
   });
-  const projeto = `Apartamento E2E ${Date.now()}`;
 
   await page.goto("/instalacoes");
   await expect(
@@ -73,7 +78,15 @@ test("Instalações: criar, conferir snapshot, mudar status e concluir", async (
   await expect(page.getByLabel("Cidade")).toHaveValue("São Caetano do Sul");
   await expect(page.getByLabel("Logradouro")).toBeDisabled();
 
-  await page.getByLabel("Nome do projeto").fill(projeto);
+  // Sprint 4.0.3: o campo "Nome do projeto" foi removido do formulário.
+  await expect(page.getByLabel("Nome do projeto")).toHaveCount(0);
+
+  // Sprint 4.0.3: o endereço aparece UMA vez. Antes havia, abaixo dos campos,
+  // um resumo em linha repetindo o mesmo conteúdo.
+  await expect(
+    page.getByText("Avenida Goiás, 1860 · Barcelona · São Caetano do Sul"),
+  ).toHaveCount(0);
+
   await page.getByLabel("Responsável atual").fill("Carlos");
   await page.getByRole("button", { name: "Salvar" }).click();
 
@@ -106,10 +119,46 @@ test("Instalações: criar, conferir snapshot, mudar status e concluir", async (
   await page.goto(instalacaoPath);
   await expect(statusAtual).toContainText("Concluída");
 
-  // A instalação é encontrada pela busca da listagem.
+  // A instalação é encontrada pela busca da listagem — agora por cliente, já
+  // que o projeto não existe mais. A coluna "Projeto" também sumiu.
   await page.goto("/instalacoes");
-  await page.getByRole("searchbox", { name: "Buscar" }).fill(projeto);
-  await expect(page.getByText(projeto, { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("columnheader", { name: "Projeto" }),
+  ).toHaveCount(0);
+  await page.getByRole("searchbox", { name: "Buscar" }).fill(clienteNome);
+  await expect(page.getByText(clienteNome, { exact: true })).toBeVisible();
+
+  // O workspace continua sem o campo removido.
+  await page.goto(instalacaoPath);
+  await expect(page.getByLabel("Nome do projeto")).toHaveCount(0);
+});
+
+test("Instalações: o número da listagem é um link que abre o workspace", async ({
+  page,
+}) => {
+  const clienteNome = await criarCliente(page, "Link Cliente");
+  const instalacaoPath = await criarInstalacao(page, clienteNome);
+  const numero = await page
+    .getByRole("heading", { level: 1 })
+    .innerText()
+    .then((t) => t.replace(/\D/g, ""));
+
+  await page.goto("/instalacoes");
+  await page.getByRole("searchbox", { name: "Buscar" }).fill(clienteNome);
+
+  // Elemento semântico de link — não uma <tr> com onClick (ADR-0404).
+  const link = page.getByRole("link", { name: `Abrir instalação ${numero}` });
+  await expect(link).toBeVisible();
+
+  // Navegável por teclado: o link recebe foco.
+  await link.focus();
+  await expect(link).toBeFocused();
+
+  await link.click();
+  await expect(page).toHaveURL(new RegExp(`${instalacaoPath}$`));
+  await expect(
+    page.getByRole("heading", { level: 1, name: `Instalação ${numero}` }),
+  ).toBeVisible();
 });
 
 test("Instalações: o snapshot NÃO acompanha alteração no cadastro do cliente", async ({
@@ -118,9 +167,8 @@ test("Instalações: o snapshot NÃO acompanha alteração no cadastro do client
   const clienteNome = await criarCliente(page, "Snapshot Cliente", {
     cidade: "Curitiba",
   });
-  const projeto = `Projeto Snapshot ${Date.now()}`;
 
-  const instalacaoPath = await criarInstalacao(page, clienteNome, projeto);
+  const instalacaoPath = await criarInstalacao(page, clienteNome);
   await expect(page.getByLabel("Cidade")).toHaveValue("Curitiba");
 
   // Muda a cidade NO CADASTRO DO CLIENTE.
@@ -129,7 +177,12 @@ test("Instalações: o snapshot NÃO acompanha alteração no cadastro do client
   await page.getByRole("button", { name: "Ações" }).click();
   await page.getByRole("menuitem", { name: "Editar" }).click();
   await expect(page).toHaveURL(/\/clientes\/.+$/);
+  // Esperar o valor carregado antes de digitar: `toHaveURL` passa assim que a
+  // URL muda, e o formulário ainda pode remontar com os `defaultValues` do
+  // Server Component, descartando o que foi digitado antes da hidratação.
+  await expect(page.getByLabel("Cidade")).toHaveValue("Curitiba");
   await page.getByLabel("Cidade").fill("Florianópolis");
+  await expect(page.getByLabel("Cidade")).toHaveValue("Florianópolis");
   await page.getByRole("button", { name: "Salvar" }).click();
   await expect(page).toHaveURL(/\/clientes$/);
 
@@ -142,9 +195,8 @@ test("Instalações: cancelar preserva a instalação no histórico", async ({
   page,
 }) => {
   const clienteNome = await criarCliente(page, "Cancelar Cliente");
-  const projeto = `Projeto Cancelar ${Date.now()}`;
 
-  await criarInstalacao(page, clienteNome, projeto);
+  await criarInstalacao(page, clienteNome);
 
   await page.getByRole("button", { name: "Cancelar instalação" }).click();
   const dialog = page.getByRole("dialog");
@@ -156,8 +208,8 @@ test("Instalações: cancelar preserva a instalação no histórico", async ({
 
   // Continua existindo na listagem, agora como Cancelada.
   await page.goto("/instalacoes");
-  await page.getByRole("searchbox", { name: "Buscar" }).fill(projeto);
-  const linha = page.getByRole("row").filter({ hasText: projeto });
+  await page.getByRole("searchbox", { name: "Buscar" }).fill(clienteNome);
+  const linha = page.getByRole("row").filter({ hasText: clienteNome });
   await expect(linha).toBeVisible();
   await expect(linha).toContainText("Cancelada");
 });
@@ -205,8 +257,7 @@ test("Instalações: cronologia completa — registros, custos, ordem e exclusã
   page,
 }) => {
   const clienteNome = await criarCliente(page, "Cronologia Cliente");
-  const projeto = `Projeto Cronologia ${Date.now()}`;
-  const instalacaoPath = await criarInstalacao(page, clienteNome, projeto);
+  const instalacaoPath = await criarInstalacao(page, clienteNome);
 
   // 3. Visita ao cliente, com um custo de deslocamento.
   await criarRegistro(page, {
@@ -292,8 +343,7 @@ test("Instalações: edição de registro substitui os custos, não duplica", as
   page,
 }) => {
   const clienteNome = await criarCliente(page, "Edicao Cliente");
-  const projeto = `Projeto Edicao ${Date.now()}`;
-  const instalacaoPath = await criarInstalacao(page, clienteNome, projeto);
+  const instalacaoPath = await criarInstalacao(page, clienteNome);
 
   await criarRegistro(page, {
     tipo: "Visita ao cliente",

@@ -49,7 +49,6 @@ export function NovaInstalacaoForm() {
     resolver: zodResolver(novaInstalacaoSchema),
     defaultValues: {
       clienteId: "",
-      nomeProjeto: "",
       propostaId: null,
       responsavelAtual: "",
       status: "A_AGENDAR",
@@ -122,7 +121,6 @@ export function NovaInstalacaoForm() {
               setPropostaLabel(p?.label ?? null);
             }}
           />
-          <TextField name="nomeProjeto" label="Nome do projeto" />
           <TextField
             name="responsavelAtual"
             label="Responsável atual"

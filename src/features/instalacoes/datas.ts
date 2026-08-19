@@ -1,6 +1,11 @@
 /**
  * Datas operacionais da Instalação (Sprint 4.0.1).
  *
+ * As constantes de fuso vêm de `@/utils` (ADR-0405) — só as constantes; as
+ * conversões continuam aqui, inalteradas. Declarar o fuso brasileiro em dois
+ * lugares deixaria uma eventual mudança passar despercebida em um deles, que é
+ * a mesma razão pela qual `labels.ts` não duplica tipos.
+ *
  * O projeto não tinha campo de data em formulário até aqui, então estes
  * helpers definem a conversão nos dois sentidos entre `<input type="date">`
  * ("YYYY-MM-DD") e `Date`.
@@ -15,13 +20,13 @@
  * Módulo PURO — testado sem banco.
  */
 
-const FUSO_BRASIL = "-03:00";
+import { FUSO_BRASIL, OFFSET_BRASIL } from "@/utils";
 
 const formatador = new Intl.DateTimeFormat("en-CA", {
   year: "numeric",
   month: "2-digit",
   day: "2-digit",
-  timeZone: "America/Sao_Paulo",
+  timeZone: FUSO_BRASIL,
 });
 
 /** "YYYY-MM-DD" (ou "") → `Date` ancorada ao meio-dia de São Paulo, ou `null`. */
@@ -29,7 +34,7 @@ export function dataDeInput(valor: string): Date | null {
   const v = valor.trim();
   if (!v) return null;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return null;
-  const d = new Date(`${v}T12:00:00${FUSO_BRASIL}`);
+  const d = new Date(`${v}T12:00:00${OFFSET_BRASIL}`);
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
@@ -63,7 +68,7 @@ const formatadorDataHora = new Intl.DateTimeFormat("sv-SE", {
   hour: "2-digit",
   minute: "2-digit",
   hour12: false,
-  timeZone: "America/Sao_Paulo",
+  timeZone: FUSO_BRASIL,
 });
 
 const formatadorExibicao = new Intl.DateTimeFormat("pt-BR", {
@@ -73,7 +78,7 @@ const formatadorExibicao = new Intl.DateTimeFormat("pt-BR", {
   hour: "2-digit",
   minute: "2-digit",
   hour12: false,
-  timeZone: "America/Sao_Paulo",
+  timeZone: FUSO_BRASIL,
 });
 
 /** "YYYY-MM-DDTHH:mm" → `Date` no fuso de São Paulo, ou `null`. */
@@ -81,7 +86,7 @@ export function dataHoraDeInput(valor: string): Date | null {
   const v = valor.trim();
   if (!v) return null;
   if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v)) return null;
-  const d = new Date(`${v}:00${FUSO_BRASIL}`);
+  const d = new Date(`${v}:00${OFFSET_BRASIL}`);
   return Number.isNaN(d.getTime()) ? null : d;
 }
 

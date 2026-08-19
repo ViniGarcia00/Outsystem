@@ -502,8 +502,7 @@ model Instalacao {
   /// Texto livre. Snapshot histórico de quem acompanha — NUNCA vira FK.
   responsavelAtual String?
 
-  nomeProjeto String
-  status      StatusInstalacao @default(A_AGENDAR)
+  status StatusInstalacao @default(A_AGENDAR)
 
   // Snapshot do endereço do Cliente. `enderecoNumero` evita colisão com `numero`.
   cep                String?

@@ -4,7 +4,6 @@ import { cabecalhoInstalacaoSchema, novaInstalacaoSchema } from "./schema";
 
 const base = {
   clienteId: "ckl0000000000000000000000",
-  nomeProjeto: "Apartamento 81 — Edifício Horizon",
   propostaId: null,
   responsavelAtual: "",
   status: "A_AGENDAR" as const,
@@ -16,7 +15,9 @@ const base = {
 };
 
 describe("novaInstalacaoSchema", () => {
-  it("aceita o mínimo obrigatório: cliente e nome do projeto", () => {
+  it("aceita o mínimo obrigatório: apenas o cliente", () => {
+    // O nome do projeto era obrigatório até a Sprint 4.0.2; saiu na 4.0.3
+    // (ADR-0404). Cliente é o único campo exigido na criação.
     expect(novaInstalacaoSchema.safeParse(base).success).toBe(true);
   });
 
@@ -26,10 +27,15 @@ describe("novaInstalacaoSchema", () => {
     ).toBe(false);
   });
 
-  it("exige nome do projeto", () => {
-    expect(
-      novaInstalacaoSchema.safeParse({ ...base, nomeProjeto: "   " }).success,
-    ).toBe(false);
+  it("NÃO declara nome do projeto — o campo saiu na Sprint 4.0.3", () => {
+    // Se alguém reintroduzir o campo no schema por engano, este teste falha:
+    // um valor enviado precisa ser descartado no parse, como o endereço.
+    const r = novaInstalacaoSchema.safeParse({
+      ...base,
+      nomeProjeto: "Apartamento 81",
+    });
+    expect(r.success).toBe(true);
+    expect(r.success && "nomeProjeto" in r.data).toBe(false);
   });
 
   it("aceita responsável atual vazio (é opcional)", () => {
