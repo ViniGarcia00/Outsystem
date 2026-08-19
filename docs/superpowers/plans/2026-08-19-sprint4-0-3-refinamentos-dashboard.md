@@ -373,26 +373,76 @@ visível, e Ctrl+clique abre em nova aba.
 
 ## Grupo D — Dashboard
 
-### D1 · Helper de início do dia no fuso brasileiro
+### D1 · Módulo transversal de data/timezone
 
-**Arquivos** — `src/features/instalacoes/datas.ts` · `datas.test.ts`
+> **Ajuste aprovado em 2026-08-19.** A versão anterior desta tarefa punha o helper
+> em `features/instalacoes/datas.ts`, o que criaria a dependência cross-feature
+> `features/dashboard → features/instalacoes` para uma preocupação transversal.
 
-**Alteração exata** — acrescentar, junto dos demais conversores de fuso:
+**Auditoria prévia** — não existe fonte compartilhada adequada:
+
+- `src/utils/format/date.ts` é módulo de **formatação para exibição** e
+  deliberadamente **não** fixa timezone (usa a do runtime). O próprio `datas.ts`
+  registra por que não deve ser usado para isso;
+- `src/lib/` não tem nada de data;
+- `grep -rn "timeZone\|America/Sao_Paulo\|FUSO" src/utils src/lib` → zero.
+
+Logo, **Opção A**: criar o utilitário transversal.
+
+**Arquivos**
+- `src/utils/data-brasil.ts` (novo)
+- `src/utils/data-brasil.test.ts` (novo)
+- `src/utils/index.ts` (editar)
+- `src/features/instalacoes/datas.ts` (editar — **somente constantes**)
+
+**Alteração exata**
+
+`data-brasil.ts`, puro e transversal:
 
 ```ts
-/** Início do dia (00:00) em São Paulo, para comparar com datas agendadas. */
-export function inicioDoDiaEmSaoPaulo(agora: Date = new Date()): Date
+/** Fuso oficial do domínio (IANA), para Intl.DateTimeFormat. */
+export const FUSO_BRASIL = "America/Sao_Paulo";
+
+/** Mesmo fuso como offset, para construir Date a partir de texto ISO.
+ *  O Brasil não adota horário de verão desde 2019 — o -03:00 é estável. */
+export const OFFSET_BRASIL = "-03:00";
+
+/** Início do dia (00:00) no fuso brasileiro. Base de comparação com datas
+ *  agendadas: "a partir de hoje" precisa significar hoje no Brasil. */
+export function inicioDoDiaBrasil(agora: Date = new Date()): Date;
 ```
 
-Reaproveita o `formatador` `en-CA` existente para obter "YYYY-MM-DD" no fuso e
-ancora em `T00:00:00-03:00`. Fica em `datas.ts` porque é o dono documentado das
-conversões de fuso do projeto — duplicar a lógica no Dashboard seria pior.
+`inicioDoDiaBrasil` formata `agora` como "YYYY-MM-DD" no fuso (`Intl` com locale
+`en-CA`, mesmo recurso já usado em `datas.ts`) e ancora em
+`T00:00:00${OFFSET_BRASIL}`.
 
-**Testes** — `datas.test.ts`: uma data logo após a meia-noite de São Paulo e uma
-logo antes devolvem dias diferentes; o retorno é sempre 00:00 no fuso brasileiro.
+Barrel: `export { FUSO_BRASIL, OFFSET_BRASIL, inicioDoDiaBrasil } from "./data-brasil";`
 
-**Conclusão** — `npm run test` verde; nenhum comportamento existente de `datas.ts`
-alterado.
+Em `features/instalacoes/datas.ts`, trocar as **duas literais duplicadas** pelas
+constantes compartilhadas — `const FUSO_BRASIL = "-03:00"` vira o import de
+`OFFSET_BRASIL`, e os três `timeZone: "America/Sao_Paulo"` passam a usar
+`FUSO_BRASIL`. **Nenhuma função é movida, nenhuma conversão é alterada.** É
+remoção de literal duplicada: criar o dono transversal do fuso e deixar uma
+segunda definição viva contraria a regra que o próprio módulo de Instalações
+documenta em `labels.ts` ("NÃO declarar o tipo nos dois lugares"). `dataDeInput`,
+`dataParaInput`, `dataHoraDeInput`, `dataHoraParaInput` e `dataHoraParaExibicao`
+mantêm assinatura e comportamento.
+
+**Direção de dependência resultante** — `features/dashboard → utils` e
+`features/instalacoes → utils`. Transversal, permitido pelo ARCHITECTURE.md.
+Nenhuma feature depende de outra.
+
+**Testes**
+- `data-brasil.test.ts` (novo): um instante logo após a meia-noite de São Paulo e
+  outro logo antes caem em dias diferentes; um instante em UTC que já é o dia
+  seguinte lá mas ainda é hoje no Brasil devolve o dia brasileiro; o retorno é
+  sempre 00:00 no fuso brasileiro.
+- `datas.test.ts` **sem edição** — é ele que prova que a troca de constantes não
+  alterou nada de `dataAgendada` nem de `aconteceuEm`.
+
+**Conclusão** — `npm run test` verde, incluindo `datas.test.ts` intacto;
+`grep -rn "America/Sao_Paulo" src` retorna **apenas** `src/utils/data-brasil.ts`;
+`features/dashboard` não importa nada de `features/instalacoes`.
 
 ---
 
@@ -833,7 +883,7 @@ consequências, alternativas descartadas):
 | ADR-0402 | Normalização de busca compartilhada; acento resolvido em memória no service; `unaccent` descartada por exigir superusuário (ADR-0101); sem limite arbitrário no conjunto considerado |
 | ADR-0403 | Cleanup E2E por `globalTeardown` test-only, guardas de ambiente, ordem de dependência e verificação de resíduo; `pg_dump` só na implantação |
 | ADR-0404 | Remoção de `Instalacao.nomeProjeto` (com a evidência dos dados), remoção da repetição do endereço e acesso ao workspace por link semântico |
-| ADR-0405 | Dashboard V1 — service + módulo puro + DTO, sem gráficos |
+| ADR-0405 | Dashboard V1 — service + módulo puro + DTO, sem gráficos; fuso brasileiro em `utils/data-brasil.ts`, sem dependência cross-feature |
 | ADR-0406 | Duplicação de Proposta passa a copiar o conteúdo comercial aplicável, incluindo `PropostaServico`; `obsInternas` segue fora |
 | ADR-0407 | PDF Geral de Produtos — quinto documento, quantitativo, agrupado por identidade estável, sem emitir a proposta |
 

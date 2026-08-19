@@ -394,10 +394,18 @@ a tela não escreve status à mão.
 
 ### 7.3. Próximas Instalações
 
-Máximo 5. Critérios: `dataAgendada >= hoje` (início do dia, fuso
-`America/Sao_Paulo`, via `features/instalacoes/datas.ts`), status diferente de
-`CONCLUIDA` e de `CANCELADA`, ordem crescente por `dataAgendada`. Colunas: data,
-número, cliente, status, responsável. **Não** depende de `nomeProjeto`.
+Máximo 5. Critérios: `dataAgendada >= hoje` (início do dia no fuso brasileiro,
+via `inicioDoDiaBrasil` do módulo transversal `src/utils/data-brasil.ts`), status
+diferente de `CONCLUIDA` e de `CANCELADA`, ordem crescente por `dataAgendada`.
+Colunas: data, número, cliente, status, responsável. **Não** depende de
+`nomeProjeto`.
+
+> **Dependência.** O helper de fuso é transversal e mora em `utils/`, não em
+> `features/instalacoes/datas.ts`. `features/dashboard` **não** importa nada de
+> `features/instalacoes` — ambas dependem apenas de `utils/`, que é transversal e
+> não depende para fora. `datas.ts` passa a importar as constantes de fuso do
+> módulo novo (só constantes; nenhuma função movida, nenhuma conversão alterada),
+> para que o fuso brasileiro não fique declarado em dois lugares.
 
 Sem instalações futuras, estado vazio com `PageEmpty`.
 
@@ -608,6 +616,6 @@ patch de refinamento. A análise formal é apresentada antes de gravar o número
 | ADR-0402 | Normalização de busca compartilhada; acento resolvido em memória no service, sem `unaccent`; sem limite arbitrário no conjunto considerado |
 | ADR-0403 | Cleanup E2E por `globalTeardown` test-only, com guardas de ambiente e verificação de resíduo |
 | ADR-0404 | Remoção de `Instalacao.nomeProjeto` e da repetição do endereço; acesso ao workspace por link semântico |
-| ADR-0405 | Dashboard V1 — service + módulo puro + DTO, sem gráficos |
+| ADR-0405 | Dashboard V1 — service + módulo puro + DTO, sem gráficos; fuso brasileiro em `utils/data-brasil.ts`, sem dependência cross-feature |
 | ADR-0406 | Duplicação de Proposta passa a copiar o conteúdo comercial aplicável, incluindo `PropostaServico` |
 | ADR-0407 | PDF Geral de Produtos — quinto documento, quantitativo, agrupado por identidade estável, sem emitir a proposta |
