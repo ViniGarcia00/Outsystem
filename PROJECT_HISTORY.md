@@ -1322,4 +1322,4 @@ de Produtos).
 - `4a28fb1` — Grupo A (busca) + Grupo B (cleanup E2E)
 - `ce0c5bb` — Grupos C (Instalações), D (Dashboard), E (duplicação) e menu
 - `c8a7839` — Grupo F (PDF Geral de Produtos)
-- _(fechamento: ADRs, documentação, CHANGELOG e VERSION — hash abaixo)_
+- `63c6321` — fechamento: ADR-0402..0407, documentação, CHANGELOG e VERSION 1.3.0
