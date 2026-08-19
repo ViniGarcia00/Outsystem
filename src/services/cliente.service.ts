@@ -1,5 +1,6 @@
 import { CANNOT_DELETE_USED_IN_PROPOSTAS } from "@/lib/messages";
 import { prisma } from "@/infrastructure/database";
+import { contemBusca } from "@/utils";
 
 /**
  * Serviço de Clientes — orquestra o acesso ao banco (Prisma). A UI nunca acessa
@@ -168,6 +169,18 @@ function toSuggestion(c: {
  * da proposta. Só pesquisa a partir de {@link CLIENTE_SEARCH_MIN_CHARS} caracteres.
  * O documento é comparado ignorando a máscara (dígitos), então "52998224725"
  * casa com "529.982.247-25".
+ *
+ * **O filtro textual acontece em memória, não no banco (Sprint 4.0.3, ADR-0402).**
+ * O `contains + mode: "insensitive"` do Prisma vira `ILIKE` no PostgreSQL:
+ * insensível a caixa, mas SENSÍVEL a acento — `ILIKE '%thai%'` não encontrava
+ * "Thaís". Resolver no banco exigiria `unaccent`, e `CREATE EXTENSION` pede
+ * superusuário, contra o ADR-0101 (a aplicação usa o usuário dedicado `outmat`).
+ *
+ * O conjunto é carregado SEM `take`, de propósito: um limite antes do filtro
+ * deixaria de fora um cliente válido que estivesse além do corte — exatamente a
+ * falha que esta correção existe para eliminar. Só os cinco campos da sugestão
+ * são selecionados, e o corte de 10 é aplicado depois de filtrar. Para volume
+ * muito maior, ver o item de busca server-side escalável no BACKLOG.
  */
 export async function searchClientes(
   query: string,
@@ -175,41 +188,30 @@ export async function searchClientes(
   const q = query.trim();
   if (q.length < CLIENTE_SEARCH_MIN_CHARS) return [];
   const digits = q.replace(/\D/g, "");
+  const buscaPorDigitos = digits.length >= CLIENTE_SEARCH_MIN_CHARS;
 
-  // Busca textual no banco (nome, razão social e documento como digitado).
-  const porTexto = await prisma.cliente.findMany({
-    where: {
-      ativo: true,
-      OR: [
-        { nome: { contains: q, mode: "insensitive" } },
-        { empresa: { contains: q, mode: "insensitive" } },
-        { cpfCnpj: { contains: q, mode: "insensitive" } },
-      ],
-    },
+  const ativos = await prisma.cliente.findMany({
+    where: { ativo: true },
     select: SUGGESTION_SELECT,
     orderBy: { createdAt: "desc" },
-    take: 10,
   });
 
-  // Busca por documento sem máscara: compara apenas os dígitos armazenados.
-  // Limitada a 200 registros para não varrer toda a tabela por tecla digitada.
-  let porDigitos: (typeof porTexto)[number][] = [];
-  if (digits.length >= CLIENTE_SEARCH_MIN_CHARS) {
-    const comDocumento = await prisma.cliente.findMany({
-      where: { ativo: true, cpfCnpj: { not: null } },
-      select: SUGGESTION_SELECT,
-      orderBy: { createdAt: "desc" },
-      take: 200,
-    });
-    porDigitos = comDocumento.filter((c) =>
-      (c.cpfCnpj ?? "").replace(/\D/g, "").includes(digits),
-    );
-  }
+  // Um único passe: texto normalizado (nome, razão social, documento como
+  // digitado) OU documento comparado só pelos dígitos. Com o conjunto inteiro em
+  // memória, o caminho por dígitos deixou de precisar da segunda consulta.
+  const encontrados = ativos.filter((c) => {
+    const porTexto =
+      contemBusca(c.nome ?? "", q) ||
+      contemBusca(c.empresa ?? "", q) ||
+      contemBusca(c.cpfCnpj ?? "", q);
+    if (porTexto) return true;
 
-  // Une os dois conjuntos, deduplica por id e limita a 10 sugestões.
-  const porId = new Map<string, (typeof porTexto)[number]>();
-  for (const c of [...porTexto, ...porDigitos]) porId.set(c.id, c);
-  return [...porId.values()].slice(0, 10).map(toSuggestion);
+    return (
+      buscaPorDigitos && (c.cpfCnpj ?? "").replace(/\D/g, "").includes(digits)
+    );
+  });
+
+  return encontrados.slice(0, 10).map(toSuggestion);
 }
 
 export async function getClienteForEdit(

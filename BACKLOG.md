@@ -69,6 +69,31 @@ implementado** — o ciclo 1.1.0 foi exclusivamente documental/processual.
 
 ### Infraestrutura
 
+- [ ] **Busca server-side escalável** (a avaliar — aberto na Sprint 4.0.3)
+      **Contexto:** o `contains + mode: "insensitive"` do Prisma vira `ILIKE` no
+      PostgreSQL — insensível a caixa, **sensível a acento**. Provado no banco de
+      dev: `ILIKE '%thai%'` devolvia 0 e `ILIKE '%thaí%'` devolvia 1 (o cliente
+      "Thaís Sales de Sousa"). A Sprint 4.0.3 (ADR-0402) passou o filtro textual
+      dos autocompletes de Clientes, Produtos e Propostas para memória, usando
+      `normalizarBusca` de `src/utils/busca.ts`. O conjunto é carregado **sem
+      `take`** de propósito: qualquer limite antes do filtro esconderia um
+      registro válido além do corte, que é justamente o defeito corrigido.
+      Adequado ao volume atual (91 clientes, 49 produtos, 28 propostas), com
+      debounce de 250 ms e mínimo de 3 caracteres — e só os campos da sugestão
+      são selecionados.
+      **Aceite:** empurrar o filtro para o banco sem perder a insensibilidade a
+      acento. Três caminhos, em ordem de preferência: índice funcional sobre
+      expressão normalizada (`lower(unaccent(nome))`); coluna sombra normalizada
+      mantida pelo service; ou `unaccent` com o privilégio resolvido no
+      `scripts/db/bootstrap.sql`.
+      **Gatilho:** milhares de clientes ou produtos ativos, ou latência
+      perceptível no autocomplete. **Não fazer antes disso** — seria otimização
+      sem problema medido.
+      **Bloqueio conhecido:** `CREATE EXTENSION unaccent` exige superusuário e o
+      ADR-0101 determina que a aplicação use o usuário dedicado `outmat`, que não
+      é superusuário. Qualquer caminho com `unaccent` precisa resolver isso no
+      bootstrap, executado por quem tem o privilégio, não pela aplicação.
+
 - [ ] **`.env` usa o superusuário `postgres`** (segurança)
       **Contexto:** `.env.development` e `.env` apontam
       `postgresql://postgres:...@localhost:5432/db_outsystem`, contradizendo o

@@ -14,6 +14,24 @@ export default defineConfig({
   // Smoke tests escrevem no banco (criar/editar) — execução serial evita corridas.
   fullyParallel: false,
   workers: 1,
+
+  /**
+   * Limpeza dos dados criados pelos testes (Sprint 4.0.3, ADR-0403).
+   *
+   * Estratégia ÚNICA do projeto: uma varredura por marcador (`E2E %` para
+   * cliente, `E2E-%` para produto) depois da suíte inteira, em ordem explícita
+   * de dependência. O `globalTeardown` roda **mesmo quando há testes falhando**,
+   * que é o requisito de resiliência.
+   *
+   * Preferido a `afterEach`/fixture por cenário porque os testes encadeiam
+   * entidades entre passos (cliente → proposta → instalação → registro → custo):
+   * uma varredura por marcador é verificável de forma completa, enquanto o
+   * teardown por cenário depende de cada teste lembrar tudo o que criou.
+   *
+   * A rotina se recusa a rodar fora de ambiente local (ver `support/limpeza.ts`)
+   * e falha a execução se sobrar qualquer resíduo.
+   */
+  globalTeardown: "./e2e/support/global-teardown.ts",
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: [["list"]],

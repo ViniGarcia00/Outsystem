@@ -1,5 +1,6 @@
 import { CANNOT_DELETE_USED_IN_PROPOSTAS } from "@/lib/messages";
 import { prisma } from "@/infrastructure/database";
+import { contemBusca } from "@/utils";
 
 /**
  * Serviço de Produtos.
@@ -38,20 +39,23 @@ export const PRODUTO_SEARCH_MIN_CHARS = 3;
 /**
  * Busca produtos ativos por Código ou Descrição para o autocomplete da proposta.
  * Só pesquisa a partir de {@link PRODUTO_SEARCH_MIN_CHARS} caracteres.
+ *
+ * **Filtro em memória, não no banco (Sprint 4.0.3, ADR-0402).** O `contains +
+ * mode: "insensitive"` do Prisma vira `ILIKE`, que ignora caixa mas NÃO ignora
+ * acento — "Automação" não era encontrada por "automacao". `unaccent` exigiria
+ * superusuário, contra o ADR-0101.
+ *
+ * Sem `take` na consulta, de propósito: um limite antes do filtro esconderia
+ * produtos válidos além do corte. Só os campos da sugestão são selecionados e o
+ * corte de 10 vem depois de filtrar.
  */
 export async function searchProdutos(
   query: string,
 ): Promise<ProdutoSuggestion[]> {
   const q = query.trim();
   if (q.length < PRODUTO_SEARCH_MIN_CHARS) return [];
-  const rows = await prisma.produto.findMany({
-    where: {
-      ativo: true,
-      OR: [
-        { codigo: { contains: q, mode: "insensitive" } },
-        { descricao: { contains: q, mode: "insensitive" } },
-      ],
-    },
+  const ativos = await prisma.produto.findMany({
+    where: { ativo: true },
     select: {
       id: true,
       codigo: true,
@@ -61,8 +65,10 @@ export async function searchProdutos(
       valorServico: true,
     },
     orderBy: { codigo: "asc" },
-    take: 10,
   });
+  const rows = ativos
+    .filter((r) => contemBusca(r.codigo, q) || contemBusca(r.descricao, q))
+    .slice(0, 10);
   return rows.map((r) => ({
     id: r.id,
     codigo: r.codigo,

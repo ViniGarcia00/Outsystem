@@ -9,3 +9,6 @@ export {
 } from "./format";
 
 export { isValidCpf, isValidCnpj, isValidCpfCnpj } from "./validation";
+
+/** Normalização de busca — fonte única do sistema (ADR-0402). */
+export { normalizarBusca, contemBusca } from "./busca";

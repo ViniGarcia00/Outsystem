@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 
+import { contemBusca, normalizarBusca } from "@/utils";
+
 export type SortDirection = "asc" | "desc";
 
 export interface SortState {
@@ -26,14 +28,6 @@ interface UseCrudListOptions<T> {
   initialPage?: number;
 }
 
-/** Normaliza texto p/ busca: minúsculas e sem acentos (busca por qualquer parte). */
-function normalize(value: string): string {
-  return value
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "");
-}
-
 function compare(a: unknown, b: unknown): number {
   if (a == null && b == null) return 0;
   if (a == null) return -1;
@@ -44,12 +38,19 @@ function compare(a: unknown, b: unknown): number {
     return a === b ? 0 : a ? 1 : -1;
   if (a instanceof Date && b instanceof Date) return a.getTime() - b.getTime();
 
-  return normalize(String(a)).localeCompare(normalize(String(b)), "pt-BR");
+  return normalizarBusca(String(a)).localeCompare(
+    normalizarBusca(String(b)),
+    "pt-BR",
+  );
 }
 
 /**
  * Estado de listagem client-side padrão do sistema: busca instantânea
  * (substring, sem acento), ordenação por coluna e paginação (20/pág).
+ *
+ * A normalização de busca vem de `@/utils` (ADR-0402) — este hook não a
+ * reimplementa. É a mesma função usada pelos autocompletes server-side, para que
+ * tela e banco nunca voltem a divergir no tratamento de acento.
  *
  * Não busca nem persiste dados — recebe `rows` prontos e devolve a página atual
  * já filtrada e ordenada, além dos controles para a UI.
@@ -81,9 +82,9 @@ export function useCrudList<T>({
   };
 
   const filtered = useMemo(() => {
-    const query = normalize(search.trim());
+    const query = search.trim();
     if (!query) return rows;
-    return rows.filter((row) => normalize(searchAccessor(row)).includes(query));
+    return rows.filter((row) => contemBusca(searchAccessor(row), query));
   }, [rows, search, searchAccessor]);
 
   const sorted = useMemo(() => {

@@ -6,6 +6,7 @@ import {
 // faz o mesmo com `features/propostas/totais`.
 import type { StatusInstalacao } from "@/features/instalacoes/labels";
 import { prisma } from "@/infrastructure/database";
+import { contemBusca } from "@/utils";
 
 import {
   INCLUDE_CUSTOS,
@@ -319,7 +320,17 @@ export async function cancelarInstalacao(
 // Busca de proposta (vínculo opcional)
 // ---------------------------------------------------------------------------
 
-/** Busca de proposta para o vínculo opcional. Nunca importa itens. */
+/**
+ * Busca de proposta para o vínculo opcional. Nunca importa itens.
+ *
+ * `nomeProjeto` aqui é **`Proposta.nomeProjeto`** (ADR-0227) — nada a ver com o
+ * campo homônimo que a Instalação tinha e que saiu na Sprint 4.0.3.
+ *
+ * **Filtro textual em memória (Sprint 4.0.3, ADR-0402):** o `ILIKE` gerado pelo
+ * Prisma é sensível a acento e escondia clientes como "Thaís". O número exato da
+ * proposta continua resolvido no banco — é igualdade, não texto. Sem `take` na
+ * consulta: um limite antes do filtro esconderia propostas válidas além do corte.
+ */
 export async function searchPropostas(
   query: string,
 ): Promise<PropostaSuggestion[]> {
@@ -327,15 +338,7 @@ export async function searchPropostas(
   if (q.length < 2) return [];
 
   const numero = Number.parseInt(q, 10);
-  const rows = await prisma.proposta.findMany({
-    where: {
-      OR: [
-        ...(Number.isFinite(numero) ? [{ proposalNumber: numero }] : []),
-        { nomeProjeto: { contains: q, mode: "insensitive" as const } },
-        { cliente: { nome: { contains: q, mode: "insensitive" as const } } },
-        { cliente: { empresa: { contains: q, mode: "insensitive" as const } } },
-      ],
-    },
+  const todas = await prisma.proposta.findMany({
     select: {
       id: true,
       proposalNumber: true,
@@ -343,8 +346,15 @@ export async function searchPropostas(
       cliente: { select: CLIENTE_SELECT },
     },
     orderBy: { proposalNumber: "desc" },
-    take: 10,
   });
+
+  const rows = todas
+    .filter((p) => {
+      if (Number.isFinite(numero) && p.proposalNumber === numero) return true;
+      if (contemBusca(p.nomeProjeto ?? "", q)) return true;
+      return p.cliente ? contemBusca(nomeCliente(p.cliente), q) : false;
+    })
+    .slice(0, 10);
 
   return rows.map((p) => ({
     id: p.id,
