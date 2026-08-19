@@ -118,7 +118,24 @@ UX, testes e preparação)** concluídas.
   filtro, workspace, conclusão e cancelamento (ADR-0400). **Cronologia** com um
   registro por acontecimento (tipo, data do fato, responsável, relatório) e
   **custos extras** por registro, com totais derivados (ADR-0401).
+- ✅ **Sprint 4.0.3 — Refinamentos + Dashboard + correções em Propostas
+  (1.3.0):** menu reordenado; **busca sem acento** com fonte única em
+  `utils/busca.ts` (o defeito estava nos autocompletes server-side, não no
+  `useCrudList`); **cleanup E2E automático** por `globalTeardown` test-only, com
+  guardas de ambiente e verificação de resíduo; **Dashboard V1** (indicadores
+  comerciais, de instalações, custos acumulados e próximas instalações);
+  Instalação sem `nomeProjeto`, endereço sem repetição e número clicável;
+  **duplicação de Proposta** passa a copiar os serviços complementares e o
+  restante do conteúdo comercial; e o **PDF Geral de Produtos**, quinto
+  documento da Proposta. Ver ADR-0402..0407.
 - ✅ `lint`, `build` e `typecheck` sem erros.
+
+## Dashboard (entregue na Sprint 4.0.3)
+
+`/dashboard` deixou de ser placeholder. Mostra Propostas em Rascunho e Emitidas;
+Instalações A Agendar, Agendadas, Aguardando Material, Em Andamento e
+Concluídas; custos extras acumulados; e até 5 próximas instalações agendadas.
+Sem gráficos e sem dado fictício — tudo vem do banco (ADR-0405).
 
 ## Tela "About" (planejada — não implementada)
 
@@ -141,10 +158,16 @@ About é voltada ao usuário final e existirá também em produção.
 > andamento sem controle. Sprints 4.0.1 (fundação) e 4.0.2 (cronologia e custos)
 > concluídas.
 >
+> **Estado atual (2026-08-19): Sprint 4.0.3 concluída na versão 1.3.0.** Ciclo
+> curto de refinamento após a homologação de uso real: menu, busca sem acento,
+> cleanup automático dos dados de teste, Dashboard V1, refinamentos de
+> Instalações e, em Propostas, a correção da duplicação dos serviços mais o
+> quinto documento (PDF Geral de Produtos). Ver ADR-0402..0407.
+>
 > **Próximos ciclos:** **Pedido de Venda** e **Ordem de Serviço**, nenhum dos
 > dois com design ou plano escritos — pelo processo do projeto, cada um exige
-> spec aprovada antes de qualquer código. Seguem abertos do roadmap original o
-> **Dashboard** (rota existe como placeholder) e a tela **About**.
+> spec aprovada antes de qualquer código. Do roadmap original segue aberta a
+> tela **About**; o **Dashboard** foi entregue na 4.0.3.
 >
 > **Pendência de release:** homologação visual do Contrato .docx no Microsoft
 > Word — gate manual obrigatório pelo ADR-0330.

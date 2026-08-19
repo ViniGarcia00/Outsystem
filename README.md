@@ -57,9 +57,9 @@ Fontes de sistema (Segoe UI), sem CDN — build e deploy funcionam offline.
 
 ## Documentos da proposta
 
-A mesma proposta gera quatro documentos, todos sob demanda e sem gravar arquivo
-em disco. Todos consomem o **mesmo carregador de dados** e o **mesmo total
-oficial** — nenhum recalcula valores.
+A mesma proposta gera cinco documentos, todos sob demanda e sem gravar arquivo
+em disco. Todos consomem o **mesmo carregador de dados**; os comerciais usam o
+**mesmo total oficial** e nenhum recalcula valores.
 
 | Documento | Rota | Formato |
 | --- | --- | --- |
@@ -67,6 +67,7 @@ oficial** — nenhum recalcula valores.
 | **PDF Apresentação** | `/propostas/[id]/presentation` | PDF — institucional, landscape 16:9, slides condicionais |
 | **Contrato** | `/propostas/[id]/contrato` | **.docx** — jurídico, editável no Word antes do envio |
 | **Anexo Contratual** | `/propostas/[id]/contratual` | PDF — escopo aprovado, sem preço por item |
+| **Geral de Produtos** | `/propostas/[id]/produtos` | PDF — lista de material, produtos somados entre as Seções, sem valores; **não emite** a proposta |
 
 O Contrato é preenchido a partir do template oficial versionado em
 `public/templates/contrato/`. **O template nunca é alterado pelo sistema** — só

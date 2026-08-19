@@ -103,13 +103,14 @@ Total Geral          = Total − Desconto + Frete
   complementares), não apenas sobre a Automação.
 - O desconto pode ser informado em **valor** ou em **percentual**.
 - Nenhum total é persistido: todos derivam em tempo real.
-- **`Total Geral` é a fonte oficial e única do valor da proposta.** Os quatro
-  documentos citam exatamente esse valor e **nenhum deles recalcula** — é o que
-  garante que Contrato e Anexo Contratual nunca divirjam.
+- **`Total Geral` é a fonte oficial e única do valor da proposta.** Os
+  documentos comerciais citam exatamente esse valor e **nenhum deles recalcula**
+  — é o que garante que Contrato e Anexo Contratual nunca divirjam. O **Geral de
+  Produtos** não entra nessa conta: é documento quantitativo e não exibe valor.
 
 ## Regra: documentos da proposta
 
-A mesma proposta gera quatro documentos. Nenhum deles cria dado novo: todos
+A mesma proposta gera cinco documentos. Nenhum deles cria dado novo: todos
 consomem a proposta cadastrada.
 
 | Documento | Formato | O que mostra |
@@ -118,6 +119,19 @@ consomem a proposta cadastrada.
 | **PDF Apresentação** | PDF | versão institucional para envio ao cliente, **sem preço por item**; não existe na Simplificada |
 | **Contrato** | **.docx** | contrato jurídico, **editável no Word antes do envio** |
 | **Anexo Contratual** | PDF | escopo aprovado — o cliente vê os subtotais por projeto e o total, **nunca o preço unitário** |
+| **Geral de Produtos** | PDF | lista de material: o mesmo produto somado entre todas as Seções, **sem nenhum valor** |
+
+Regras do Geral de Produtos (Sprint 4.0.3):
+
+- **É documento interno de conferência**, não peça comercial. Mostra SKU,
+  descrição, unidade e quantidade total — nunca preço, desconto, frete ou total.
+- **Consolida todas as Seções em uma lista só.** Se o mesmo produto aparece na
+  Sala (×2) e na Suíte (×4), sai uma linha com ×6. Separar por Seção anularia a
+  finalidade.
+- **Serviços não entram**: nem itens de serviço, nem Som Ambiente, nem Wi-Fi
+  Premium.
+- **Não emite a proposta.** É o único documento assim, porque conferir material
+  não pode mudar o status comercial. Fica disponível em Rascunho e em Emitida.
 
 Regras que valem para o Contrato:
 

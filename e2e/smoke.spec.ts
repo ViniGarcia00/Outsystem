@@ -69,8 +69,21 @@ async function criarProdutoDeTeste(
 async function adicionarProduto(
   page: import("@playwright/test").Page,
   sku: string,
+  secao?: string,
 ): Promise<void> {
-  await page.getByRole("button", { name: "Adicionar produto" }).click();
+  // Com mais de uma seção existe um "Adicionar produto" por card, e o strict
+  // mode do Playwright recusa o locator ambíguo. Informe `secao` para escopar
+  // ao card certo; sem ela, o comportamento é o de sempre (uma seção só).
+  const botao = secao
+    ? page
+        .locator('[data-slot="card"]')
+        .filter({
+          has: page.getByRole("heading", { name: secao, exact: true }),
+        })
+        .getByRole("button", { name: "Adicionar produto" })
+    : page.getByRole("button", { name: "Adicionar produto" });
+
+  await botao.click();
   await page.getByLabel("Produto", { exact: true }).fill(sku);
   await page.getByRole("option", { name: sku }).click();
   await page.getByRole("button", { name: "Adicionar", exact: true }).click();
@@ -154,16 +167,61 @@ test("Clientes: criar e editar (CRUD básico)", async ({ page }) => {
 
 test("navegação principal entre os módulos", async ({ page }) => {
   await page.goto("/propostas");
+
+  // Ordem do menu (Sprint 4.0.3) — requisito de produto, não detalhe estético.
+  // O teste unitário trava `mainNavigation`; aqui provamos o que chega à tela.
+  expect(await nav(page).getByRole("link").allTextContents()).toEqual([
+    "Dashboard",
+    "Clientes",
+    "Produtos",
+    "Propostas",
+    "Instalações",
+    "Vendedores",
+    "Configurações",
+  ]);
+
   for (const [name, path] of [
     ["Clientes", "/clientes"],
     ["Produtos", "/produtos"],
     ["Vendedores", "/vendedores"],
     ["Configurações", "/configuracoes"],
+    ["Instalações", "/instalacoes"],
+    ["Dashboard", "/dashboard"],
     ["Propostas", "/propostas"],
   ] as const) {
     await nav(page).getByRole("link", { name }).click();
     await expect(page).toHaveURL(new RegExp(`${path}$`));
   }
+});
+
+test("Busca ignora acentos na listagem e no autocomplete", async ({ page }) => {
+  // O nome tem acento em duas palavras; as buscas abaixo são todas SEM acento.
+  const sufixo = Date.now();
+  const nome = `E2E Acentuação Thaís ${sufixo}`;
+  await page.goto("/clientes/novo");
+  await page.getByLabel("Nome", { exact: true }).fill(nome);
+  await page.getByRole("button", { name: "Salvar" }).click();
+  await expect(page).toHaveURL(/\/clientes$/);
+
+  // 1) Listagem (client-side, via useCrudList → @/utils/busca).
+  await page
+    .getByRole("searchbox", { name: "Buscar" })
+    .fill(`Acentuacao Thais ${sufixo}`);
+  await expect(page.getByText(nome, { exact: true })).toBeVisible();
+
+  // 2) Continua insensível a caixa.
+  await page
+    .getByRole("searchbox", { name: "Buscar" })
+    .fill(`ACENTUACAO THAIS ${sufixo}`);
+  await expect(page.getByText(nome, { exact: true })).toBeVisible();
+
+  // 3) Autocomplete server-side — era AQUI que estava o defeito: o ILIKE do
+  //    Prisma ignora caixa mas não ignora acento, e "Thaís" não aparecia ao
+  //    digitar "Thais".
+  await page.goto("/propostas/nova");
+  await page.getByLabel("Cliente", { exact: true }).fill(`Thais ${sufixo}`);
+  await page.getByRole("option", { name: nome }).click();
+  await expect(page.getByLabel("Cliente", { exact: true })).toHaveValue(nome);
 });
 
 test("Propostas: criação diferida, emitir e revisão automática", async ({
@@ -443,4 +501,137 @@ test("Propostas: modelo Simplificada (produtos sem seções)", async ({
   await page.getByRole("button", { name: "Criar Proposta" }).click();
   await expect(page).toHaveURL(/\/propostas\/(?!nova$)[^/]+$/);
   await expect(page.getByRole("heading", { name: "Conteúdo" })).toBeVisible();
+});
+
+// ---------------------------------------------------------------------------
+// Sprint 4.0.3 — duplicação com serviços e PDF Geral de Produtos
+// ---------------------------------------------------------------------------
+
+test("Propostas: duplicar copia os serviços e a duplicada é independente", async ({
+  page,
+}) => {
+  const clienteNome = `E2E Duplicar Cliente ${Date.now()}`;
+  await page.goto("/clientes/novo");
+  await page.getByLabel("Nome", { exact: true }).fill(clienteNome);
+  await page.getByRole("button", { name: "Salvar" }).click();
+  await expect(page).toHaveURL(/\/clientes$/);
+
+  const sku = await criarProdutoDeTeste(page, "DUPLICAR");
+
+  // Proposta com produto + Som Ambiente + Wi-Fi Premium + obsInternas.
+  await page.goto("/propostas/nova");
+  await page.getByLabel("Cliente", { exact: true }).fill(clienteNome);
+  await page.getByRole("option", { name: clienteNome }).click();
+  await page.getByPlaceholder("Nome da nova seção (ex.: Sala)").fill("Sala E2E");
+  await page.getByRole("button", { name: "Adicionar seção" }).click();
+  await adicionarProduto(page, sku);
+
+  await page.getByRole("button", { name: "Adicionar Som Ambiente" }).click();
+  await page.getByLabel("Valor Produtos").first().fill("120000"); // R$ 1.200,00
+  await page.getByLabel("Valor Serviços").first().fill("30000"); // R$   300,00
+
+  await page.getByRole("button", { name: "Adicionar Wi-Fi Premium" }).click();
+  await page.getByLabel("Valor Produtos").last().fill("80000"); // R$ 800,00
+  await page.getByLabel("Valor Serviços").last().fill("20000"); // R$ 200,00
+
+  const SEGREDO = "Segredo interno que NAO pode ser copiado";
+  await page.getByLabel("Observações internas").fill(SEGREDO);
+  await page.getByLabel("Observações internas").blur();
+
+  await page.getByRole("button", { name: "Criar Proposta" }).click();
+  await expect(page).toHaveURL(/\/propostas\/(?!nova$)[^/]+$/);
+  const originalPath = new URL(page.url()).pathname;
+
+  // Round-trip da origem: os dois serviços persistiram.
+  await expect(page.getByLabel("Valor Produtos").first()).toHaveValue(
+    /1\.200,00/,
+  );
+  await expect(page.getByLabel("Valor Produtos").last()).toHaveValue(/800,00/);
+
+  // Duplicar pela listagem.
+  await page.goto("/propostas");
+  await page.getByRole("searchbox", { name: "Buscar" }).fill(clienteNome);
+  await page.getByRole("button", { name: "Ações" }).first().click();
+  await page.getByRole("menuitem", { name: "Duplicar" }).click();
+  await expect(page).toHaveURL(/\/propostas\/(?!nova$)[^/]+$/);
+  const duplicadaPath = new URL(page.url()).pathname;
+  expect(duplicadaPath).not.toBe(originalPath);
+
+  // O BUG desta Sprint: os serviços não vinham. Agora vêm, com os valores.
+  await expect(
+    page.getByRole("heading", { name: "Projeto Som Ambiente" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Projeto Wi-Fi Premium" }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Valor Produtos").first()).toHaveValue(
+    /1\.200,00/,
+  );
+  await expect(page.getByLabel("Valor Serviços").first()).toHaveValue(/300,00/);
+  await expect(page.getByLabel("Valor Produtos").last()).toHaveValue(/800,00/);
+  await expect(page.getByLabel("Valor Serviços").last()).toHaveValue(/200,00/);
+
+  // obsInternas NÃO é copiada (ADR-0203) — regra preservada.
+  await expect(page.getByLabel("Observações internas")).toHaveValue("");
+
+  // Alterar a DUPLICADA...
+  await page.getByLabel("Valor Produtos").first().fill("999900"); // R$ 9.999,00
+  await page.getByRole("button", { name: "Salvar Alterações" }).click();
+  await expect(page.getByText("Alterações salvas.")).toBeVisible();
+
+  // ...não pode tocar na ORIGINAL. É a prova de que são registros distintos,
+  // e não a mesma linha compartilhada entre as duas propostas.
+  await page.goto(originalPath);
+  await expect(page.getByLabel("Valor Produtos").first()).toHaveValue(
+    /1\.200,00/,
+  );
+  await expect(page.getByLabel("Observações internas")).toHaveValue(SEGREDO);
+});
+
+test("Propostas: PDF Geral de Produtos consolida o mesmo produto de duas seções", async ({
+  page,
+}) => {
+  const clienteNome = `E2E Consolidado Cliente ${Date.now()}`;
+  await page.goto("/clientes/novo");
+  await page.getByLabel("Nome", { exact: true }).fill(clienteNome);
+  await page.getByRole("button", { name: "Salvar" }).click();
+  await expect(page).toHaveURL(/\/clientes$/);
+
+  const sku = await criarProdutoDeTeste(page, "CONSOLIDADO");
+
+  // MESMO produto em DUAS seções — é o cenário que o documento existe para
+  // resolver. A soma correta é provada nos unitários de `consolidarProdutos`.
+  await page.goto("/propostas/nova");
+  await page.getByLabel("Cliente", { exact: true }).fill(clienteNome);
+  await page.getByRole("option", { name: clienteNome }).click();
+
+  await page.getByPlaceholder("Nome da nova seção (ex.: Sala)").fill("Sala E2E");
+  await page.getByRole("button", { name: "Adicionar seção" }).click();
+  await adicionarProduto(page, sku, "Sala E2E");
+
+  await page
+    .getByPlaceholder("Nome da nova seção (ex.: Sala)")
+    .fill("Suíte E2E");
+  await page.getByRole("button", { name: "Adicionar seção" }).click();
+  await adicionarProduto(page, sku, "Suíte E2E");
+
+  await page.getByRole("button", { name: "Criar Proposta" }).click();
+  await expect(page).toHaveURL(/\/propostas\/(?!nova$)[^/]+$/);
+  const propostaPath = new URL(page.url()).pathname;
+
+  // O botão existe já em RASCUNHO — este documento não depende de emissão.
+  await expect(
+    page.getByRole("button", { name: "PDF Geral de Produtos" }),
+  ).toBeVisible();
+
+  const resp = await page.request.get(`${propostaPath}/produtos`);
+  expect(resp.status()).toBe(200);
+  expect(resp.headers()["content-type"]).toContain("application/pdf");
+  expect(resp.headers()["content-disposition"]).toContain("Geral de Produtos");
+  expect(resp.headers()["content-disposition"]).toContain(".pdf");
+  expect((await resp.body()).byteLength).toBeGreaterThan(1000);
+
+  // O documento NÃO emite a proposta — diferente dos outros quatro.
+  await page.goto(propostaPath);
+  await expect(page.getByText("Rascunho", { exact: true })).toBeVisible();
 });

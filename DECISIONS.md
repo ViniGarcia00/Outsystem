@@ -1207,3 +1207,243 @@ Sprint de refinamento (escopo estrito):
   Nenhuma entidade, FK, cadastro ou login foi criado.
 - **Consequência:** o módulo de Instalações fecha em **1.2.0**. Os próximos
   ciclos são Pedido de Venda e Ordem de Serviço, ambos ainda sem design.
+
+### ADR-0402 — Busca sem acento: fonte única compartilhada e filtro em memória
+
+- **Contexto:** na homologação, o cliente **"Thaís"** não era encontrado ao
+  digitar "Thais". A suspeita natural recaiu sobre o `useCrudList`, mas ele
+  **já** normalizava acentos desde o início, e as cinco listagens passam por ele.
+  A auditoria mediu o banco de desenvolvimento real:
+
+  ```
+  SELECT count(*) FROM clientes WHERE nome ILIKE '%thai%';   -- 0
+  SELECT count(*) FROM clientes WHERE nome ILIKE '%thaí%';   -- 1
+  ```
+
+  O defeito estava nos **autocompletes server-side**. O `contains + mode:
+  "insensitive"` do Prisma vira `ILIKE` no PostgreSQL: insensível a **caixa**,
+  sensível a **acento**. Atingia `searchClientes`, `searchProdutos` e
+  `searchPropostas`.
+- **Decisão 1 — fonte única.** `src/utils/busca.ts` passa a ser o único lugar do
+  sistema que normaliza texto para busca (`normalizarBusca`, `contemBusca`).
+  `useCrudList` deixou de reimplementar a expressão e passou a consumi-la; os
+  services usam a mesma função. Foi justamente a existência de duas
+  implementações — uma na tela, nenhuma no banco — que permitiu a divergência.
+  Um `grep` por `.normalize("NFD")` em `src/` retorna um único arquivo.
+- **Decisão 2 — `unaccent` está descartada.** A extensão não está instalada
+  (`pg_extension` só tem `plpgsql`) e `CREATE EXTENSION` exige superusuário. O
+  ADR-0101 determina que a aplicação use o usuário dedicado **`outmat`**, que não
+  é superusuário (`rolsuper = f`). Adotá-la criaria uma dependência de privilégio
+  elevado no deploy do Windows Server, para resolver um problema que hoje não
+  tem custo de desempenho.
+- **Decisão 3 — filtro em memória, SEM limite arbitrário.** O service carrega o
+  conjunto que a busca precisa considerar, seleciona **apenas os campos usados**,
+  normaliza, filtra e só então corta em 10 sugestões.
+
+  Um `take` antes do filtro foi **explicitamente rejeitado**: com 500 clientes e
+  "Thaís" na posição 301, um `take: 300` a manteria invisível — exatamente o
+  defeito que este ADR corrige, agora por outra causa. O limite existe só na
+  quantidade de sugestões devolvidas.
+- **Caminhos especiais preservados:** o `proposalNumber` exato continua resolvido
+  no banco (é igualdade, não texto) e a busca de CPF/CNPJ por dígitos continua
+  funcionando. Esta última **deixou de precisar de uma segunda consulta**: com o
+  conjunto já em memória, virou mais um predicado do mesmo filtro, e o
+  `take: 200` que ela usava desapareceu junto.
+- **Custo aceito e medido:** 91 clientes, 49 produtos e 28 propostas. O
+  autocomplete tem debounce de 250 ms e mínimo de 3 caracteres. Para volume
+  muito maior há um item no `BACKLOG.md` com três caminhos (índice funcional
+  sobre expressão normalizada, coluna sombra ou `unaccent` com o privilégio
+  resolvido no bootstrap) e o gatilho para adotá-los. Otimizar antes disso seria
+  resolver um problema que não existe.
+
+### ADR-0403 — Cleanup E2E por `globalTeardown` test-only, com verificação
+
+- **Contexto:** os E2E criavam os próprios dados — correção da Release 1.1.0 —
+  mas nunca os removiam. O passivo medido em 2026-08-19 **dominava** o banco de
+  desenvolvimento: 88 de 91 clientes, 27 de 49 produtos, 25 de 28 propostas e 44
+  de 45 instalações eram resíduo de teste.
+- **Por que uma ferramenta de teste, e não a aplicação:** Proposta e Instalação
+  **não são excluídas** por regra de negócio — são canceladas (ADR-0203,
+  ADR-0400). Afrouxar essa regra para acomodar a suíte trocaria uma garantia do
+  domínio por conveniência de teste, e um endpoint de exclusão em massa seria
+  pior ainda. `e2e/support/limpeza.ts` vive **fora de `src/`**, fala com o
+  PostgreSQL diretamente e não é importado por nenhum código de aplicação.
+- **Estratégia ÚNICA — `globalTeardown`.** Uma varredura por marcador depois da
+  suíte inteira, que roda **inclusive quando há testes falhando**. Preferida a
+  `afterEach`/fixture por cenário porque os testes encadeiam entidades entre
+  passos (cliente → proposta → instalação → registro → custo): uma varredura por
+  marcador é verificável de forma completa, enquanto o teardown por cenário
+  depende de cada teste lembrar tudo o que criou.
+- **Três guardas, com `throw` antes de qualquer `DELETE`:** `NODE_ENV` diferente
+  de `production`; host da `DATABASE_URL` em `localhost`/`127.0.0.1`;
+  `E2E_CLEANUP` diferente de `"0"`. Não é defesa contra ataque — é defesa contra
+  engano: um `.env` apontado para o servidor errado.
+- **Ordem explícita, sem confiar em cascade onde há `Restrict`:**
+  `Instalacao.propostaId` e `PropostaItem.produtoId` obrigam a apagar instalações
+  antes de propostas e itens antes de produtos. `propostas.currentRevisionId` é
+  zerado antes das revisões. Nunca `TRUNCATE`, nunca `DELETE` sem `WHERE`.
+- **A verificação é a recontagem.** Depois do commit, o módulo reconta os
+  marcadores e **lança** se sobrar qualquer linha; um `globalTeardown` que lança
+  derruba a execução. É o único lugar onde essa asserção pode rodar, já que
+  nenhum teste executa depois dela.
+- **`pg_dump` é operação de implantação, não de rotina.** O backup foi feito
+  **uma vez**, validado com `pg_restore -l`, e só então a rotina rodou contra o
+  passivo. O `globalTeardown` nunca executa `pg_dump` — backup acumulando a cada
+  execução do Playwright seria lixo, não segurança.
+- **Resultado da implantação:** clientes 91→3, produtos 49→22 (catálogo real
+  intacto), propostas 28→3, instalações 45→1. Os dois `proposta_servicos`
+  pertenciam a proposta real e foram preservados.
+- **Efeito colateral revelador:** a limpeza **expôs uma corrida latente** nos
+  E2E. Com a listagem de clientes 30× menor, a navegação ficou rápida o bastante
+  para o `fill` acontecer antes da hidratação, e o formulário remontava com os
+  `defaultValues` do Server Component, descartando o texto digitado. Corrigido
+  aguardando o valor carregado antes de digitar. O teste não estava certo antes —
+  estava sendo salvo pela lentidão.
+
+### ADR-0404 — Instalação: remoção de `nomeProjeto`, endereço sem repetição, acesso por link
+
+- **Contexto:** homologação de uso real do módulo 1.2.0.
+- **`Instalacao.nomeProjeto` removido ESTRUTURALMENTE**, não escondido: schema
+  Zod, DTOs, service, formulário, workspace, listagem, `searchAccessor`,
+  placeholder, testes, E2E e coluna do banco. Migration própria; nenhuma
+  migration aplicada foi editada.
+
+  **Evidência exigida antes do `DROP COLUMN`**, conferida linha a linha: das 45
+  linhas, 44 eram resíduo de E2E ("Apartamento E2E …", "Projeto Snapshot …") e a
+  45ª continha `"134324"`, preenchimento de homologação. **Nenhum dado real.**
+- **ATENÇÃO — `nomeProjeto` existe em dois models.** `Proposta.nomeProjeto`
+  (ADR-0227) **permanece**: alimenta a capa do PDF Apresentação, o cabeçalho da
+  Proposta e o `PropostaPdfDTO`. Só o campo da Instalação saiu. As três
+  ocorrências restantes em `instalacao.service.ts` são do campo da Proposta,
+  dentro de `searchPropostas`.
+- **Busca da Instalação** passa a ser número · cliente · endereço · responsável ·
+  status. Nenhuma referência ao projeto sobrou no `searchAccessor`.
+- **Endereço aparece UMA vez.** `EnderecoSnapshot` mostrava os sete campos
+  read-only e, logo abaixo, um resumo em linha com o mesmo conteúdo. O resumo
+  saiu. Com isso `enderecoEmLinha` ficou sem consumidor e foi removida com seu
+  bloco de teste — consequência direta da mudança, não faxina oportunista.
+- **A regra server-side do snapshot NÃO mudou:** `clienteId` → o service lê o
+  Cliente persistido → o service cria o snapshot. Os schemas Zod continuam sem
+  declarar campos de endereço e `atualizarInstalacao` continua sem tocá-lo.
+- **Acesso ao workspace pela tabela:** o número vira `<Link>` do `next/link`, que
+  renderiza um `<a>` real — navegável por Tab, com foco visível e Ctrl/Cmd+clique
+  abrindo em nova aba. `onClick` na `<tr>` foi **rejeitado**: não é elemento
+  semântico de link, não recebe foco e quebra o clique do meio. O item "Abrir" do
+  menu de ações permanece, para quem já o conhece.
+
+### ADR-0405 — Dashboard V1: service + módulo puro + DTO, sem gráficos
+
+- **Contexto:** `/dashboard` existia como placeholder desde a Sprint 0. O pedido
+  foi explícito: uma visão simples, não um módulo de BI.
+- **Camadas:** `dashboard.service.ts` (IO) → `features/dashboard/dashboard.ts`
+  (regra pura) → `DashboardDTO` → Server Component. Mesmo par service/mapper de
+  `proposta-pdf`. Nenhum componente importa Prisma.
+- **A regra mora no módulo puro** — quais status viram card, o que conta como
+  próxima instalação, em que ordem e quantas — porque é a única forma de provar
+  ordenação e estado vazio sem banco.
+
+  O pré-filtro SQL é deliberadamente **mais amplo** que a regra: remove apenas o
+  que a regra também removeria (sem data agendada, já encerrada). O corte por
+  data e o limite de 5 ficam no módulo puro. Duplicar a decisão nos dois lugares
+  criaria duas fontes para a mesma regra.
+- **Próximas instalações:** `dataAgendada >= início do dia no Brasil`, fora de
+  Concluída e Cancelada, ordem crescente, máximo 5, desempate por `numero`. O
+  corte é o **início do dia**, não o instante atual: às 15h uma instalação
+  agendada para hoje de manhã ainda precisa aparecer. Sem o desempate, duas
+  instalações no mesmo dia sairiam em ordem indefinida.
+- **Fuso horário virou utilitário TRANSVERSAL** — `src/utils/data-brasil.ts`
+  (`FUSO_BRASIL`, `OFFSET_BRASIL`, `inicioDoDiaBrasil`). O helper **não** ficou em
+  `features/instalacoes/datas.ts`: isso criaria a dependência
+  `features/dashboard → features/instalacoes` para uma preocupação que é de
+  data/timezone, não regra de Instalações.
+
+  `datas.ts` passou a **importar as constantes** do módulo novo — só constantes,
+  nenhuma função movida, nenhuma conversão alterada, com o `datas.test.ts`
+  intocado servindo de prova. Criar o dono transversal do fuso e deixar uma
+  segunda definição viva contrariaria a regra que o próprio módulo de Instalações
+  documenta em `labels.ts`.
+
+  **Distinção deliberada:** o Dashboard **continua** importando o tipo e os
+  rótulos de status de `features/instalacoes/labels`. O fuso é transversal; o
+  conjunto de status de uma Instalação é vocabulário exclusivo daquele domínio, e
+  um painel que informa instalações precisa conhecê-lo. Redeclará-los aqui faria
+  um status novo passar despercebido pelo typecheck.
+- **Não confundir com `utils/format/date.ts`:** aquele formata para exibição e
+  **não** fixa timezone (usa a do runtime) por ser compartilhado com Propostas.
+- **Fora de escopo da V1:** gráficos, comparativos mensais, metas, funil,
+  receita, margem, widgets configuráveis, filtros avançados, tempo real, drag and
+  drop e dashboard por usuário. Nenhum dado fictício — tudo vem do banco.
+- **Independência:** o Dashboard não conhece o PDF Geral de Produtos, nem o
+  contrário. Services separados, sem dependência cruzada.
+
+### ADR-0406 — Duplicação de Proposta copia o conteúdo comercial aplicável
+
+- **Contexto:** defeito relatado na homologação — duplicar uma proposta **não
+  copiava os serviços complementares** (Som Ambiente e Wi-Fi Premium).
+- **Causa:** `duplicarProposta` selecionava apenas `clienteId`, `vendedorId`,
+  `modelo`, `validadeDias` e `obsProposta`, mais seções e itens da revisão.
+  `PropostaServico` sequer estava no `select` — e, com ele, também se perdiam
+  `nomeProjeto`, `tipoDesconto`, `valorDesconto`, `frete`, `formaPagamento`,
+  `previsaoInstalacao`, `obsComerciais` e `obsTecnicas`.
+
+  Os itens de tipo `SERVICO` **já** eram copiados (`copiarConteudo` inclui
+  `tipo`), assim como o `valorServico` de cada linha. O que se perdia era
+  exclusivamente a entidade `PropostaServico`, ligada à Proposta e não à Revisão
+  — e é justamente por estar fora da revisão que ela escapou de `copiarConteudo`.
+- **Decisão:** a duplicação passa a copiar **todo o conteúdo comercial
+  aplicável**. Corrigir só os serviços deixaria desconto e frete se perdendo em
+  silêncio, com a mesma causa e a mesma surpresa para o usuário mais adiante.
+- **Nunca copiado:** `obsInternas` (ADR-0203, regra preservada),
+  `proposalNumber`, `status`, datas de status, cancelamento e auditoria.
+- **Integridade:** cada `PropostaServico` é **criado** na proposta nova. Nenhum
+  `id` da origem é reaproveitado e nenhuma linha mutável é compartilhada —
+  alterar a duplicada não pode tocar na original. Um E2E prova isso alterando a
+  cópia e relendo a origem.
+- **`SIMPLIFICADA` continua sem serviços**, mesma regra de `criarPropostaCompleta`
+  e `salvarProposta`.
+- **Nada financeiro é recalculado:** `valorTotal` é copiado como está — já é
+  derivado e persistido pela regra da Sprint 2.9.1 — e
+  `calcularResumoFinanceiro().totalGeral` segue sendo a fonte oficial, intocada.
+
+### ADR-0407 — PDF Geral de Produtos: quinto documento, quantitativo
+
+- **Contexto:** a separação de material exigia percorrer a proposta seção por
+  seção somando o mesmo produto à mão.
+- **Decisão:** um quinto documento que consolida os produtos de **todas** as
+  Seções, somando as ocorrências do mesmo produto. Não separa por Seção —
+  consolidar é a finalidade.
+- **Arquitetura preservada:** o **mesmo loader** dos outros quatro documentos.
+
+  ```
+  getPropostaPdfData → PropostaPdfDTO → consolidarProdutos → renderer → Response
+  ```
+
+  Nenhuma consulta Prisma paralela no Route Handler. A consolidação é **função
+  pura**, testada sem banco.
+- **Chave de agrupamento: `produtoId`,** a identidade estável. O SKU do item é
+  snapshot: se o cadastro mudou depois, duas linhas do mesmo produto teriam
+  códigos diferentes e não se reconheceriam. Sem vínculo — item legado —, o
+  fallback é o **SKU normalizado** por `normalizarBusca`.
+
+  **Descrição nunca entra na chave:** "Interruptor 4 teclas" e "Interruptor 4
+  teclas branco" são produtos diferentes e não podem se fundir.
+- **Documento QUANTITATIVO, não comercial.** Não lê `dto.servicos`, `dto.totais`,
+  `dto.resumo` nem `dto.desconto`: sem preço por item, sem total financeiro, sem
+  desconto, sem frete, sem Som/Wi-Fi e sem custos de Instalação. A finalidade é
+  conferência de material, não negociação.
+- **Ordenação previsível:** SKU ascendente com `localeCompare("pt-BR")`,
+  desempate por descrição — o mesmo conteúdo gera sempre o mesmo documento,
+  independentemente da ordem dos itens na proposta.
+- **DTO estendido de forma ADITIVA e OPCIONAL** (`produtoId?`, `tipo?`), no mesmo
+  padrão de `servicos?`. Os quatro documentos existentes não leem os campos novos
+  e nenhum teste anterior precisou de ajuste para compilar.
+- **NÃO emite a proposta** — única diferença deliberada em relação aos outros
+  quatro, que passam por `emitirEAbrir` (RASCUNHO → EMITIDA). Este é uso interno e
+  operacional, disponível nos dois status: emitir uma proposta por engano ao
+  conferir material seria defeito de negócio, não conveniência.
+- **Rota, botão e arquivo:** `GET /propostas/[id]/produtos`, botão
+  "PDF Geral de Produtos" e `Geral de Produtos - {Primeiro Nome} {Nº} Rev.{N}.pdf`
+  — o padrão vigente dos PDFs; o formato com nome completo é exclusivo do
+  Contrato `.docx`. O rótulo não se confunde com "PDF Detalhado".
+- **Proposta sem produtos** gera o documento com a tabela vazia e uma linha
+  explicativa. Comportamento definido, não erro.

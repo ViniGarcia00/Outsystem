@@ -1197,3 +1197,129 @@ ADRs, problemas, soluções, lições e o hash do commit.
   sem design aprovado.
 
 ---
+
+---
+
+## Sprint 4.0.3 — Refinamentos de Homologação + Dashboard + Correções em Propostas
+
+- **Versão:** 1.3.0
+- **Data:** 2026-08-19
+- **Branch:** `sprint-4.0`
+- **Objetivo:** ciclo curto de refinamento a partir da homologação de uso real do
+  módulo de Instalações (1.2.0), antes de abrir Pedido de Venda ou Ordem de
+  Serviço.
+
+### Principais entregas
+
+- **Busca sem acento**, com fonte única em `src/utils/busca.ts`
+  (`normalizarBusca`, `contemBusca`), consumida pelo `useCrudList` e pelos três
+  autocompletes server-side.
+- **Cleanup E2E automático** — `e2e/support/limpeza.ts` (test-only) ligado ao
+  `globalTeardown`, com três guardas de ambiente, ordem explícita de dependência
+  e verificação de resíduo.
+- **Dashboard V1** — service + módulo puro + DTO + Server Component.
+- **Instalações:** `nomeProjeto` removido estruturalmente (migration
+  `20260819000000`), endereço sem repetição e número da listagem como link.
+- **Propostas:** duplicação passa a copiar `PropostaServico` e o restante do
+  conteúdo comercial; novo **PDF Geral de Produtos** (quinto documento).
+- **Menu** reordenado e travado por teste unitário.
+- `src/utils/data-brasil.ts` — dono transversal do fuso `America/Sao_Paulo`.
+
+### ADRs criadas
+
+ADR-0402 (busca sem acento, fonte única e filtro em memória), ADR-0403 (cleanup
+E2E por `globalTeardown`), ADR-0404 (Instalação: `nomeProjeto`, endereço, link),
+ADR-0405 (Dashboard V1), ADR-0406 (duplicação de Proposta), ADR-0407 (PDF Geral
+de Produtos).
+
+### Problemas encontrados
+
+1. **A causa da busca sem acento não era onde parecia.** O `useCrudList` já
+   normalizava acentos desde sempre, e as cinco listagens passam por ele. Medição
+   no banco real isolou o defeito: `ILIKE '%thai%'` → 0 linhas;
+   `ILIKE '%thaí%'` → 1. O problema estava nos **autocompletes server-side**,
+   onde o `contains + mode: "insensitive"` do Prisma vira `ILIKE` — insensível a
+   caixa, sensível a acento.
+2. **`unaccent` indisponível.** A extensão não está instalada e
+   `CREATE EXTENSION` exige superusuário; o ADR-0101 determina o usuário dedicado
+   `outmat`, que não é superusuário.
+3. **Passivo de dados de teste dominando o banco de dev:** 88/91 clientes,
+   27/49 produtos, 25/28 propostas e 44/45 instalações.
+4. **`nomeProjeto` existe em dois models** — risco real de remover o campo
+   errado e quebrar a capa do PDF Apresentação.
+5. **Corrida latente nos E2E**, exposta pela limpeza: com a listagem 30× menor,
+   o `fill` passou a acontecer antes da hidratação e o formulário remontava com
+   os `defaultValues` do Server Component, descartando o texto digitado.
+6. **Dependência cross-feature indevida** no plano original do Dashboard, que
+   importaria um helper de fuso de `features/instalacoes/datas.ts`.
+
+### Como foram resolvidos
+
+1. Fonte única de normalização + filtro em memória nos três services.
+2. `unaccent` descartada; débito registrado no `BACKLOG.md` com três caminhos e
+   o gatilho para adotá-los.
+3. `pg_dump` validado com `pg_restore -l`, depois a rotina de limpeza uma única
+   vez. Resultado: clientes 91→3, produtos 49→22, propostas 28→3,
+   instalações 45→1. Os dois `proposta_servicos` pertenciam a proposta real e
+   foram preservados.
+4. Auditoria linha a linha antes do `DROP COLUMN`, registrada na migration e no
+   ADR-0404. `Proposta.nomeProjeto` intocado.
+5. Passou-se a aguardar o valor carregado antes de digitar, nos dois specs.
+6. Fuso promovido a `src/utils/data-brasil.ts`; `datas.ts` passou a importar só
+   as constantes, sem mover funções, com `datas.test.ts` intocado como prova.
+
+### Decisões de escopo
+
+- **Nenhum `take` antes do filtro de busca.** Um limite esconderia registros
+  válidos além do corte — o mesmo defeito por outra causa.
+- **`pg_dump` é operação de implantação, não de rotina.** O `globalTeardown`
+  nunca o executa.
+- **O PDF Geral de Produtos não emite a proposta**, diferente dos outros quatro
+  documentos.
+- **A duplicação foi corrigida por inteiro**, não só nos serviços: desconto,
+  frete, nome do projeto e finalização se perdiam pela mesma causa.
+
+### Gate de qualidade
+
+| Item | Resultado |
+| --- | --- |
+| `npm run lint` | 0 erros |
+| `npm run typecheck` | 0 erros |
+| `npm run test` (Vitest) | **232/232** em 20 arquivos |
+| `npm run build` | sucesso |
+| `npm run test:e2e` (Playwright) | **19/19** |
+| `/api/health` | 200 `{ status: "ok", database: "up" }` |
+| `/dev/diagnostics` | 200 |
+| PostgreSQL 18.1 · Prisma 7.8.0 | conectados |
+| Resíduo E2E após a suíte | **zero** (verificado pelo próprio teardown) |
+
+### Verificações além do gate
+
+- **Consolidação conferida contra o banco real** (proposta 1002, 2 seções, 15
+  itens): 13 produtos consolidados, batendo produto a produto com uma agregação
+  SQL independente — inclusive `OMI10B = 4` e `OMIT21B = 6`, os dois casos de
+  mesmo produto em Seções distintas.
+- **Dashboard conferido no ar:** Rascunho 1 · Emitidas 2 · Em andamento 1 ·
+  custos R$ 0,00 · estado vazio nas próximas — coerente com os dados reais
+  remanescentes.
+
+### Lições aprendidas
+
+- **Medir antes de corrigir.** A hipótese óbvia (o hook de listagem) estava
+  errada; duas consultas ao banco apontaram a causa real em outra camada.
+- **Um teste que só passa porque o sistema está lento não está passando.** A
+  limpeza do passivo revelou uma corrida que existia havia sprints.
+- **Otimização com limite arbitrário pode recriar o defeito que corrige.** Um
+  `take` antes do filtro esconderia exatamente o registro que a correção
+  pretendia tornar visível.
+- **Campos homônimos em models diferentes exigem auditoria explícita** antes de
+  qualquer remoção estrutural.
+
+### Commits
+
+- `dd01dc6` — design e plano da Sprint 4.0.3
+- `51abbc5` — ajuste do D1 (utilitário transversal de data/timezone)
+- `4a28fb1` — Grupo A (busca) + Grupo B (cleanup E2E)
+- `ce0c5bb` — Grupos C (Instalações), D (Dashboard), E (duplicação) e menu
+- `c8a7839` — Grupo F (PDF Geral de Produtos)
+- _(fechamento: ADRs, documentação, CHANGELOG e VERSION — hash abaixo)_

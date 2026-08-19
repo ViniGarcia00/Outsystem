@@ -4,6 +4,91 @@ Todas as mudanças relevantes deste projeto são documentadas aqui.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o
 projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [1.3.0] — 2026-08-19
+
+Ciclo curto de refinamento após a **homologação de uso real** do módulo de
+Instalações, antes de abrir Pedido de Venda. Reúne a Sprint 4.0.3 inteira.
+
+**Por que MINOR e não PATCH.** O ciclo nasceu como refinamento, mas entrega duas
+funcionalidades **novas e visíveis ao usuário**: o **Dashboard** (a rota existia
+como placeholder desde a Sprint 0) e o **PDF Geral de Produtos**, quinto
+documento da Proposta. Pelo critério que o próprio histórico aplica — a 1.2.0 foi
+MINOR por entregar módulo novo aditivo —, adicionar funcionalidade é MINOR, não
+patch de correção. Nada foi removido da API pública nem quebrou comportamento
+existente, então também não é MAJOR. Ver ADR-0405 e ADR-0407.
+
+### Adicionado
+
+- **Dashboard** (`/dashboard`), que deixou de ser placeholder. Mostra Propostas
+  em Rascunho e Emitidas; Instalações A Agendar, Agendadas, Aguardando Material,
+  Em Andamento e Concluídas; **custos extras acumulados**; e as **próximas 5
+  instalações** agendadas, com data, número, cliente, status e responsável. Todo
+  número vem do banco — nada é fictício. Sem gráficos, metas, comparativos ou
+  filtros: a V1 responde "o que está acontecendo agora". Ver ADR-0405.
+- **PDF Geral de Produtos** — quinto documento da Proposta. Consolida os produtos
+  de **todas** as Seções somando as ocorrências do mesmo produto: o que aparece
+  ×2 na Sala e ×4 na Suíte sai como uma linha ×6. Mostra SKU, descrição, unidade
+  e quantidade total. É lista de **conferência de material**: sem preço, sem
+  desconto, sem frete, sem total e sem os serviços Som/Wi-Fi. **Não emite a
+  proposta** — único documento assim, para que conferir material nunca mude o
+  status comercial. Ver ADR-0407.
+- **Acesso ao workspace da Instalação pela listagem:** o número virou link. É
+  link de verdade — navega por teclado, tem foco visível e abre em nova aba com
+  Ctrl/Cmd + clique. A ação "Abrir" do menu de cada linha continua existindo.
+- **Limpeza automática dos dados de teste.** A suíte E2E passou a apagar tudo o
+  que cria, ao final da execução e **mesmo quando um teste falha**. Ver ADR-0403.
+
+### Corrigido
+
+- **Busca ignorava acentos apenas nas listagens.** "Thaís" não era encontrada ao
+  digitar "Thais" nos campos de busca com sugestão (Cliente, Produto e Proposta).
+  A causa não era a tela — era a consulta ao banco, que ignora maiúsculas mas não
+  ignora acentos. Agora as duas usam a **mesma** regra de comparação. Vale para
+  Clientes, Produtos, Propostas, Instalações e Vendedores. Ver ADR-0402.
+- **Duplicar Proposta não copiava os serviços complementares.** Som Ambiente e
+  Wi-Fi Premium se perdiam na cópia — e com eles também o nome do projeto, o
+  desconto, o frete e as informações comerciais finais. A duplicação passa a
+  reproduzir todo o conteúdo comercial aplicável, criando **registros novos**:
+  alterar a proposta duplicada não afeta a original. Ver ADR-0406.
+- **Dados de teste acumulados no banco de desenvolvimento.** O passivo dominava
+  as listagens: 88 de 91 clientes, 27 de 49 produtos, 25 de 28 propostas e 44 de
+  45 instalações eram resíduo. Removido com backup prévio; restaram apenas os
+  dados reais.
+- **Endereço da Instalação aparecia duas vezes** na tela de criação e edição —
+  nos campos e, logo abaixo, repetido em uma linha de texto. A repetição saiu; os
+  campos e a nota explicativa permanecem.
+- **Corrida nos testes de edição de cadastro**, que só não falhava porque a
+  listagem era lenta. Exposta quando a limpeza reduziu a listagem em 30×.
+
+### Alterado
+
+- **Ordem do menu principal:** Dashboard · Clientes · Produtos · Propostas ·
+  Instalações · Vendedores · Configurações. Ícones, responsividade e tema
+  preservados; nenhum grupo ou submenu novo. A ordem é travada por teste.
+
+### Removido
+
+- **Campo "Nome do Projeto" da Instalação**, inclusive a coluna do banco. Não
+  agregava ao fluxo operacional. Antes de remover, o conteúdo foi conferido linha
+  a linha: das 45 instalações, 44 tinham texto gerado por teste e a última
+  continha "134324" — **nenhum dado real**. A busca de Instalações continua
+  funcionando por número, cliente, endereço e responsável. Ver ADR-0404.
+
+  > O campo **Nome do Projeto da Proposta** é outro, permanece intacto e continua
+  > aparecendo no PDF Apresentação.
+
+### Regras
+
+- **O Geral de Produtos é quantitativo, não comercial.** Não lê nem exibe
+  qualquer valor financeiro, e o total oficial da proposta
+  (`calcularResumoFinanceiro().totalGeral`) segue intocado como fonte única dos
+  documentos comerciais.
+- **A limpeza dos testes nunca roda em produção.** São três verificações de
+  ambiente e ela recusa-se a executar se qualquer uma falhar. Remove apenas o que
+  está marcado como dado de teste, e falha a execução se sobrar resíduo.
+- **O snapshot de endereço da Instalação não mudou:** continua derivado no
+  servidor a partir do cadastro do Cliente, e continua imutável depois da criação.
+
 ## [1.2.0] — 2026-08-18
 
 Entrega do **módulo de Instalações** — o primeiro módulo operacional do sistema,

@@ -255,7 +255,7 @@ citem o mesmo valor. Travado por teste em `contrato.mapper.test.ts`.
 
 ## 4.4. Documentos da proposta
 
-A mesma proposta gera **quatro documentos**, todos sob demanda, sem persistir
+A mesma proposta gera **cinco documentos**, todos sob demanda, sem persistir
 arquivo em disco:
 
 | Documento | Rota | Formato | Papel |
@@ -264,6 +264,7 @@ arquivo em disco:
 | **PDF Apresentação** | `/propostas/[id]/presentation` | PDF | institucional; 13 templates, slides condicionais |
 | **Contrato** | `/propostas/[id]/contrato` | **.docx** | jurídico, editável no Word antes do envio |
 | **Anexo Contratual** | `/propostas/[id]/contratual` | PDF | escopo aprovado **sem preço por item** |
+| **Geral de Produtos** | `/propostas/[id]/produtos` | PDF | lista **quantitativa** de material; **não emite** a proposta |
 
 Arquitetura comum a todos:
 
@@ -291,6 +292,13 @@ Route Handler (runtime nodejs, force-dynamic, no-store)
   placeholders que o sistema não conhece ficam literais e realçados, para
   preenchimento manual no Word. As chaves do `ContratoTemplateDTO` **são** as tags
   do `.docx` — renomear um campo exige remarcar o template.
+- **Geral de Produtos (Sprint 4.0.3, ADR-0407):** consolida os produtos de
+  **todas** as Seções, somando as ocorrências do mesmo produto.
+  `consolidarProdutos` é **função pura** (`pdf/consolidado.ts`), agrupando por
+  `produtoId` — identidade estável — com fallback no SKU normalizado. Documento
+  **quantitativo**: não lê `dto.servicos`, `dto.totais`, `dto.resumo` nem
+  `dto.desconto`. É o único que **não emite** a proposta — é lista de conferência
+  de material, disponível em Rascunho e Emitida.
 - **Nomes de download** centralizados em `pdf/filename.ts`, para PDF e .docx.
 
 ## 4.5. Instalações — módulo operacional (Sprint 4.0.1)
@@ -315,6 +323,9 @@ Cliente
   Nenhum endereço vindo do navegador é gravado — os schemas Zod nem declaram
   esses campos. Alterar o cadastro do Cliente depois **não** muda instalações
   antigas, e `atualizarInstalacao` não toca no endereço.
+- **Sem "Nome do Projeto"** desde a Sprint 4.0.3 (ADR-0404): o campo foi
+  removido estruturalmente, inclusive do banco. `Proposta.nomeProjeto`
+  (ADR-0227) é outro campo, em outro model, e **permanece**.
 - **Responsável é texto livre**, sem entidade, FK ou cadastro, e sem reutilizar
   `Vendedor`. É snapshot histórico do fato — ver ADR-0400.
 - **Cancelar, nunca excluir.** Concluir é mudar o status.
@@ -342,6 +353,43 @@ Cliente
   por delete-and-recreate na mesma transação.
 - **Exclusão de registro** é bloqueada quando há custos — regra do **service**,
   não da interface: o `onDelete: Cascade` do banco apagaria os custos junto.
+
+## 4.6. Dashboard (Sprint 4.0.3)
+
+Visão rápida da situação comercial e operacional. **Não é BI.**
+
+```
+dashboard.service.ts        IO (4 consultas em paralelo)
+  → features/dashboard/dashboard.ts    REGRA PURA
+    → DashboardDTO
+      → Server Component
+```
+
+- **A regra mora no módulo puro** — quais status viram card, o que é "próxima
+  instalação", ordem e corte. É o que permite testá-la sem banco. O pré-filtro
+  SQL é deliberadamente mais amplo: só remove o que a regra também removeria.
+- **Indicadores:** Propostas em Rascunho/Emitidas; Instalações A Agendar,
+  Agendadas, Aguardando Material, Em Andamento e Concluídas; custos extras
+  acumulados; e até 5 próximas instalações.
+- Sem gráficos, comparativos, metas, filtros ou tempo real. Nenhum dado
+  fictício. Ver ADR-0405.
+
+## 4.7. Busca — fonte única de normalização (Sprint 4.0.3)
+
+`src/utils/busca.ts` (`normalizarBusca`, `contemBusca`) é o **único** lugar do
+sistema que normaliza texto para busca. `useCrudList` e os autocompletes
+server-side consomem a mesma função.
+
+O `contains + mode: "insensitive"` do Prisma vira `ILIKE`: insensível a caixa,
+**sensível a acento** — era por isso que "Thaís" não aparecia ao digitar
+"Thais". Os services `searchClientes`, `searchProdutos` e `searchPropostas`
+filtram em memória, carregando o conjunto **sem `take`** (um limite antes do
+filtro esconderia registros válidos) e selecionando só os campos usados. Ver
+ADR-0402 e o item de busca escalável no `BACKLOG.md`.
+
+`src/utils/data-brasil.ts` é o dono transversal do fuso `America/Sao_Paulo`
+(`FUSO_BRASIL`, `OFFSET_BRASIL`, `inicioDoDiaBrasil`). Não confundir com
+`utils/format/date.ts`, que formata para exibição e **não** fixa timezone.
 
 ## 5. Configuração e Storage (Windows Server 2019)
 
@@ -392,11 +440,16 @@ Cliente
   no banco); o `webServer` sobe a aplicação automaticamente. Ver DECISIONS.md
   (ADR-0150).
 
-> **Limitação conhecida do smoke.** Os testes preenchem o autocomplete com
-> **códigos de produto fixos**, o que os acopla ao conteúdo do banco. O ambiente
-> de desenvolvimento passou a ser restaurado do catálogo real da Outmat
-> (`backup/db_outsystem.backup`), que não contém os produtos fictícios do
-> `prisma/seed.ts`. Ver `BACKLOG.md`.
+**Cada cenário cria os próprios dados** (cliente `E2E …`, produto `E2E-…`) — não
+depende de nada preexistente no catálogo.
+
+**Cleanup automático (Sprint 4.0.3, ADR-0403).** `e2e/support/limpeza.ts` é
+infraestrutura **test-only**, fora de `src/`, ligada ao `globalTeardown` do
+Playwright: roda uma vez depois da suíte, **inclusive com testes falhando**,
+varre por marcador em ordem de dependência e **falha a execução** se sobrar
+resíduo. Recusa-se a rodar fora de ambiente local (três guardas). Nunca
+`TRUNCATE`, nunca `DELETE` sem `WHERE`, nunca `pg_dump` — o backup foi operação
+única de implantação.
 
 ## 9. Impressão
 

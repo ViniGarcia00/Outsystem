@@ -249,7 +249,7 @@ obrigatórios, monetário).
 - Revisões, duplicação, emissão, cancelamento com motivo, auditoria completa.
 - Listagem com busca instantânea, ordenação, paginação, legenda de status.
 
-### Documentos gerados (quatro artefatos, mesma proposta)
+### Documentos gerados (cinco artefatos, mesma proposta)
 
 | Documento | Rota | Formato | Observação |
 |---|---|---|---|
@@ -257,6 +257,7 @@ obrigatórios, monetário).
 | **PDF Apresentação** | `GET /propostas/[id]/presentation` | PDF | landscape 16:9 (960×540pt), **13 templates** PNG 1920×1080 como plano de fundo; slides 09/10/11 são **condicionais** (Automação = 10 páginas · +Som = 12 · +Wi-Fi = 12 · ambos = 13). Bloqueado no modelo Simplificada |
 | **Contrato** | `GET /propostas/[id]/contrato` | **.docx** | template oficial da Outmat preenchido via docxtemplater; editável no Word antes do envio |
 | **Anexo Contratual** | `GET /propostas/[id]/contratual` | PDF | escopo aprovado sem preço por item (era o "PDF Contratual") |
+| **Geral de Produtos** | `GET /propostas/[id]/produtos` | PDF | lista quantitativa de material, com o mesmo produto somado entre todas as Seções; **não emite** a proposta (Sprint 4.0.3) |
 
 Arquitetura comum: loader único `getPropostaPdfData(id)` → `PropostaPdfDTO` → mapper
 puro → renderer → Route Handler (`runtime = "nodejs"`, `force-dynamic`, `no-store`,
@@ -412,8 +413,9 @@ exige spec aprovada antes de qualquer código.
 
 ### Previstos no roadmap original, ainda não feitos
 
-- **Dashboard e indicadores** — a rota `/dashboard` existe como placeholder na
-  navegação, sem conteúdo.
+- ~~**Dashboard e indicadores**~~ — **entregue na Sprint 4.0.3** (ADR-0405):
+  indicadores comerciais e de instalações, custos acumulados e próximas
+  instalações. Sem gráficos, por decisão de escopo da V1.
 - **Tela "About"** — versão do sistema, build, última atualização, versão do banco,
   PostgreSQL, Prisma, Next.js, ambiente, health. Voltada ao usuário final, existiria
   também em produção (diferente da `/dev/diagnostics`). Pode reaproveitar
