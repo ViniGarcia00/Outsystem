@@ -196,6 +196,14 @@ export function PropostaWorkspace({
     window.open(`/propostas/${data.id}/contratual`, "_blank", "noopener");
   };
 
+  // PDF Geral de Produtos (Sprint 4.0.3, ADR-0407) — lista quantitativa de
+  // material, para separação e conferência. NÃO passa por `emitirEAbrir`: é uso
+  // interno e operacional, disponível em Rascunho e em Emitida. Emitir a
+  // proposta por engano ao conferir material seria defeito de negócio.
+  const abrirProdutos = () => {
+    window.open(`/propostas/${data.id}/produtos`, "_blank", "noopener");
+  };
+
   // Contrato (.docx) — documento jurídico editável no Word (Sprint 3.1). Baixa
   // como anexo; o navegador não renderiza .docx, então window.open dispara o
   // download direto.
@@ -419,6 +427,20 @@ export function PropostaWorkspace({
             Abrir PDF Detalhado
           </Button>
         )}
+        {/* Único documento com um rótulo só nos dois status: não emite nada. */}
+        <Button
+          variant="outline"
+          onClick={abrirProdutos}
+          disabled={!temItens}
+          title={
+            temItens
+              ? "Lista de material com as quantidades somadas de todas as seções."
+              : "Adicione ao menos um item para gerar a lista de produtos."
+          }
+        >
+          <FileDown className="h-4 w-4" />
+          PDF Geral de Produtos
+        </Button>
         {data.status === "RASCUNHO" && !simplificada && (
           <Button
             variant="outline"

@@ -2,10 +2,11 @@
  * Nome de download padronizado dos documentos da proposta (Sprint 2.10.3;
  * contrato acrescentado na Sprint 3.1).
  *
- *   PDF Apresentação → "OM Proposta Comercial - {Primeiro Nome} {Nº} Rev.{Rev}.pdf"
- *   PDF Detalhado    → "OM Proposta Detalhada - {Primeiro Nome} {Nº} Rev.{Rev}.pdf"
- *   Anexo Contratual → "Anexo Contrato - {Primeiro Nome} {Nº} Rev.{Rev}.pdf"
- *   Contrato         → "Contrato - Proposta {Nº} - {Nome Completo} Rev.{Rev}.docx"
+ *   PDF Apresentação  → "OM Proposta Comercial - {Primeiro Nome} {Nº} Rev.{Rev}.pdf"
+ *   PDF Detalhado     → "OM Proposta Detalhada - {Primeiro Nome} {Nº} Rev.{Rev}.pdf"
+ *   Anexo Contratual  → "Anexo Contrato - {Primeiro Nome} {Nº} Rev.{Rev}.pdf"
+ *   Geral de Produtos → "Geral de Produtos - {Primeiro Nome} {Nº} Rev.{Rev}.pdf"
+ *   Contrato          → "Contrato - Proposta {Nº} - {Nome Completo} Rev.{Rev}.docx"
  *
  * O contrato foge do padrão dos PDFs de propósito: é o documento que vai para
  * assinatura, então leva o nome completo do cliente e diz "Proposta {Nº}" por
@@ -15,12 +16,15 @@
  * Sem depender de banco (funções puras).
  */
 
-export type TipoPdf = "comercial" | "detalhada" | "contratual";
+export type TipoPdf = "comercial" | "detalhada" | "contratual" | "produtos";
 
 const PREFIXO: Record<TipoPdf, string> = {
   comercial: "OM Proposta Comercial",
   detalhada: "OM Proposta Detalhada",
   contratual: "Anexo Contrato",
+  // Sprint 4.0.3 — quinto documento. Segue o padrão dos PDFs (primeiro nome);
+  // o formato com nome completo é exclusivo do Contrato .docx.
+  produtos: "Geral de Produtos",
 };
 
 /** Caracteres proibidos em nomes de arquivo no Windows (\ / : * ? " < > |) e de

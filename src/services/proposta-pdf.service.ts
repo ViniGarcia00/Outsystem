@@ -73,6 +73,10 @@ export async function getPropostaPdfData(
                 itens: {
                   orderBy: { ordem: "asc" },
                   select: {
+                    // Sprint 4.0.3: identidade estável + tipo, para o PDF Geral
+                    // de Produtos agrupar por produto e descartar serviços.
+                    produtoId: true,
+                    tipo: true,
                     codigo: true,
                     descricao: true,
                     unidade: true,

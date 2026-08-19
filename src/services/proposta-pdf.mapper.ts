@@ -55,6 +55,15 @@ export interface PdfCliente {
 }
 
 export interface PdfItem {
+  /**
+   * Identidade ESTÁVEL do produto (Sprint 4.0.3). Opcional e aditivo: nenhum dos
+   * quatro documentos anteriores lê este campo. Serve ao PDF Geral de Produtos,
+   * que agrupa por produto e não pode confiar só na descrição. Nulo em itens sem
+   * vínculo com o cadastro (previsto para `SERVICO`).
+   */
+  produtoId?: string | null;
+  /** Distingue produto de serviço. Ausente = item antigo, tratado como PRODUTO. */
+  tipo?: "PRODUTO" | "SERVICO";
   codigo: string;
   descricao: string;
   unidade: string;
@@ -141,6 +150,9 @@ interface FonteCliente {
 }
 
 interface FonteItem {
+  /** Opcional para compatibilidade com chamadores/testes anteriores. */
+  produtoId?: string | null;
+  tipo?: "PRODUTO" | "SERVICO";
   codigo: string;
   descricao: string;
   unidade: string;
@@ -221,6 +233,8 @@ export function montarPropostaPdfDTO(
         valorServico: toNumber(i.valorServico),
       };
       return {
+        produtoId: i.produtoId ?? null,
+        tipo: i.tipo ?? "PRODUTO",
         codigo: i.codigo,
         descricao: i.descricao,
         unidade: i.unidade,

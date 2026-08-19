@@ -86,6 +86,45 @@ describe("nome de download do contrato", () => {
   });
 });
 
+describe("nomeArquivoPdf — Geral de Produtos (Sprint 4.0.3)", () => {
+  it("usa o prefixo próprio e o primeiro nome, como os demais PDFs", () => {
+    expect(
+      nomeArquivoPdf("produtos", {
+        cliente: { nome: "Thaís Sales de Sousa" },
+        numero: 1050,
+        revisao: 2,
+      }),
+    ).toBe("Geral de Produtos - Thaís 1050 Rev.2.pdf");
+  });
+
+  it("revisão nula vira Rev.0", () => {
+    expect(
+      nomeArquivoPdf("produtos", {
+        cliente: { nome: "João" },
+        numero: 1001,
+        revisao: null,
+      }),
+    ).toBe("Geral de Produtos - João 1001 Rev.0.pdf");
+  });
+
+  it("remove caracteres inválidos do Windows", () => {
+    expect(
+      nomeArquivoPdf("produtos", {
+        cliente: { nome: 'Ma/ria*Sil<va' },
+        numero: 9,
+        revisao: 0,
+      }),
+    ).toBe("Geral de Produtos - MariaSilva 9 Rev.0.pdf");
+  });
+
+  it("não se confunde com o PDF Detalhado", () => {
+    const base = { cliente: { nome: "João" }, numero: 1001, revisao: 0 };
+    expect(nomeArquivoPdf("produtos", base)).not.toBe(
+      nomeArquivoPdf("detalhada", base),
+    );
+  });
+});
+
 describe("contentDisposition", () => {
   it("baixa o contrato como attachment, preservando acentos via RFC 5987", () => {
     const cd = contentDisposition(
