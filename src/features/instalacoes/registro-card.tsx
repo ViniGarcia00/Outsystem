@@ -78,25 +78,31 @@ export function RegistroCard({
           )}
         </div>
 
-        <p className="whitespace-pre-wrap text-sm">{registro.relatorio}</p>
+        <p className="whitespace-pre-wrap break-words text-sm">
+          {registro.relatorio}
+        </p>
 
         {registro.custos.length > 0 && (
           <>
             <Separator />
             <dl className="space-y-1 text-sm">
               {registro.custos.map((custo) => (
-                <div key={custo.id} className="flex justify-between gap-6">
-                  <dt className="text-muted-foreground">
+                <div key={custo.id} className="flex justify-between gap-4">
+                  <dt className="min-w-0 break-words text-muted-foreground">
                     {CATEGORIA_CUSTO_LABEL[custo.categoria]}
                     {custo.descricao ? ` — ${custo.descricao}` : ""}
                   </dt>
-                  <dd className="tabular-nums">{formatCurrency(custo.valor)}</dd>
+                  <dd className="shrink-0 tabular-nums">
+                    {formatCurrency(custo.valor)}
+                  </dd>
                 </div>
               ))}
               <Separator />
-              <div className="flex justify-between gap-6 font-medium">
+              <div className="flex justify-between gap-4 font-medium">
                 <dt>Total do registro</dt>
-                <dd className="tabular-nums">{formatCurrency(total)}</dd>
+                <dd className="shrink-0 tabular-nums">
+                  {formatCurrency(total)}
+                </dd>
               </div>
             </dl>
           </>

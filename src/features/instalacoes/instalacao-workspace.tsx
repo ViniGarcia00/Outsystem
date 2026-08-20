@@ -7,7 +7,7 @@ import { useState } from "react";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 
-import { PageHeader } from "@/components/app";
+import { AppPage, PageHeader } from "@/components/app";
 import {
   FormSection,
   SelectField,
@@ -16,6 +16,7 @@ import {
 } from "@/components/forms";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { InstalacaoDetalhe } from "@/services/instalacao.service";
@@ -118,109 +119,132 @@ export function InstalacaoWorkspace({ data }: { data: InstalacaoDetalhe }) {
 
   return (
     <FormProvider {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <PageHeader
-          title={`Instalação ${data.numero}`}
-          description={data.clienteNome}
-          titleSuffix={
-            <Badge variant={STATUS_BADGE_VARIANT[status]}>
-              {STATUS_LABEL[status]}
-            </Badge>
-          }
-        />
+      <AppPage>
+        <form
+          onSubmit={form.handleSubmit(onSubmit)}
+          className="flex flex-col gap-6"
+        >
+          <PageHeader
+            title={`Instalação ${data.numero}`}
+            description={data.clienteNome}
+            titleSuffix={
+              <Badge variant={STATUS_BADGE_VARIANT[status]}>
+                {STATUS_LABEL[status]}
+              </Badge>
+            }
+          />
 
-        <FormSection title="Dados da instalação">
-          <div className="space-y-2">
-            <Label htmlFor="instalacao-cliente">Cliente</Label>
-            <Input
-              id="instalacao-cliente"
-              value={data.clienteNome}
-              readOnly
-              disabled
-              aria-label="Cliente"
+          {/* Mesma superfície de card do `PageForm`/`CrudFormShell` — é o que
+              faz o workspace parecer com Cliente, Produto e Nova instalação. */}
+          <Card>
+            <CardContent className="flex flex-col gap-5">
+              <FormSection title="Dados da instalação">
+                <div className="space-y-2">
+                  <Label htmlFor="instalacao-cliente">Cliente</Label>
+                  <Input
+                    id="instalacao-cliente"
+                    value={data.clienteNome}
+                    readOnly
+                    disabled
+                    aria-label="Cliente"
+                  />
+                </div>
+                <PropostaAutocomplete
+                  value={propostaIdAtual}
+                  initialLabel={propostaLabel}
+                  onSelect={(p) => {
+                    form.setValue("propostaId", p?.id ?? null, {
+                      shouldDirty: true,
+                    });
+                    setPropostaLabel(p?.label ?? null);
+                  }}
+                  disabled={readOnly}
+                />
+                <TextField
+                  name="responsavelAtual"
+                  label="Responsável atual"
+                  placeholder="Ex.: Carlos"
+                  disabled={readOnly}
+                />
+                <SelectField
+                  name="status"
+                  label="Status"
+                  options={STATUS_OPTIONS}
+                />
+              </FormSection>
+
+              <EnderecoSnapshot endereco={data} nota={NOTA_ENDERECO} />
+
+              {/* Três campos curtos em uma linha no desktop: `cols={2}` deixaria
+                  "Período" órfão ocupando meia largura sozinho. */}
+              <FormSection title="Programação" cols={3}>
+                <TextField
+                  name="dataPrevista"
+                  label="Data prevista"
+                  type="date"
+                  disabled={readOnly}
+                />
+                <TextField
+                  name="dataAgendada"
+                  label="Data agendada"
+                  type="date"
+                  disabled={readOnly}
+                />
+                <TextField
+                  name="periodo"
+                  label="Período"
+                  placeholder="Ex.: manhã, 14h às 17h"
+                  disabled={readOnly}
+                />
+              </FormSection>
+
+              <FormSection title="Observações" cols={1}>
+                <TextareaField
+                  name="observacoes"
+                  label="Observações gerais"
+                  rows={4}
+                  disabled={readOnly}
+                />
+              </FormSection>
+            </CardContent>
+          </Card>
+
+          {/* Cronologia fora do card do formulário: os registros já são cards
+              próprios — aninhá-los criaria card dentro de card. Mesmo arranjo
+              que Conteúdo/Serviços no workspace da Proposta. */}
+          <section className="flex flex-col gap-4">
+            <h2 className="text-lg font-semibold tracking-tight">Cronologia</h2>
+            <ResumoCustos registros={data.registros} />
+            <Cronologia
+              instalacaoId={data.id}
+              registros={data.registros}
+              readOnly={readOnly}
             />
+          </section>
+
+          <div className="flex flex-wrap items-center justify-end gap-2 border-t pt-6">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => router.push("/instalacoes")}
+            >
+              Voltar
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => setCancelOpen(true)}
+              disabled={readOnly || saving}
+            >
+              <Ban className="h-4 w-4" />
+              Cancelar instalação
+            </Button>
+            <Button type="submit" disabled={readOnly || saving}>
+              Salvar Alterações
+            </Button>
           </div>
-          <PropostaAutocomplete
-            value={propostaIdAtual}
-            initialLabel={propostaLabel}
-            onSelect={(p) => {
-              form.setValue("propostaId", p?.id ?? null, { shouldDirty: true });
-              setPropostaLabel(p?.label ?? null);
-            }}
-            disabled={readOnly}
-          />
-          <TextField
-            name="responsavelAtual"
-            label="Responsável atual"
-            placeholder="Ex.: Carlos"
-            disabled={readOnly}
-          />
-          <SelectField name="status" label="Status" options={STATUS_OPTIONS} />
-        </FormSection>
-
-        <EnderecoSnapshot endereco={data} nota={NOTA_ENDERECO} />
-
-        <FormSection title="Programação">
-          <TextField
-            name="dataPrevista"
-            label="Data prevista"
-            type="date"
-            disabled={readOnly}
-          />
-          <TextField
-            name="dataAgendada"
-            label="Data agendada"
-            type="date"
-            disabled={readOnly}
-          />
-          <TextField
-            name="periodo"
-            label="Período"
-            placeholder="Ex.: manhã, 14h às 17h"
-            disabled={readOnly}
-          />
-        </FormSection>
-
-        <FormSection title="Observações" cols={1}>
-          <TextareaField
-            name="observacoes"
-            label="Observações gerais"
-            rows={4}
-            disabled={readOnly}
-          />
-        </FormSection>
-
-        <FormSection title="Cronologia" cols={1}>
-          <ResumoCustos registros={data.registros} />
-          <Cronologia
-            instalacaoId={data.id}
-            registros={data.registros}
-            readOnly={readOnly}
-          />
-        </FormSection>
-
-        <div className="flex flex-wrap justify-end gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => router.push("/instalacoes")}
-          >
-            Voltar
-          </Button>
-          <Button
-            type="button"
-            variant="destructive"
-            onClick={() => setCancelOpen(true)}
-            disabled={readOnly || saving}
-          >
-            <Ban className="h-4 w-4" />
-            Cancelar instalação
-          </Button>
-          <Button type="submit" disabled={readOnly || saving}>
-            Salvar Alterações
-          </Button>
-        </div>
-      </form>
+        </form>
+      </AppPage>
 
       <CancelarInstalacaoDialog
         open={cancelOpen}

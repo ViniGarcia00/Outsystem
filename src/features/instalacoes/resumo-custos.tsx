@@ -39,11 +39,11 @@ export function ResumoCustos({ registros }: { registros: RegistroDTO[] }) {
       {comLancamento.length > 0 && (
         <dl className="mt-4 space-y-1 border-t pt-3 text-sm">
           {comLancamento.map((categoria) => (
-            <div key={categoria} className="flex justify-between gap-6">
-              <dt className="text-muted-foreground">
+            <div key={categoria} className="flex justify-between gap-4">
+              <dt className="min-w-0 break-words text-muted-foreground">
                 {CATEGORIA_CUSTO_LABEL[categoria]}
               </dt>
-              <dd className="tabular-nums">
+              <dd className="shrink-0 tabular-nums">
                 {formatCurrency(porCategoria[categoria])}
               </dd>
             </div>

@@ -131,7 +131,9 @@ export function NovaInstalacaoForm() {
 
         <EnderecoSnapshot endereco={enderecoPreview} nota={NOTA_ENDERECO} />
 
-        <FormSection title="Programação">
+        {/* Trio de campos curtos: `cols={3}` evita "Período" órfão em meia
+            linha no desktop — mesmo arranjo do workspace da instalação. */}
+        <FormSection title="Programação" cols={3}>
           <TextField name="dataPrevista" label="Data prevista" type="date" />
           <TextField name="dataAgendada" label="Data agendada" type="date" />
           <TextField
