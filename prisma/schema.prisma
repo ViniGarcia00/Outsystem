@@ -528,9 +528,6 @@ model Instalacao {
   tecnicoResponsavelId String?
   tecnicoResponsavel   Tecnico? @relation(fields: [tecnicoResponsavelId], references: [id], onDelete: Restrict)
 
-  /// DEPRECADO — sai na migration `tecnicos_drop_texto`. Nenhum código novo lê.
-  responsavelAtual String?
-
   status StatusInstalacao @default(A_AGENDAR)
 
   // Snapshot do endereço do Cliente. `enderecoNumero` evita colisão com `numero`.
@@ -604,9 +601,6 @@ model InstalacaoRegistro {
   /// NÃO é reescrito em edição comum: só quando o `tecnicoId` muda. Ver §6.2 da
   /// spec e o ADR-0408.
   responsavelNome String
-
-  /// DEPRECADO — sai na migration `tecnicos_drop_texto`. Nenhum código novo lê.
-  responsavel String?
 
   relatorio String @db.Text
 
