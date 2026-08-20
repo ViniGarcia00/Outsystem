@@ -5,7 +5,7 @@ import { cabecalhoInstalacaoSchema, novaInstalacaoSchema } from "./schema";
 const base = {
   clienteId: "ckl0000000000000000000000",
   propostaId: null,
-  responsavelAtual: "",
+  tecnicoResponsavelId: null,
   status: "A_AGENDAR" as const,
   // Datas chegam do <input type="date"> como texto ("" quando não informadas).
   dataPrevista: "",
@@ -38,18 +38,23 @@ describe("novaInstalacaoSchema", () => {
     expect(r.success && "nomeProjeto" in r.data).toBe(false);
   });
 
-  it("aceita responsável atual vazio (é opcional)", () => {
-    expect(
-      novaInstalacaoSchema.safeParse({ ...base, responsavelAtual: "" }).success,
-    ).toBe(true);
+  it("aceita instalação sem técnico responsável", () => {
+    const r = novaInstalacaoSchema.safeParse({ ...base, tecnicoResponsavelId: null });
+    expect(r.success && r.data.tecnicoResponsavelId).toBeNull();
   });
 
-  it("aceita responsável atual como texto livre", () => {
+  it("aceita instalação com técnico responsável", () => {
     const r = novaInstalacaoSchema.safeParse({
       ...base,
-      responsavelAtual: "Carlos",
+      tecnicoResponsavelId: "ckl0000000000000000000001",
     });
-    expect(r.success && r.data.responsavelAtual).toBe("Carlos");
+    expect(r.success && r.data.tecnicoResponsavelId).toBe("ckl0000000000000000000001");
+  });
+
+  it("NÃO declara mais responsavelAtual — virou vínculo com Técnico (ADR-0408)", () => {
+    const r = novaInstalacaoSchema.safeParse({ ...base, responsavelAtual: "Carlos" });
+    expect(r.success).toBe(true);
+    expect(r.success && "responsavelAtual" in r.data).toBe(false);
   });
 
   it("aceita proposta relacionada nula", () => {

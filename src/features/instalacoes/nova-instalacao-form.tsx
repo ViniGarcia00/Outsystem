@@ -14,6 +14,7 @@ import {
   TextareaField,
 } from "@/components/forms";
 import { ClienteAutocomplete } from "@/features/propostas/cliente-autocomplete";
+import type { TecnicoOption } from "@/services/tecnico.service";
 
 import { criarInstalacaoAction, enderecoDoClienteAction } from "./actions";
 import type { EnderecoInstalacao } from "./endereco";
@@ -21,6 +22,7 @@ import { EnderecoSnapshot } from "./endereco-snapshot";
 import { STATUS_LABEL, STATUS_ORDER } from "./labels";
 import { PropostaAutocomplete } from "./proposta-autocomplete";
 import { novaInstalacaoSchema, type NovaInstalacaoValues } from "./schema";
+import { TecnicoSelectField } from "./tecnico-select-field";
 
 const STATUS_OPTIONS = STATUS_ORDER.filter((s) => s !== "CANCELADA").map(
   (value) => ({ value, label: STATUS_LABEL[value] }),
@@ -37,7 +39,7 @@ const NOTA_ENDERECO =
  * usuário conferir o que será gravado. O snapshot real é derivado no service, a
  * partir do Cliente persistido (ADR-0400).
  */
-export function NovaInstalacaoForm() {
+export function NovaInstalacaoForm({ tecnicos }: { tecnicos: TecnicoOption[] }) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [clienteLabel, setClienteLabel] = useState<string | null>(null);
@@ -50,7 +52,7 @@ export function NovaInstalacaoForm() {
     defaultValues: {
       clienteId: "",
       propostaId: null,
-      responsavelAtual: "",
+      tecnicoResponsavelId: null,
       status: "A_AGENDAR",
       dataPrevista: "",
       dataAgendada: "",
@@ -121,10 +123,11 @@ export function NovaInstalacaoForm() {
               setPropostaLabel(p?.label ?? null);
             }}
           />
-          <TextField
-            name="responsavelAtual"
+          <TecnicoSelectField
+            name="tecnicoResponsavelId"
             label="Responsável atual"
-            placeholder="Ex.: Carlos"
+            options={tecnicos}
+            opcional
           />
           <SelectField name="status" label="Status" options={STATUS_OPTIONS} />
         </FormSection>

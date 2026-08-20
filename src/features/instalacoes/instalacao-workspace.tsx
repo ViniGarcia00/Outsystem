@@ -20,6 +20,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { InstalacaoDetalhe } from "@/services/instalacao.service";
+import type { TecnicoOption } from "@/services/tecnico.service";
 
 import { atualizarInstalacaoAction, cancelarInstalacaoAction } from "./actions";
 import { CancelarInstalacaoDialog } from "./cancelar-instalacao-dialog";
@@ -33,6 +34,7 @@ import {
   cabecalhoInstalacaoSchema,
   type CabecalhoInstalacaoValues,
 } from "./schema";
+import { TecnicoSelectField } from "./tecnico-select-field";
 
 const STATUS_OPTIONS = STATUS_ORDER.map((value) => ({
   value,
@@ -54,7 +56,13 @@ const NOTA_ENDERECO =
  * A seção Cronologia (Sprint 4.0.2) traz o resumo de custos e a timeline de
  * acontecimentos. Os registros chegam já ordenados do service.
  */
-export function InstalacaoWorkspace({ data }: { data: InstalacaoDetalhe }) {
+export function InstalacaoWorkspace({
+  data,
+  tecnicos,
+}: {
+  data: InstalacaoDetalhe;
+  tecnicos: TecnicoOption[];
+}) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [cancelando, setCancelando] = useState(false);
@@ -71,7 +79,7 @@ export function InstalacaoWorkspace({ data }: { data: InstalacaoDetalhe }) {
     resolver: zodResolver(cabecalhoInstalacaoSchema),
     defaultValues: {
       propostaId: data.propostaId,
-      responsavelAtual: data.responsavelAtual ?? "",
+      tecnicoResponsavelId: data.tecnicoResponsavelId,
       status: data.status,
       dataPrevista: dataParaInput(data.dataPrevista),
       dataAgendada: dataParaInput(data.dataAgendada),
@@ -160,10 +168,11 @@ export function InstalacaoWorkspace({ data }: { data: InstalacaoDetalhe }) {
                   }}
                   disabled={readOnly}
                 />
-                <TextField
-                  name="responsavelAtual"
+                <TecnicoSelectField
+                  name="tecnicoResponsavelId"
                   label="Responsável atual"
-                  placeholder="Ex.: Carlos"
+                  options={tecnicos}
+                  opcional
                   disabled={readOnly}
                 />
                 <SelectField

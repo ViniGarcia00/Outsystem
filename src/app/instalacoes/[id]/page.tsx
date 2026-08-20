@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { InstalacaoWorkspace } from "@/features/instalacoes";
-import { getInstalacao } from "@/services/instalacao.service";
+import {
+  getInstalacao,
+  listTecnicoOptionsDaInstalacao,
+} from "@/services/instalacao.service";
 
 export const metadata: Metadata = { title: "Instalação" };
 
@@ -14,8 +17,11 @@ export default async function InstalacaoPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const instalacao = await getInstalacao(id);
+  const [instalacao, tecnicos] = await Promise.all([
+    getInstalacao(id),
+    listTecnicoOptionsDaInstalacao(id),
+  ]);
   if (!instalacao) notFound();
 
-  return <InstalacaoWorkspace data={instalacao} />;
+  return <InstalacaoWorkspace data={instalacao} tecnicos={tecnicos} />;
 }

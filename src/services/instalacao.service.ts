@@ -14,6 +14,10 @@ import {
   ORDEM_TIMELINE,
   type RegistroDTO,
 } from "./instalacao-registro.service";
+import {
+  listTecnicoOptions,
+  type TecnicoOption,
+} from "./tecnico.service";
 
 /**
  * Serviço de Instalações (Sprint 4.0.1).
@@ -23,17 +27,20 @@ import {
  *   `proposta.service.ts`.
  * - O endereço é SNAPSHOT do Cliente PERSISTIDO, derivado aqui dentro — nunca
  *   recebido do chamador (ADR-0400).
- * - Responsável é texto livre — não há entidade nem FK (ADR-0400).
+ * - Responsável é VÍNCULO com Tecnico (ADR-0408). O nome nunca é gravado aqui:
+ *   "responsável atual" é estado corrente e acompanha o cadastro.
  */
 
 export type { StatusInstalacao };
+export type { TecnicoOption };
 
 export interface InstalacaoListItem {
   id: string;
   numero: number;
   clienteNome: string;
   dataAgendada: Date | null;
-  responsavelAtual: string | null;
+  /** Nome do Técnico responsável no momento da leitura (não é snapshot). */
+  responsavelNome: string | null;
   status: StatusInstalacao;
   enderecoResumo: string;
   updatedAt: Date;
@@ -46,7 +53,7 @@ export interface InstalacaoDetalhe extends EnderecoInstalacao {
   clienteNome: string;
   propostaId: string | null;
   propostaLabel: string | null;
-  responsavelAtual: string | null;
+  tecnicoResponsavelId: string | null;
   status: StatusInstalacao;
   dataPrevista: Date | null;
   dataAgendada: Date | null;
@@ -70,7 +77,7 @@ export interface PropostaSuggestion {
  */
 export interface InstalacaoInput {
   propostaId: string | null;
-  responsavelAtual: string;
+  tecnicoResponsavelId: string | null;
   status: StatusInstalacao;
   dataPrevista: Date | null;
   dataAgendada: Date | null;
@@ -135,7 +142,7 @@ export async function listInstalacoes(): Promise<InstalacaoListItem[]> {
       id: true,
       numero: true,
       dataAgendada: true,
-      responsavelAtual: true,
+      tecnicoResponsavel: { select: { nome: true } },
       status: true,
       cidade: true,
       estado: true,
@@ -151,7 +158,7 @@ export async function listInstalacoes(): Promise<InstalacaoListItem[]> {
     numero: r.numero,
     clienteNome: nomeCliente(r.cliente),
     dataAgendada: r.dataAgendada,
-    responsavelAtual: r.responsavelAtual,
+    responsavelNome: r.tecnicoResponsavel?.nome ?? null,
     status: r.status as StatusInstalacao,
     enderecoResumo: resumoEndereco(r),
     updatedAt: r.updatedAt,
@@ -178,7 +185,7 @@ export async function getInstalacao(
     clienteNome: nomeCliente(i.cliente),
     propostaId: i.propostaId,
     propostaLabel: i.proposta ? `Proposta ${i.proposta.proposalNumber}` : null,
-    responsavelAtual: i.responsavelAtual,
+    tecnicoResponsavelId: i.tecnicoResponsavelId,
     status: i.status as StatusInstalacao,
     dataPrevista: i.dataPrevista,
     dataAgendada: i.dataAgendada,
@@ -193,7 +200,12 @@ export async function getInstalacao(
     estado: i.estado,
     createdAt: i.createdAt,
     updatedAt: i.updatedAt,
-    registros: i.registros.map(mapRegistro),
+    // `responsavel` (coluna antiga da cronologia) já é nullable no banco desde
+    // a Task 5, mas `mapRegistro` ainda exige string — a Task 7 substitui essa
+    // leitura por tecnicoId/responsavelNome. Até lá, "" é o vazio de sempre.
+    registros: i.registros.map((r) =>
+      mapRegistro({ ...r, responsavel: r.responsavel ?? "" }),
+    ),
   };
 }
 
@@ -205,7 +217,7 @@ export async function getInstalacao(
 function toData(input: InstalacaoInput) {
   return {
     propostaId: input.propostaId,
-    responsavelAtual: trimOrNull(input.responsavelAtual),
+    tecnicoResponsavelId: input.tecnicoResponsavelId,
     status: input.status,
     dataPrevista: input.dataPrevista,
     dataAgendada: input.dataAgendada,
@@ -357,4 +369,35 @@ export async function searchPropostas(
         .filter(Boolean)
         .join(" · ") || "—",
   }));
+}
+
+// ---------------------------------------------------------------------------
+// Opções de Técnico
+// ---------------------------------------------------------------------------
+
+/**
+ * Opções do `Select` de responsável para UMA instalação: técnicos ativos **mais**
+ * os já vinculados a ela — o responsável atual e o de cada registro da
+ * cronologia —, mesmo inativos.
+ *
+ * Sem os vinculados, abrir uma instalação cujo técnico foi inativado mostraria o
+ * campo em branco, e salvar qualquer outra alteração apagaria o vínculo em
+ * silêncio. Uma consulta só serve a página inteira do workspace.
+ */
+export async function listTecnicoOptionsDaInstalacao(
+  instalacaoId: string,
+): Promise<TecnicoOption[]> {
+  const i = await prisma.instalacao.findUnique({
+    where: { id: instalacaoId },
+    select: {
+      tecnicoResponsavelId: true,
+      registros: { select: { tecnicoId: true } },
+    },
+  });
+  if (!i) return listTecnicoOptions();
+
+  return listTecnicoOptions([
+    ...(i.tecnicoResponsavelId ? [i.tecnicoResponsavelId] : []),
+    ...i.registros.map((r) => r.tecnicoId),
+  ]);
 }

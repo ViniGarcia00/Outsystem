@@ -52,13 +52,16 @@ import {
  * O antigo campo "Projeto" saiu na Sprint 4.0.3 (ADR-0404) e não deixou
  * referência aqui. A normalização de acento vem de `useCrudList`, que consome a
  * fonte única `@/utils/busca`.
+ *
+ * O responsável agora é o NOME do Técnico vinculado (ADR-0408) — a busca
+ * continua encontrando por ele, sem acento.
  */
 const searchAccessor = (i: InstalacaoListItem) =>
   [
     String(i.numero),
     i.clienteNome,
     i.enderecoResumo,
-    i.responsavelAtual ?? "",
+    i.responsavelNome ?? "",
     STATUS_LABEL[i.status],
   ].join(" ");
 
@@ -160,9 +163,9 @@ export function InstalacoesList({
             : "—",
       },
       {
-        id: "responsavelAtual",
-        header: () => sortHeader("responsavelAtual", "Responsável"),
-        cell: ({ row }) => row.original.responsavelAtual || "—",
+        id: "responsavelNome",
+        header: () => sortHeader("responsavelNome", "Responsável"),
+        cell: ({ row }) => row.original.responsavelNome || "—",
       },
       {
         id: "status",

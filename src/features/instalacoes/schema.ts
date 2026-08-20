@@ -8,9 +8,10 @@ import { ehDataDeInputValida } from "./datas";
  * Schemas da Instalação (Sprint 4.0.1) — fonte única de validação, usada pelo
  * React Hook Form no cliente e pela Server Action no servidor.
  *
- * Responsável é TEXTO LIVRE (ADR-0400): não existe cadastro, então não há o que
- * validar além do tamanho. `responsavelAtual` é opcional na Instalação; o
- * responsável obrigatório do registro é assunto da Sprint 4.0.2.
+ * Responsável é VÍNCULO com o cadastro de Técnicos (ADR-0408, supersede parcial
+ * do ADR-0400): o schema carrega o id, nunca o nome. `tecnicoResponsavelId` é
+ * opcional na Instalação; o responsável do registro é obrigatório e vive em
+ * `registro-schema.ts`.
  *
  * NENHUM campo de endereço é declarado aqui, de propósito (ADR-0400): o
  * endereço é derivado no service a partir do Cliente PERSISTIDO. Aceitar
@@ -53,7 +54,8 @@ const dataOpcional = z
 
 const camposComuns = {
   propostaId: z.string().nullable(),
-  responsavelAtual: texto(120),
+  /** Vínculo com o cadastro de Técnicos (ADR-0408). Opcional, como era o texto. */
+  tecnicoResponsavelId: z.string().nullable(),
   status: z.enum(STATUS),
   dataPrevista: dataOpcional,
   dataAgendada: dataOpcional,
