@@ -79,13 +79,13 @@ Transversais, sem estado e sem dependência para fora: `lib/`, `utils/`, `types/
 ```
 src/
   app/            dashboard · propostas · clientes · produtos · vendedores ·
-                  configuracoes · api/health · dev/diagnostics
+                  tecnicos · configuracoes · api/health · dev/diagnostics
   components/     ui · layout · shared · forms · tables
-  features/       dashboard · propostas · clientes · produtos · vendedores · configuracoes
+  features/       dashboard · propostas · clientes · produtos · vendedores · tecnicos · configuracoes
   infrastructure/ configuration (env tipado/validado com Zod, fail-fast) ·
                   database (Prisma singleton) · storage (caminhos configuráveis) ·
                   logging (abstração Logger)
-  services/       cliente · produto · vendedor · configuracao · logo · diagnostics ·
+  services/       cliente · produto · vendedor · tecnico · configuracao · logo · diagnostics ·
                   proposta · proposta-conteudo · proposta-pdf (+ mapper)
   lib/ utils/ types/ hooks/ generated/prisma (não versionado)
 prisma/           schema · 11 migrations · seed
@@ -138,6 +138,7 @@ e não é versionado (ADR-0206).
 | `Cliente` | `clientes` | PF/PJ, endereço granular, RG/IE, CPF/CNPJ único e validado |
 | `Produto` | `produtos` | `codigo` único (exibido como **SKU** na interface), `valorProduto` + `valorServico` |
 | `Vendedor` | `vendedores` | nome obrigatório |
+| `Tecnico` | `tecnicos` | nome obrigatório; responsável das Instalações desde a Sprint 4.1 (ADR-0408) |
 | `Proposta` | `propostas` | raiz; `proposalNumber` sequencial único; desconto, frete, forma de pagamento, previsão de instalação, observações |
 | `PropostaRevisao` | `proposta_revisoes` | versões; `revisionNumber` inteiro, único por proposta; `emittedAt` |
 | `PropostaSecao` | `proposta_secoes` | **agrupador neutro** de itens |
@@ -201,7 +202,10 @@ O `id` do banco jamais é usado como numeração comercial.
 Todo cadastro tem `ativo`. Listagens mostram só ativos, com filtro "Mostrar
 inativos". **Exclusão só é permitida se o registro nunca foi usado em proposta**;
 caso contrário a operação é bloqueada com a mensagem padrão orientando a inativar.
-Vale para Cliente, Vendedor e Produto.
+Vale para Cliente, Vendedor e Produto. **Técnico** (Sprint 4.1, ADR-0408) segue o
+mesmo princípio com alvo diferente: a checagem é sobre o uso em Instalações
+(responsável atual ou registro da cronologia), não em propostas — mensagem
+própria orientando a inativar.
 
 ### Cálculo financeiro — ponto de atenção
 
@@ -228,8 +232,8 @@ explícita `America/Sao_Paulo`.
 
 ### Cadastros base
 
-CRUD completo de **Clientes**, **Produtos**, **Vendedores** e **Configuração**
-(singleton, com upload real do logo). Formulários com autofocus, atalhos CTRL+S /
+CRUD completo de **Clientes**, **Produtos**, **Vendedores**, **Técnicos** e
+**Configuração** (singleton, com upload real do logo). Formulários com autofocus, atalhos CTRL+S /
 ESC, redirect + toast ao salvar e `FormDirtyGuard` contra perda de dados não salvos.
 Validações compartilhadas cliente/servidor (CPF/CNPJ com dígito verificador, e-mail,
 obrigatórios, monetário).

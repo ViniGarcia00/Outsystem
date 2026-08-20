@@ -15,7 +15,8 @@
 O **módulo Comercial está concluído**. A proposta cobre o ciclo do documento
 comercial de ponta a ponta:
 
-- **Cadastros base:** Configuração do Sistema, Clientes, Produtos e Vendedores.
+- **Cadastros base:** Configuração do Sistema, Clientes, Produtos, Vendedores e
+  Técnicos.
 - **Proposta:** cabeçalho, seções, itens, desconto, frete e informações
   comerciais, com revisões, emissão, cancelamento e auditoria.
 - **Serviços complementares:** Projeto Som Ambiente e Projeto Wi-Fi Premium.
@@ -35,7 +36,7 @@ O **módulo de Instalações** (operacional) também está concluído — ver a 
 
 ## Entidades
 
-- **Cliente**, **Produto**, **Vendedor** — cadastros base.
+- **Cliente**, **Produto**, **Vendedor**, **Técnico** — cadastros base.
 - **Proposta** — documento comercial. Pertence a um cliente (e opcionalmente a
   um vendedor).
 - **Revisão** — cada proposta pode ter várias revisões (versões).
@@ -178,6 +179,18 @@ Regras que valem para o Contrato:
 
 - `nome` obrigatório; `telefone` e `email` opcionais.
 
+### Técnico
+
+- `nome` obrigatório; `ativo` (default `true`). Nenhum outro campo.
+- **Não é Vendedor:** um técnico não vende, e reaproveitar o cadastro de
+  Vendedor poluiria o autocomplete da Proposta e distorceria a regra de
+  exclusão "já foi usado em uma proposta" — um Técnico nunca é usado em uma.
+- **Não é Usuário:** não há login, permissão ou agenda. Quando existir
+  autenticação, "registrado por" será campo novo e aditivo, separado do
+  vínculo de responsável.
+- É o responsável das Instalações desde a Sprint 4.1 (ver "Regra:
+  instalações" adiante e DECISIONS.md ADR-0408).
+
 ### Exclusão × Inativação
 
 - Todos os cadastros possuem `ativo` (inativação). Por padrão as listagens
@@ -189,6 +202,11 @@ Regras que valem para o Contrato:
 - A regra vale para **Cliente, Vendedor e Produto**. O item da proposta
   referencia o produto de origem, então um produto já usado **não é excluído** —
   deve ser inativado (ver DECISIONS.md ADR-0104 e ADR-0207).
+- **Técnico segue o mesmo princípio, com alvo diferente:** a exclusão é
+  bloqueada quando o técnico já foi usado em uma Instalação (como responsável
+  atual ou em algum registro da cronologia), não em uma proposta — Técnico
+  nunca é usado em proposta nenhuma. Mensagem própria orientando a inativar
+  (ver DECISIONS.md ADR-0408).
 
 ## Regra: armazenamento
 
@@ -208,8 +226,11 @@ Pedido de Venda e de Ordem de Serviço — a instalação é cadastrada manualme
   reutilizada.
 - **Proposta relacionada é opcional** e é apenas um vínculo: não importa itens,
   não sincroniza valores.
-- **Responsável é texto livre** — não há cadastro de pessoas nem login. O nome é
-  um registro histórico de quem fez o quê.
+- **Responsável é vínculo com o cadastro de Técnicos** (desde a Sprint 4.1,
+  ADR-0408 — supersede parcial do ADR-0400). "Responsável atual" da Instalação
+  é estado corrente e acompanha o cadastro; cada registro da cronologia guarda,
+  além do vínculo, o nome do responsável no momento em que lhe foi atribuído
+  — snapshot que sobrevive a uma renomeação posterior do cadastro.
 - **Status:** A agendar · Agendada · Aguardando material · Em andamento ·
   Adiada · Concluída · Cancelada. **Concluir é mudar o status.**
 - **Instalação nunca é excluída quando tem histórico** — é cancelada, e continua

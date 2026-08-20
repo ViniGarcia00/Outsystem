@@ -45,7 +45,7 @@ Detalhes completos em **[ARCHITECTURE.md](./ARCHITECTURE.md)**.
 src/
   app/            rotas (1 pasta por menu) + layout + globals.css
   components/     ui · layout · shared · forms · tables
-  features/       dashboard · propostas · clientes · produtos · vendedores · configuracoes
+  features/       dashboard · propostas · clientes · produtos · vendedores · tecnicos · configuracoes
   infrastructure/ configuration · database · storage · logging
   services/ hooks/ lib/ types/ utils/
 prisma/           schema · migrations · seed
@@ -80,7 +80,8 @@ UX, testes e preparação)** concluídas.
 
 - ✅ Estrutura de pastas e camadas; layout base; tema claro/escuro/sistema.
 - ✅ **Banco PostgreSQL nativo** (usuário dedicado `outmat`); migrations + seed.
-- ✅ **CRUD completo**: Configuração (singleton), Clientes, Produtos, Vendedores.
+- ✅ **CRUD completo**: Configuração (singleton), Clientes, Produtos, Vendedores,
+  Técnicos.
 - ✅ Listagens: busca instantânea, ordenação, paginação (20/pág), filtro de
   inativos, ações por linha — via `CrudListView` + `CrudLayout`.
 - ✅ Formulários: React Hook Form + Zod, autofocus, atalhos CTRL+S/ESC,
@@ -128,6 +129,15 @@ UX, testes e preparação)** concluídas.
   **duplicação de Proposta** passa a copiar os serviços complementares e o
   restante do conteúdo comercial; e o **PDF Geral de Produtos**, quinto
   documento da Proposta. Ver ADR-0402..0407.
+- ✅ **Sprint 4.1 — Cadastro de Técnicos (1.4.0):** o responsável das
+  Instalações deixou de ser texto digitado e passou a ser vínculo com o novo
+  cadastro `Tecnico` (`nome`, `ativo`, molde de Vendedor). Instalação guarda só
+  a FK (`tecnicoResponsavelId`, estado corrente); o registro da cronologia
+  guarda a FK **e** `responsavelNome`, snapshot do nome no momento em que aquele
+  responsável foi atribuído ao registro. Migration em três passos (criar →
+  vincular com backfill dirigido pelos dados → remover as colunas antigas de
+  texto), sem perder nenhum nome já gravado. Cadastro nasce vazio, sem dados de
+  seed. Ver ADR-0408 (supersede parcial do ADR-0400).
 - ✅ `lint`, `build` e `typecheck` sem erros.
 
 ## Dashboard (entregue na Sprint 4.0.3)

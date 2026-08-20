@@ -2,6 +2,20 @@
 
 > Vazio por design ao final da Sprint 0. Preenchido ao longo das Sprints.
 
+## Apurado na Sprint 4.1 — Cadastro de Técnicos (2026-08-20)
+
+- [ ] **Vendedor inativo desaparece do cabeçalho da Proposta** (prioridade média)
+      **Contexto:** `getPropostaFormOptions()` (`src/services/proposta.service.ts`)
+      filtra `where: { ativo: true }` sem unir o vendedor já vinculado. Uma
+      proposta cujo vendedor foi inativado depois abre com o `Select` em branco,
+      e salvar qualquer outra alteração apaga o vínculo em silêncio.
+      **Apurado na Sprint 4.1**, ao desenhar o mesmo campo para Técnicos. A
+      correção NÃO foi feita ali por estar fora do escopo aprovado.
+      **Aceite:** o vendedor vinculado aparece na lista mesmo inativo, rotulado
+      "(inativo)", como já faz `listTecnicoOptions` em `tecnico.service.ts`.
+      **Não fazer:** remover o filtro de ativos — isso ofereceria inativos como
+      opção nova, que é justamente o que a regra impede.
+
 ## Apurado na auditoria da Release 1.1.0 (2026-08-18)
 
 Itens levantados durante a reconciliação documental. **Nada aqui foi

@@ -1447,3 +1447,122 @@ Sprint de refinamento (escopo estrito):
   Contrato `.docx`. O rótulo não se confunde com "PDF Detalhado".
 - **Proposta sem produtos** gera o documento com a tabela vazia e uma linha
   explicativa. Comportamento definido, não erro.
+
+---
+
+## Sprint 4.1 — Cadastro de Técnicos e vínculo do responsável das Instalações
+
+### ADR-0408 — Responsável das Instalações passa a ser Técnico cadastrado (supersede parcial do ADR-0400)
+
+- **Contexto:** o ADR-0400 (Sprint 4.0.1) decidiu, deliberadamente, que o
+  responsável da Instalação seria **texto livre**: "*O nome digitado é
+  snapshot histórico do fato […] Converter o primeiro em FK reescreveria o
+  histórico — por isso ele permanece texto.*" O pedido desta Sprint é
+  exatamente o que aquele ADR previa como risco — trocar o texto por uma FK —,
+  e a decisão só é legítima porque a forma de cumprir a garantia mudou, não o
+  compromisso em si.
+- **Este ADR é supersede PARCIAL do ADR-0400**, restrito ao bullet
+  "Responsável é TEXTO LIVRE". Todo o resto do ADR-0400 continua valendo
+  **integralmente**: Instalação independente de Pedido de Venda, numeração
+  própria por sequência nativa, endereço por snapshot derivado no service,
+  cancelar (nunca excluir), concluir como mudança de status, auditoria técnica
+  separada da cronologia e datas com fuso `America/Sao_Paulo` fixo na conversão
+  da Server Action. Nenhum desses pontos foi tocado nesta Sprint.
+- **O que muda é a FORMA, não o princípio.** `Instalacao.responsavelAtual`
+  (texto livre) vira `tecnicoResponsavelId` (FK para o novo model `Tecnico`).
+  `InstalacaoRegistro.responsavel` (texto livre) vira `tecnicoId` (FK) **mais**
+  `responsavelNome` (snapshot histórico, texto).
+- **O que NÃO muda: o princípio de não reescrever silenciosamente o histórico
+  operacional.** O ADR-0400 estava certo sobre o risco — é exatamente o que
+  aconteceria se `InstalacaoRegistro` guardasse só a FK: renomear um Técnico, ou
+  ele deixar a empresa, reescreveria o que a cronologia diz ter acontecido. A
+  solução evoluiu: antes a garantia vinha de o nome ser texto digitado à mão;
+  agora vem de `responsavelNome`, um snapshot igualmente imutável, só que
+  derivado de um cadastro em vez de tecladado por quem preenche o formulário.
+- **Por que a Instalação NÃO tem snapshot e o registro TEM.**
+  `tecnicoResponsavelId` da Instalação não guarda nome nenhum — só a FK. É a
+  mesma distinção que já existe no ADR-0400 entre "responsável pelo
+  acontecimento" e o resto: "responsável atual" da Instalação é **estado
+  corrente**, não fato histórico — renomear o Técnico no cadastro deve refletir
+  ali, do mesmo jeito que o cabeçalho de uma proposta reflete o nome atual do
+  vendedor, não o nome que ele tinha quando a proposta foi criada. Já
+  `InstalacaoRegistro` é a cronologia — cada linha é um fato consumado ("quem
+  fez essa visita em tal data"), e fatos consumados não se movem quando o
+  cadastro muda depois.
+- **A regra exata do snapshot (§6.2 da spec):** `responsavelNome` é o nome do
+  responsável **no momento em que ELE foi atribuído àquele registro**, não "o
+  nome que o Técnico tinha na última vez que qualquer campo do registro foi
+  editado". Na criação, o nome vem do Técnico selecionado, lido do banco dentro
+  da transação. Na edição, `atualizarRegistro` compara o `tecnicoId` vigente
+  (lido dentro da própria transação) com o recebido: se **não mudou**, o
+  service passa `undefined` para `responsavelNome`, e o Prisma simplesmente não
+  toca naquela coluna — o valor gravado na criação (ou na última troca)
+  permanece intacto, ainda que o cadastro tenha sido renomeado nesse meio
+  tempo. Só quando o `tecnicoId` **muda** é que o service relê o nome do novo
+  Técnico e reescreve o snapshot. Exemplo canônico:
+
+  ```
+  1. registro criado com o Técnico "Carlos"        → responsavelNome = "Carlos"
+  2. cadastro renomeado para "Carlos Almeida"
+  3. edita SÓ o relatório do registro              → responsavelNome = "Carlos"      ← preservado
+  4. edita e troca o responsável para "Bruno"      → responsavelNome = "Bruno"       ← reescrito
+  ```
+
+  Edição comum (relatório, data, custos) não dispara a reescrita porque a
+  condição que dispara é estritamente "o `tecnicoId` mudou", nunca "algum campo
+  do registro mudou". O nome nunca é recebido do navegador — `nomeDoTecnico` lê
+  o `Tecnico` persistido dentro da transação, a mesma regra e o mesmo motivo do
+  `snapshotEndereco` do ADR-0400: uma garantia de integridade não pode depender
+  do estado de um formulário.
+- **`Vendedor` continua não sendo reutilizado**, pelo mesmo argumento que já
+  valia no ADR-0400: um instalador ou técnico não é vendedor, e usar o mesmo
+  cadastro poluiria o autocomplete da Proposta com nomes que nunca deveriam
+  aparecer ali, além de distorcer a regra de exclusão "já foi usado em uma
+  proposta" — um Técnico nunca é usado em proposta nenhuma, então essa contagem
+  ficaria sempre zerada e sem sentido para ele.
+- **Técnico não é Usuário.** Não há login, permissão, agenda ou qualquer
+  vínculo com autenticação — o cadastro tem só `nome` e `ativo`, como
+  `Vendedor` sem os campos de contato. Quando o sistema ganhar autenticação,
+  "registrado por" será um campo **novo e aditivo**, distinto deste vínculo:
+  `tecnicoId`/`responsavelNome` continuarão respondendo "quem esteve na
+  instalação", enquanto "registrado por" responderá "quem operou o sistema"
+  — a mesma distinção que o ADR-0400 já antecipava entre "responsável pelo
+  acontecimento" e "registrado no sistema por".
+- **Backfill dirigido pelos dados, não pelo conteúdo observado.** A migration
+  agrupa os nomes de texto livre existentes por uma chave normalizada em caixa
+  e espaços (`lower(regexp_replace(btrim(nome), '\s+', ' ', 'g'))`), mas
+  **recusa deliberadamente** normalizar por acento: "João" e "Joao" podem ser a
+  mesma pessoa ou não, e inventar essa correspondência seria uma decisão de
+  negócio disfarçada de detalhe técnico de migration. Cada grafia distinta por
+  acento vira um Técnico **distinto**, visível no cadastro recém-criado, onde
+  uma pessoa decide se funde os dois — decisão humana, não automatizada. Uma
+  guarda (`RAISE EXCEPTION` dentro da transação da migration) aborta a
+  migration inteira, sem alterar nada, se qualquer linha ficar sem vínculo
+  depois do backfill — preferível a inventar um mapeamento e mascarar um caso
+  que a chave não resolveu. Contra os dados reais da Outmat, a auditoria prévia
+  confirmou 1 Técnico criado (`Vinicius`) e os 3 registros existentes
+  vinculados a ele, cada um preservando a própria grafia original em
+  `responsavelNome`.
+- **Desvio deliberado em relação ao Vendedor: Técnico inativo já vinculado
+  entra na lista de opções.** No Select de Vendedor da Proposta
+  (`getPropostaFormOptions`), o filtro é só `ativo: true` — um vendedor
+  inativado depois de vinculado à proposta some da lista e o campo abre em
+  branco (débito real, registrado no `BACKLOG.md` nesta mesma Sprint, não
+  corrigido por estar fora do escopo aprovado). Para Técnico, `listTecnicoOptions`
+  evita deliberadamente esse defeito: a lista de opções é **técnicos ativos ∪
+  técnicos já vinculados àquele agregado**, mesmo inativos, rotulados
+  `Nome (inativo)`. Um técnico inativo **não vinculado** continua fora da
+  lista, para não ser oferecido como opção nova. Sem essa união, reabrir uma
+  Instalação cujo técnico foi inativado mostraria o campo vazio, e salvar
+  qualquer outra alteração da tela apagaria o vínculo em silêncio — exatamente
+  o efeito colateral que o princípio deste ADR existe para evitar.
+- **Consequência:** o cadastro de Técnicos nasce vazio (sem dados de seed) e
+  reproduz a estrutura de Vendedor com dois campos a menos. A exclusão segue o
+  padrão de Cliente/Produto/Vendedor — nunca usado pode ser excluído, usado
+  (em Instalação ou em qualquer registro) só pode ser inativado — mas é o
+  primeiro cadastro cuja checagem de uso **não** olha para `Proposta`: olha
+  para `Instalacao.tecnicoResponsavelId` e `InstalacaoRegistro.tecnicoId`, com
+  mensagem própria (`CANNOT_DELETE_USED_IN_INSTALACOES`). O `DROP COLUMN` das
+  duas colunas de texto livre só é alcançado depois que a guarda prova que
+  toda linha tem vínculo — nenhum dado é perdido: os 3 registros reais
+  continuam legíveis, com a mesma grafia de antes.

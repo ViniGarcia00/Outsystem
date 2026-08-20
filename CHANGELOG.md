@@ -4,6 +4,60 @@ Todas as mudanças relevantes deste projeto são documentadas aqui.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o
 projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [1.4.0] — 2026-08-20
+
+Sprint 4.1: o responsável das Instalações — hoje texto digitado à mão em dois
+lugares — passa a ser vínculo com um cadastro próprio, **Técnicos**. Reúne a
+Sprint 4.1 inteira.
+
+**Por que MINOR e não PATCH.** O cadastro de Técnicos é **funcionalidade nova e
+visível ao usuário** — um cadastro completo (`/tecnicos`) mais o campo de
+responsável revisado em duas telas de Instalações —, o mesmo critério que
+tornou a 1.3.0 MINOR (Dashboard e PDF Geral de Produtos) e a 1.2.0 MINOR (módulo
+novo aditivo). Nada foi removido da API pública nem quebrou comportamento
+existente: o `DROP COLUMN` das duas colunas de texto é detalhe interno de
+persistência, migrado sem perda, não interface pública — por isso também não é
+MAJOR. Ver ADR-0408.
+
+### Adicionado
+
+- **Cadastro de Técnicos** (`/tecnicos`), no molde de Vendedores: `nome`
+  obrigatório, `ativo`, listagem com busca sem acento e filtro "Mostrar
+  inativos", criação e edição. Nasce **vazio** — sem dados de seed. Ícone
+  `HardHat` no menu, entre Vendedores e Configurações.
+- **Regra de exclusão própria do Técnico:** nunca usado pode ser excluído;
+  usado como responsável de uma Instalação ou de qualquer registro da
+  cronologia, só pode ser inativado — mensagem dedicada orientando a inativar.
+  É o primeiro cadastro cuja checagem de uso não olha para propostas.
+
+### Alterado
+
+- **Responsável da Instalação passa a ser Técnico cadastrado**, em vez de texto
+  livre digitado à mão. O campo "Responsável atual" da Instalação e o campo
+  "Responsável" do registro da cronologia viram `Select` alimentado pelo
+  cadastro de Técnicos — ativos e, quando já vinculados, também inativos
+  (rotulados "(inativo)"), para que reabrir um vínculo antigo nunca mostre o
+  campo em branco.
+- **A cronologia passa a guardar um snapshot do nome do responsável**
+  (`responsavelNome`), gravado no momento em que aquele Técnico é atribuído ao
+  registro. Editar qualquer outro campo do registro preserva o snapshot;
+  trocar o responsável reescreve-o com o nome atual do novo Técnico. Renomear
+  o cadastro do Técnico **não** reescreve registros já lançados.
+- **Listagem de Instalações e Dashboard** passam a exibir o nome vindo do
+  vínculo com o Técnico, no lugar do texto antigo.
+
+### Migração de dados
+
+Os nomes já digitados nos dois campos de texto livre foram convertidos em
+Técnicos **sem perda**: cada nome distinto (agrupado por caixa e espaços, nunca
+por acento) virou um Técnico, e cada Instalação e cada registro da cronologia
+foi religado ao Técnico correspondente. A cronologia antiga continua exibindo o
+nome **exatamente como foi digitado originalmente** — o vínculo aponta para o
+Técnico, mas `responsavelNome` preserva a grafia da própria linha. Nos dados
+reais da Outmat: 1 Técnico criado (`Vinicius`), 3 registros vinculados. Uma
+guarda na migration teria abortado a operação inteira, sem alterar nada, se
+qualquer linha tivesse ficado sem vínculo. Ver ADR-0408.
+
 ## [1.3.0] — 2026-08-19
 
 Ciclo curto de refinamento após a **homologação de uso real** do módulo de

@@ -43,7 +43,7 @@ importa o Prisma diretamente — o acesso a dados passa por `services`, que usam
 ```
 src/
   app/                       # Rotas (App Router) — 1 pasta por menu
-    dashboard/ propostas/ clientes/ produtos/ vendedores/ configuracoes/
+    dashboard/ propostas/ clientes/ produtos/ vendedores/ tecnicos/ configuracoes/
     layout.tsx               # ThemeProvider + TooltipProvider + AppShell
     page.tsx                 # redireciona "/" -> "/dashboard"
     globals.css              # Tailwind v4 + tokens shadcn (light/dark)
@@ -57,7 +57,7 @@ src/
     tables/                  # DataTable (TanStack Table genérico)
 
   features/                  # Feature-First
-    dashboard/ clientes/ produtos/ vendedores/ configuracoes/
+    dashboard/ clientes/ produtos/ vendedores/ tecnicos/ configuracoes/
     propostas/               # workspace, seções, itens, serviços, totais
       pdf/                   # geração de PDF (@react-pdf/renderer)
         blocks/              #   cabeçalho, cliente, tabela, rodapé financeiro,
@@ -116,6 +116,7 @@ Prisma 7 com o generator `prisma-client` (saída em `src/generated/prisma`) e
 | `InstalacaoAuditoria` | `instalacao_auditorias` | Trilha técnica da instalação                     |
 | `InstalacaoRegistro`  | `instalacao_registros`  | Acontecimento da cronologia operacional          |
 | `InstalacaoCusto`     | `instalacao_custos`     | Custo extra do acontecimento (`Decimal(12,2)`)   |
+| `Tecnico`             | `tecnicos`              | Cadastro base                                    |
 | `ConfiguracaoSistema` | `configuracao_sistema`  | **Singleton** de configuração                    |
 
 ### Hierarquia da proposta
@@ -205,8 +206,9 @@ cadastros (ADR-0106).
 
 ## 4.2. Regras de exclusão e inativação (cadastros)
 
-- **Inativação:** Cliente, Produto e Vendedor têm `ativo` (default `true`). As
-  listagens mostram apenas ativos; o filtro "Mostrar inativos" revela os demais.
+- **Inativação:** Cliente, Produto, Vendedor e Técnico têm `ativo` (default
+  `true`). As listagens mostram apenas ativos; o filtro "Mostrar inativos"
+  revela os demais.
 - **Exclusão condicionada ao uso em propostas:** um registro só pode ser
   **excluído** se nunca foi usado em uma proposta; caso contrário deve ser
   **inativado** (mensagem padrão única).
@@ -215,6 +217,11 @@ cadastros (ADR-0106).
   - **Produto** passou a ter vínculo com a proposta: `PropostaItem.produtoId` com
     `onDelete: Restrict` (ADR-0207). A regra vale hoje — produto usado em
     proposta não é excluído. O texto original do ADR-0104 previa exatamente isso.
+  - **Técnico (Sprint 4.1, ADR-0408) é o primeiro cadastro cuja regra de
+    exclusão NÃO olha para `Proposta`.** A checagem de uso conta
+    `Instalacao.tecnicoResponsavelId` e `InstalacaoRegistro.tecnicoId`; um
+    Técnico nunca é usado em uma proposta. Mensagem própria,
+    `CANNOT_DELETE_USED_IN_INSTALACOES`, porque a existente fala em "propostas".
 
 > **Nomenclatura — "Código" × "SKU".** Na interface (formulário, listagem, busca,
 > validações, tabela, PDF e autocomplete) o campo do produto chama-se **SKU**.
@@ -326,8 +333,12 @@ Cliente
 - **Sem "Nome do Projeto"** desde a Sprint 4.0.3 (ADR-0404): o campo foi
   removido estruturalmente, inclusive do banco. `Proposta.nomeProjeto`
   (ADR-0227) é outro campo, em outro model, e **permanece**.
-- **Responsável é texto livre**, sem entidade, FK ou cadastro, e sem reutilizar
-  `Vendedor`. É snapshot histórico do fato — ver ADR-0400.
+- **Responsável é vínculo com o cadastro de Técnicos** (ADR-0408, supersede
+  parcial do ADR-0400). A Instalação guarda só a FK — "responsável atual" é
+  estado corrente e acompanha o cadastro. O registro da cronologia guarda a FK
+  **e** `responsavelNome`, snapshot do nome no momento em que aquele responsável
+  lhe foi atribuído: renomear um Técnico não reescreve fatos já registrados.
+  `Vendedor` continua não sendo reutilizado.
 - **Cancelar, nunca excluir.** Concluir é mudar o status.
 - **Cronologia operacional × auditoria técnica** são separadas: a primeira
   (Sprint 4.0.2) é conteúdo que o usuário lê; a segunda é trilha de sistema,

@@ -1323,3 +1323,122 @@ de Produtos).
 - `ce0c5bb` — Grupos C (Instalações), D (Dashboard), E (duplicação) e menu
 - `c8a7839` — Grupo F (PDF Geral de Produtos)
 - `63c6321` — fechamento: ADR-0402..0407, documentação, CHANGELOG e VERSION 1.3.0
+
+---
+
+## Sprint 4.1 — Cadastro de Técnicos e vínculo do responsável das Instalações
+
+- **Versão:** 1.4.0
+- **Data:** 2026-08-20
+- **Branch:** `sprint-4.0`
+- **Objetivo:** trocar o responsável de Instalações — hoje texto digitado à mão
+  em dois lugares — por um cadastro próprio (`Tecnico`: `nome`, `ativo`), sem
+  perder nenhum nome já gravado e sem reescrever o histórico operacional.
+
+### Principais entregas
+
+- **Cadastro de Técnicos** (`/tecnicos`), reproduzindo a estrutura de Vendedor
+  com dois campos a menos: service (`tecnico.service.ts`), listagem via
+  `CrudListView`/`useCrudList` (busca sem acento, herdada de `busca.ts`),
+  formulário via `CrudFormShell`, três rotas, ícone `HardHat` no menu e smoke
+  E2E dedicado (`e2e/tecnicos.spec.ts`).
+- **Migration em três passos**, sem editar nenhuma migration antiga: criar a
+  tabela `tecnicos` (aditiva) → backfill dirigido pelos dados + vínculo com
+  guarda de integridade → `DROP COLUMN` das duas colunas de texto.
+- **`Instalacao.responsavelAtual`** (texto) → `tecnicoResponsavelId` (FK,
+  `onDelete: Restrict`), sem snapshot — "responsável atual" é estado corrente.
+- **`InstalacaoRegistro.responsavel`** (texto) → `tecnicoId` (FK, `Restrict`)
+  **mais** `responsavelNome` (snapshot do nome no momento em que o responsável
+  foi atribuído àquele registro), reescrito só quando o técnico muda.
+- **Listagem de Instalações e Dashboard** (Próximas Instalações) passam a
+  exibir o nome vindo do vínculo.
+- **Regra de exclusão própria**, primeiro cadastro cuja checagem de uso não
+  olha para `Proposta`: conta `Instalacao.tecnicoResponsavelId` **e**
+  `InstalacaoRegistro.tecnicoId`, com mensagem dedicada
+  (`CANNOT_DELETE_USED_IN_INSTALACOES`).
+- Correção incidental de responsividade do workspace de Instalações (o único
+  formulário do sistema que não passava por `AppPage`), aproveitando o mesmo
+  ciclo de revisão da tela.
+
+### ADRs criadas
+
+ADR-0408 — Responsável das Instalações passa a ser Técnico cadastrado
+(supersede parcial do ADR-0400, restrito ao bullet "responsável é texto
+livre"; todo o resto do ADR-0400 — numeração, endereço por snapshot, cancelar
+nunca excluir, datas com fuso fixo — continua valendo integralmente).
+
+### Problemas encontrados
+
+1. **Ambiguidade de acento no backfill.** Nomes já digitados podiam, em tese,
+   ser a mesma pessoa grafada com e sem acento (`"João"` × `"Joao"`), e casar
+   os dois por engano fundiria pessoas diferentes ou separaria a mesma pessoa
+   de forma imprevisível.
+2. **Risco de o `DROP COLUMN` rodar sobre dado sem vínculo**, deixando
+   registros da cronologia sem responsável legível.
+3. **O mesmo defeito latente do Vendedor** (`getPropostaFormOptions` não une o
+   vendedor já vinculado quando ele está inativo) reapareceria em Técnico se a
+   consulta de opções fosse copiada sem ajuste.
+
+### Como foram resolvidos
+
+1. A chave de agrupamento do backfill normaliza caixa e espaços, mas
+   **deliberadamente não remove acento** — grafias diferentes por acento viram
+   Técnicos distintos, visíveis no cadastro para revisão humana, decisão de
+   negócio e não de migration.
+2. Guarda (`RAISE EXCEPTION`) dentro da própria transação da migration: aborta
+   tudo, inclusive a criação da tabela, se qualquer linha ficar sem vínculo
+   depois do backfill.
+3. `listTecnicoOptions` foi escrita para unir **técnicos ativos ∪ técnicos já
+   vinculados àquele agregado** (mesmo inativos, rotulados "(inativo)") desde
+   o início — desvio deliberado em relação ao Vendedor. O defeito do Vendedor
+   foi registrado no `BACKLOG.md`, não corrigido, por estar fora do escopo
+   aprovado desta Sprint.
+
+### Decisões de escopo
+
+- **Cadastro nasce vazio** — nenhum Técnico de exemplo no seed.
+- **Sem múltiplos técnicos por instalação, sem filtro dedicado por Técnico na
+  listagem e sem indicador por técnico no Dashboard** — a busca textual já
+  encontra por nome, sem acento.
+- **A correção do Vendedor inativo no workspace da Proposta não foi feita** —
+  apurada nesta Sprint, fica registrada no `BACKLOG.md`.
+
+### Gate de qualidade
+
+| Item | Resultado |
+| --- | --- |
+| `npm run lint` | 0 erros |
+| `npm run typecheck` | 0 erros |
+| `npm run test` (Vitest) | **242/242** em 21 arquivos |
+| `npm run build` | sucesso |
+| `npm run test:e2e` (Playwright) | **25/25** |
+| Resíduo E2E após a suíte | **zero** (verificado pelo próprio teardown, inclusive `tecnicos`) |
+
+### Lições aprendidas
+
+- **Reverter uma decisão de ADR não é o mesmo que ignorá-la.** O ADR-0400
+  estava certo sobre o risco de reescrever histórico ao converter texto em FK;
+  a solução desta Sprint manteve a garantia (agora via `responsavelNome`) em
+  vez de descartar a preocupação original.
+- **Backfill dirigido pelos dados precisa estar correto para qualquer banco
+  restaurado**, não só para o conteúdo observado hoje — mesmo com um único
+  nome real no banco de produção, a chave de agrupamento e a guarda foram
+  escritas para o caso geral.
+- **Um padrão comprovado (Vendedor) não deve ser copiado cegamente** quando um
+  defeito latente nele já é conhecido — Técnico corrigiu, de propósito, o que
+  o Vendedor ainda carrega.
+
+### Commits
+
+- `790dd44` — plano de implementação do cadastro de Técnicos
+- `6951e1f` — model Tecnico e migration aditiva
+- `50466b2` — service do cadastro com regra de exclusão por uso
+- `a541737` — cadastro completo com listagem, formulário e rotas
+- `d4f225d` — menu e smoke E2E do cadastro
+- `efdf539` — backfill do responsável e travamento das colunas
+- `a243cf8` — responsável atual da Instalação passa a ser Técnico cadastrado
+- `b340119` — responsável do registro da cronologia vira Técnico com snapshot
+- `d20fced` — Próximas Instalações do Dashboard mostram o nome do Técnico
+- `ddad9a0` — remove as colunas de texto do responsável
+- `8edee38` — cobertura E2E do vínculo com Técnico e da regra do snapshot
+- fechamento desta Sprint: ADR-0408, documentação e VERSION 1.4.0 (este commit)

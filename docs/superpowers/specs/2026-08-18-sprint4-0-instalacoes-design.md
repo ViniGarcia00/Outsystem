@@ -67,6 +67,10 @@ Instalacao.responsavelAtual  String?   // texto livre, OPCIONAL
 InstalacaoRegistro.responsavel String  // texto livre, OBRIGATÓRIO
 ```
 
+> **Superado na Sprint 4.1 (ADR-0408):** o responsável passou a ser vínculo com o
+> cadastro de Técnicos, mais snapshot no registro. Ver
+> `docs/superpowers/specs/2026-08-20-tecnicos-design.md`.
+
 Exemplos de conteúdo: `Carlos`, `Bruno`, `Vinicius`. Digitado à mão.
 
 **O ponto conceitual que precisa ficar registrado:** o nome é um **snapshot
@@ -92,6 +96,10 @@ Consequências práticas nesta Sprint:
 - não há validação de "responsável existe", porque não há cadastro;
 - `InstalacaoRegistro.responsavel` é obrigatório e validado apenas como texto
   não-vazio (`trim().length > 0`).
+
+> **Superado na Sprint 4.1 (ADR-0408):** o responsável passou a ser vínculo com o
+> cadastro de Técnicos, mais snapshot no registro. Ver
+> `docs/superpowers/specs/2026-08-20-tecnicos-design.md`.
 
 **Sem autenticação, sem login, sem usuários** — a spec é explícita (§16).
 
@@ -352,6 +360,8 @@ model Instalacao {
 
   /// Texto livre (D1). Snapshot histórico — nunca vira FK.
   responsavelAtual String?
+  // Superado na Sprint 4.1 (ADR-0408): vira tecnicoResponsavelId (FK). Ver
+  // docs/superpowers/specs/2026-08-20-tecnicos-design.md.
 
   nomeProjeto String
   status      StatusInstalacao @default(A_AGENDAR)
@@ -394,6 +404,8 @@ model InstalacaoRegistro {
 
   /// Texto livre OBRIGATÓRIO (D1). Snapshot histórico — nunca vira FK.
   responsavel String
+  // Superado na Sprint 4.1 (ADR-0408): vira tecnicoId (FK) + responsavelNome
+  // (snapshot). Ver docs/superpowers/specs/2026-08-20-tecnicos-design.md.
 
   relatorio String @db.Text
 
