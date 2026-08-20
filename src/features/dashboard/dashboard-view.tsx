@@ -132,7 +132,7 @@ export function DashboardView({ dados }: { dados: DashboardDTO }) {
                           {STATUS_INSTALACAO_LABEL[i.status]}
                         </Badge>
                       </td>
-                      <td className="px-4 py-2">{i.responsavelAtual || "—"}</td>
+                      <td className="px-4 py-2">{i.responsavelNome || "—"}</td>
                     </tr>
                   ))}
                 </tbody>

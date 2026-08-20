@@ -46,7 +46,8 @@ export interface ProximaInstalacao {
   /** Sempre presente: instalação sem data agendada não é "próxima". */
   dataAgendada: Date;
   status: StatusInstalacao;
-  responsavelAtual: string | null;
+  /** Nome do Técnico responsável (ADR-0408). Nulo quando não há responsável. */
+  responsavelNome: string | null;
 }
 
 export interface DashboardDTO {

@@ -23,7 +23,7 @@ function proxima(
     clienteNome: `Cliente ${numero}`,
     dataAgendada: dia(data),
     status: "AGENDADA",
-    responsavelAtual: "Carlos",
+    responsavelNome: "Carlos",
     ...extra,
   };
 }
@@ -197,7 +197,7 @@ describe("montarDashboard — estado vazio", () => {
       candidatasProximas: [
         proxima(1008, "2026-08-22", {
           clienteNome: "João da Silva",
-          responsavelAtual: "Carlos",
+          responsavelNome: "Carlos",
         }),
       ],
     });
@@ -205,9 +205,11 @@ describe("montarDashboard — estado vazio", () => {
       numero: 1008,
       clienteNome: "João da Silva",
       status: "AGENDADA",
-      responsavelAtual: "Carlos",
+      responsavelNome: "Carlos",
     });
     // Não depende de nomeProjeto — o campo saiu na Sprint 4.0.3.
     expect(dto.proximas[0]).not.toHaveProperty("nomeProjeto");
+    // O nome vem do cadastro de Técnicos (ADR-0408); o DTO só transporta.
+    expect(dto.proximas[0]).not.toHaveProperty("responsavelAtual");
   });
 });

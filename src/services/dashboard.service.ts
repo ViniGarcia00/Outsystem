@@ -59,7 +59,7 @@ export async function getDashboard(): Promise<DashboardDTO> {
         numero: true,
         dataAgendada: true,
         status: true,
-        responsavelAtual: true,
+        tecnicoResponsavel: { select: { nome: true } },
         cliente: { select: { tipoPessoa: true, nome: true, empresa: true } },
       },
       orderBy: { dataAgendada: "asc" },
@@ -83,7 +83,7 @@ export async function getDashboard(): Promise<DashboardDTO> {
       // O `where` garante que não é nulo; o tipo do Prisma não sabe disso.
       dataAgendada: i.dataAgendada as Date,
       status: i.status as StatusInstalacao,
-      responsavelAtual: i.responsavelAtual,
+      responsavelNome: i.tecnicoResponsavel?.nome ?? null,
     })),
     inicioDeHoje,
   });
