@@ -74,7 +74,6 @@ export function InstalacaoWorkspace({
 
   const readOnly = status === "CANCELADA";
 
-
   const form = useForm<CabecalhoInstalacaoValues>({
     resolver: zodResolver(cabecalhoInstalacaoSchema),
     defaultValues: {

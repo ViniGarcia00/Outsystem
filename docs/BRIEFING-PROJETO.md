@@ -88,7 +88,7 @@ src/
   services/       cliente · produto · vendedor · tecnico · configuracao · logo · diagnostics ·
                   proposta · proposta-conteudo · proposta-pdf (+ mapper)
   lib/ utils/ types/ hooks/ generated/prisma (não versionado)
-prisma/           schema · 11 migrations · seed
+prisma/           schema · 17 migrations · seed
 public/templates/ presentation/*.png (10 slides) · contrato/*.docx
 scripts/          db/bootstrap.sql · db/validate-crud.ts · marcar-template-contrato.mjs
 e2e/              smoke.spec.ts
@@ -165,7 +165,7 @@ endereço, contatos (telefone, WhatsApp, e-mail, site), identidade visual (logo 
 upload real, cores) e textos institucionais. É o ponto único de expansão de
 configuração, sem alteração estrutural de camadas.
 
-11 migrations aplicadas, da inicial (`20260706000000_init`) até
+17 migrations aplicadas, da inicial (`20260706000000_init`) até
 `20260708000000_servicos_complementares`.
 
 ---

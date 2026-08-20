@@ -1137,6 +1137,10 @@ Sprint de refinamento (escopo estrito):
   existente, sem tocar em nada do Comercial. A Sprint 4.0.2 acrescenta cronologia
   e custos sobre esta fundação, quando entram `InstalacaoRegistro` e
   `InstalacaoCusto`.
+- **Atualização (Sprint 4.1 — ADR-0408):** o bullet "Responsável é TEXTO
+  LIVRE" foi **superado parcialmente** — o responsável passa a ser vínculo com
+  o novo cadastro de Técnicos (`tecnicoResponsavelId`). Todo o resto deste ADR
+  continua valendo integralmente.
 
 ---
 
@@ -1207,6 +1211,10 @@ Sprint de refinamento (escopo estrito):
   Nenhuma entidade, FK, cadastro ou login foi criado.
 - **Consequência:** o módulo de Instalações fecha em **1.2.0**. Os próximos
   ciclos são Pedido de Venda e Ordem de Serviço, ambos ainda sem design.
+- **Atualização (Sprint 4.1 — ADR-0408):** o bullet "Responsável do registro
+  continua texto livre e obrigatório" foi **superado parcialmente** — o
+  registro passa a ter `tecnicoId` (FK) mais `responsavelNome` (snapshot
+  histórico). Todo o resto deste ADR continua valendo integralmente.
 
 ### ADR-0402 — Busca sem acento: fonte única compartilhada e filtro em memória
 

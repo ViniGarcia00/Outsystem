@@ -34,8 +34,6 @@ export interface TecnicoOption {
   label: string;
 }
 
-export { CANNOT_DELETE_USED_IN_INSTALACOES };
-
 export async function listTecnicos(
   showInactive: boolean,
 ): Promise<TecnicoListItem[]> {

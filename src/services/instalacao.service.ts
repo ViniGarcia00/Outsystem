@@ -32,7 +32,6 @@ import {
  */
 
 export type { StatusInstalacao };
-export type { TecnicoOption };
 
 export interface InstalacaoListItem {
   id: string;

@@ -45,7 +45,7 @@ src/
   app/                       # Rotas (App Router) — 1 pasta por menu
     dashboard/ propostas/ clientes/ produtos/ vendedores/ tecnicos/ configuracoes/
     layout.tsx               # ThemeProvider + TooltipProvider + AppShell
-    page.tsx                 # redireciona "/" -> "/dashboard"
+    page.tsx                 # redireciona "/" -> "/propostas"
     globals.css              # Tailwind v4 + tokens shadcn (light/dark)
 
   components/
@@ -106,6 +106,7 @@ Prisma 7 com o generator `prisma-client` (saída em `src/generated/prisma`) e
 | `Cliente`             | `clientes`              | Cadastro base                                    |
 | `Produto`             | `produtos`              | Cadastro base                                    |
 | `Vendedor`            | `vendedores`            | Cadastro base                                    |
+| `Tecnico`             | `tecnicos`              | Cadastro base                                    |
 | `Proposta`            | `propostas`             | Raiz (`proposalNumber` único, `currentRevisionId`, enum `modelo`) |
 | `PropostaRevisao`     | `proposta_revisoes`     | Versões (`revisionNumber` inteiro, único por proposta) |
 | `PropostaSecao`       | `proposta_secoes`       | **Agrupador neutro de itens** (ver abaixo)       |
@@ -116,7 +117,6 @@ Prisma 7 com o generator `prisma-client` (saída em `src/generated/prisma`) e
 | `InstalacaoAuditoria` | `instalacao_auditorias` | Trilha técnica da instalação                     |
 | `InstalacaoRegistro`  | `instalacao_registros`  | Acontecimento da cronologia operacional          |
 | `InstalacaoCusto`     | `instalacao_custos`     | Custo extra do acontecimento (`Decimal(12,2)`)   |
-| `Tecnico`             | `tecnicos`              | Cadastro base                                    |
 | `ConfiguracaoSistema` | `configuracao_sistema`  | **Singleton** de configuração                    |
 
 ### Hierarquia da proposta
