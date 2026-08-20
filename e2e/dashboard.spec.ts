@@ -27,6 +27,16 @@ async function criarCliente(page: Page, rotulo: string): Promise<string> {
   return nome;
 }
 
+/** Cria um técnico exclusivo do cenário e devolve o nome. */
+async function criarTecnico(page: Page, rotulo: string): Promise<string> {
+  const nome = `E2E Tecnico ${rotulo} ${Date.now()}`;
+  await page.goto("/tecnicos/novo");
+  await page.getByLabel("Nome", { exact: true }).fill(nome);
+  await page.getByRole("button", { name: "Salvar" }).click();
+  await expect(page).toHaveURL(/\/tecnicos$/);
+  return nome;
+}
+
 test("Dashboard: cards de Comercial, Instalações e Custos", async ({ page }) => {
   await page.goto("/dashboard");
   await expect(
@@ -68,11 +78,13 @@ test("Dashboard: instalação agendada aparece em Próximas Instalações", asyn
   page,
 }) => {
   const clienteNome = await criarCliente(page, "Dashboard Cliente");
+  const tecnico = await criarTecnico(page, "Dashboard");
 
   await page.goto("/instalacoes/nova");
   await page.getByLabel("Cliente", { exact: true }).fill(clienteNome);
   await page.getByRole("option", { name: clienteNome }).click();
-  await page.getByLabel("Responsável atual").fill("Carlos");
+  await page.getByLabel("Responsável atual", { exact: true }).click();
+  await page.getByRole("option", { name: tecnico, exact: true }).click();
   await page.getByLabel("Data agendada").fill(daquiADias(3));
   await page.getByLabel("Status").click();
   await page.getByRole("option", { name: "Agendada", exact: true }).click();
@@ -92,7 +104,7 @@ test("Dashboard: instalação agendada aparece em Próximas Instalações", asyn
   const linha = page.getByRole("row").filter({ hasText: clienteNome });
   await expect(linha).toBeVisible();
   await expect(linha).toContainText("Agendada");
-  await expect(linha).toContainText("Carlos");
+  await expect(linha).toContainText(tecnico);
   await expect(linha).toContainText(/\d{2}\/\d{2}\/\d{4}/);
 
   // O número é link para o workspace, mesmo padrão da listagem (ADR-0404).
@@ -100,4 +112,9 @@ test("Dashboard: instalação agendada aparece em Próximas Instalações", asyn
   await expect(link).toBeVisible();
   await link.click();
   await expect(page).toHaveURL(/\/instalacoes\/(?!nova$)[^/]+$/);
+
+  await page.goto("/dashboard");
+  await expect(
+    page.getByRole("row").filter({ hasText: String(numero) }),
+  ).toContainText(tecnico);
 });

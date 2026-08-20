@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 /**
  * Smoke de Instalações (Sprint 4.0.1; atualizado na 4.0.3).
@@ -36,6 +36,33 @@ async function criarCliente(
   return nome;
 }
 
+/** Cria um técnico exclusivo do cenário e devolve o nome. */
+async function criarTecnico(page: Page, rotulo: string): Promise<string> {
+  const nome = `E2E Tecnico ${rotulo} ${Date.now()}`;
+  await page.goto("/tecnicos/novo");
+  await page.getByLabel("Nome", { exact: true }).fill(nome);
+  await page.getByRole("button", { name: "Salvar" }).click();
+  await expect(page).toHaveURL(/\/tecnicos$/);
+  return nome;
+}
+
+/**
+ * Escolhe um técnico em um `Select` de responsável já visível na tela.
+ *
+ * `escopo` restringe a BUSCA DO CAMPO (ex.: o diálogo do registro). As OPÇÕES
+ * do Radix são renderizadas em portal, na raiz do documento, e por isso são
+ * sempre procuradas a partir da `page`.
+ */
+async function escolherTecnico(
+  page: Page,
+  campo: "Responsável atual" | "Responsável",
+  nome: string,
+  escopo: Page | Locator = page,
+): Promise<void> {
+  await escopo.getByLabel(campo, { exact: true }).click();
+  await page.getByRole("option", { name: nome, exact: true }).click();
+}
+
 /** Monta uma instalação para o cliente e devolve o caminho da instalação. */
 async function criarInstalacao(
   page: Page,
@@ -46,7 +73,7 @@ async function criarInstalacao(
   await page.getByLabel("Cliente", { exact: true }).fill(clienteNome);
   await page.getByRole("option", { name: clienteNome }).click();
   if (responsavel) {
-    await page.getByLabel("Responsável atual").fill(responsavel);
+    await escolherTecnico(page, "Responsável atual", responsavel);
   }
   await page.getByRole("button", { name: "Salvar" }).click();
   await expect(page).toHaveURL(/\/instalacoes\/(?!nova$)[^/]+$/);
@@ -62,6 +89,7 @@ test("Instalações: criar, conferir snapshot, mudar status e concluir", async (
     bairro: "Barcelona",
     cidade: "São Caetano do Sul",
   });
+  const tecnico = await criarTecnico(page, "Round Trip");
 
   await page.goto("/instalacoes");
   await expect(
@@ -87,14 +115,16 @@ test("Instalações: criar, conferir snapshot, mudar status e concluir", async (
     page.getByText("Avenida Goiás, 1860 · Barcelona · São Caetano do Sul"),
   ).toHaveCount(0);
 
-  await page.getByLabel("Responsável atual").fill("Carlos");
+  await escolherTecnico(page, "Responsável atual", tecnico);
   await page.getByRole("button", { name: "Salvar" }).click();
 
   await expect(page).toHaveURL(/\/instalacoes\/(?!nova$)[^/]+$/);
   const instalacaoPath = new URL(page.url()).pathname;
 
-  // Round-trip: responsável é texto livre e o endereço persistiu.
-  await expect(page.getByLabel("Responsável atual")).toHaveValue("Carlos");
+  // Round-trip: responsável foi persistido e o endereço também.
+  await expect(
+    page.getByRole("combobox", { name: "Responsável atual" }),
+  ).toContainText(tecnico);
   await expect(page.getByLabel("Cidade")).toHaveValue("São Caetano do Sul");
 
   // O status é lido pelo trigger do Select (role combobox): o <option> nativo
@@ -236,7 +266,7 @@ async function criarRegistro(
   await dialog.getByLabel("Tipo").click();
   await page.getByRole("option", { name: dados.tipo, exact: true }).click();
   await dialog.getByLabel("Data e hora").fill(dados.aconteceuEm);
-  await dialog.getByLabel("Responsável").fill(dados.responsavel);
+  await escolherTecnico(page, "Responsável", dados.responsavel, dialog);
   await dialog.getByLabel("Relatório").fill(dados.relatorio);
 
   for (const custo of dados.custos ?? []) {
@@ -258,12 +288,18 @@ test("Instalações: cronologia completa — registros, custos, ordem e exclusã
 }) => {
   const clienteNome = await criarCliente(page, "Cronologia Cliente");
   const instalacaoPath = await criarInstalacao(page, clienteNome);
+  const carlos = await criarTecnico(page, "Cronologia Carlos");
+  const bruno = await criarTecnico(page, "Cronologia Bruno");
+  const vinicius = await criarTecnico(page, "Cronologia Vinicius");
+
+  // Criar os técnicos navega para /tecnicos — volta ao workspace da instalação.
+  await page.goto(instalacaoPath);
 
   // 3. Visita ao cliente, com um custo de deslocamento.
   await criarRegistro(page, {
     tipo: "Visita ao cliente",
     aconteceuEm: "2026-08-15T10:00",
-    responsavel: "Carlos",
+    responsavel: carlos,
     relatorio: "Realizada vistoria inicial. Cliente pediu mudanca de dois pontos.",
     custos: [{ categoria: "Deslocamento", valor: "8000" }],
   });
@@ -272,7 +308,7 @@ test("Instalações: cronologia completa — registros, custos, ordem e exclusã
   await criarRegistro(page, {
     tipo: "Material comprado",
     aconteceuEm: "2026-08-16T15:20",
-    responsavel: "Bruno",
+    responsavel: bruno,
     relatorio: "Comprados dois modulos adicionais para a alteracao pedida.",
     custos: [
       { categoria: "Material", valor: "34000" },
@@ -284,7 +320,7 @@ test("Instalações: cronologia completa — registros, custos, ordem e exclusã
   await criarRegistro(page, {
     tipo: "Alteração de escopo",
     aconteceuEm: "2026-08-17T09:00",
-    responsavel: "Vinicius",
+    responsavel: vinicius,
     relatorio: "Confirmada a inclusao dos dois novos pontos.",
   });
 
@@ -295,9 +331,9 @@ test("Instalações: cronologia completa — registros, custos, ordem e exclusã
   await expect(cards).toHaveCount(3);
 
   // 7. Os três responsáveis aparecem.
-  await expect(page.getByText("Responsável: Carlos")).toBeVisible();
-  await expect(page.getByText("Responsável: Bruno")).toBeVisible();
-  await expect(page.getByText("Responsável: Vinicius")).toBeVisible();
+  await expect(page.getByText(`Responsável: ${carlos}`)).toBeVisible();
+  await expect(page.getByText(`Responsável: ${bruno}`)).toBeVisible();
+  await expect(page.getByText(`Responsável: ${vinicius}`)).toBeVisible();
 
   // 8. Total acumulado: 80 + (340 + 35) + 0 = 455.
   await expect(page.getByText("R$ 455,00")).toBeVisible();
@@ -306,7 +342,7 @@ test("Instalações: cronologia completa — registros, custos, ordem e exclusã
   await criarRegistro(page, {
     tipo: "Atualização interna",
     aconteceuEm: "2026-08-05T08:30",
-    responsavel: "Carlos",
+    responsavel: carlos,
     relatorio: "Vistoria antiga, cadastrada depois.",
   });
   await page.goto(instalacaoPath);
@@ -344,18 +380,23 @@ test("Instalações: edição de registro substitui os custos, não duplica", as
 }) => {
   const clienteNome = await criarCliente(page, "Edicao Cliente");
   const instalacaoPath = await criarInstalacao(page, clienteNome);
+  const carlos = await criarTecnico(page, "Edicao Carlos");
+  const bruno = await criarTecnico(page, "Edicao Bruno");
+
+  // Criar os técnicos navega para /tecnicos — volta ao workspace da instalação.
+  await page.goto(instalacaoPath);
 
   await criarRegistro(page, {
     tipo: "Visita ao cliente",
     aconteceuEm: "2026-08-15T10:00",
-    responsavel: "Carlos",
+    responsavel: carlos,
     relatorio: "Relatorio original.",
     custos: [{ categoria: "Deslocamento", valor: "8000" }],
   });
   await criarRegistro(page, {
     tipo: "Material comprado",
     aconteceuEm: "2026-08-16T15:20",
-    responsavel: "Bruno",
+    responsavel: bruno,
     relatorio: "Compra de modulos.",
     custos: [
       { categoria: "Material", valor: "34000" },
@@ -370,12 +411,12 @@ test("Instalações: edição de registro substitui os custos, não duplica", as
   const visita = page.getByTestId("registro-card").filter({ hasText: "Visita ao cliente" });
   await visita.getByRole("button", { name: "Editar" }).click();
   let dialog = page.getByRole("dialog");
-  await dialog.getByLabel("Relatório").fill("Relatorio corrigido pelo Carlos.");
+  await dialog.getByLabel("Relatório").fill(`Relatorio corrigido pelo ${carlos}.`);
   await dialog.getByRole("button", { name: "Salvar" }).click();
   await expect(dialog).toBeHidden();
 
   await page.goto(instalacaoPath);
-  await expect(page.getByText("Relatorio corrigido pelo Carlos.")).toBeVisible();
+  await expect(page.getByText(`Relatorio corrigido pelo ${carlos}.`)).toBeVisible();
 
   // 14. Editar os CUSTOS: 340 vira 300. Total 455 -> 415.
   // Se a edição fizesse append em vez de substituir, o total SUBIRIA para 795.
@@ -398,4 +439,112 @@ test("Instalações: edição de registro substitui os custos, não duplica", as
       .getByTestId("registro-card")
       .filter({ hasText: "Material comprado" }),
   ).toContainText("R$ 335,00");
+});
+
+// ---------------------------------------------------------------------------
+// Vínculo com Técnico (Sprint 4.1)
+// ---------------------------------------------------------------------------
+
+test("Instalações: técnico inativado some das opções novas mas continua no vínculo existente", async ({
+  page,
+}) => {
+  const cliente = await criarCliente(page, "Inativo Cliente");
+  const tecnico = await criarTecnico(page, "Sera Inativado");
+
+  await page.goto("/instalacoes/nova");
+  await page.getByLabel("Cliente", { exact: true }).fill(cliente);
+  await page.getByRole("option", { name: cliente }).click();
+  await escolherTecnico(page, "Responsável atual", tecnico);
+  await page.getByRole("button", { name: "Salvar" }).click();
+  await expect(page).toHaveURL(/\/instalacoes\/(?!nova$)[^/]+$/);
+  const instalacaoPath = new URL(page.url()).pathname;
+
+  // Inativa o técnico DEPOIS de vinculado.
+  await page.goto("/tecnicos");
+  await page.getByRole("searchbox", { name: "Buscar" }).fill(tecnico);
+  await page.getByRole("button", { name: "Ações" }).click();
+  await page.getByRole("menuitem", { name: "Inativar" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Inativar" }).click();
+
+  // 1) A instalação EXISTENTE continua exibindo o técnico, rotulado.
+  await page.goto(instalacaoPath);
+  await expect(
+    page.getByRole("combobox", { name: "Responsável atual" }),
+  ).toContainText(tecnico);
+  await expect(
+    page.getByRole("combobox", { name: "Responsável atual" }),
+  ).toContainText("(inativo)");
+
+  // 2) Em uma instalação NOVA, ele não é oferecido.
+  await page.goto("/instalacoes/nova");
+  await page.getByLabel("Responsável atual").click();
+  await expect(page.getByRole("option", { name: tecnico, exact: true })).toHaveCount(0);
+});
+
+test("Instalações: renomear o técnico NÃO reescreve a cronologia; trocar o responsável, sim", async ({
+  page,
+}) => {
+  const cliente = await criarCliente(page, "Snapshot Nome Cliente");
+  const carlos = await criarTecnico(page, "Carlos");
+  const bruno = await criarTecnico(page, "Bruno");
+
+  await page.goto("/instalacoes/nova");
+  await page.getByLabel("Cliente", { exact: true }).fill(cliente);
+  await page.getByRole("option", { name: cliente }).click();
+  await escolherTecnico(page, "Responsável atual", carlos);
+  await page.getByRole("button", { name: "Salvar" }).click();
+  await expect(page).toHaveURL(/\/instalacoes\/(?!nova$)[^/]+$/);
+  const instalacaoPath = new URL(page.url()).pathname;
+
+  // 1. Registro criado com o técnico "Carlos".
+  await criarRegistro(page, {
+    tipo: "Visita ao cliente",
+    aconteceuEm: "2026-08-15T10:00",
+    responsavel: carlos,
+    relatorio: "Relatorio original.",
+  });
+  await page.goto(instalacaoPath);
+  await expect(page.getByText(`Responsável: ${carlos}`)).toBeVisible();
+
+  // 2. Cadastro renomeado.
+  const carlosRenomeado = `${carlos} Almeida`;
+  await page.goto("/tecnicos");
+  await page.getByRole("searchbox", { name: "Buscar" }).fill(carlos);
+  await page.getByRole("button", { name: "Ações" }).click();
+  await page.getByRole("menuitem", { name: "Editar" }).click();
+  await expect(page.getByLabel("Nome", { exact: true })).toHaveValue(carlos);
+  await page.getByLabel("Nome", { exact: true }).fill(carlosRenomeado);
+  await page.getByRole("button", { name: "Salvar" }).click();
+  await expect(page).toHaveURL(/\/tecnicos$/);
+
+  // 3. Edita SÓ o relatório do registro.
+  await page.goto(instalacaoPath);
+  await page.getByTestId("registro-card").getByRole("button", { name: "Editar" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Relatório").fill("Relatorio corrigido, mesmo responsavel.");
+  await dialog.getByRole("button", { name: "Salvar" }).click();
+  await expect(dialog).toBeHidden();
+
+  // 4. O card mantém o nome ANTIGO — o snapshot não foi reescrito.
+  await page.goto(instalacaoPath);
+  await expect(page.getByText("Relatorio corrigido, mesmo responsavel.")).toBeVisible();
+  await expect(page.getByText(`Responsável: ${carlos}`, { exact: true })).toBeVisible();
+  await expect(page.getByText(`Responsável: ${carlosRenomeado}`)).toHaveCount(0);
+
+  // ...enquanto o cabeçalho, que é estado CORRENTE, já mostra o nome novo.
+  await expect(
+    page.getByRole("combobox", { name: "Responsável atual" }),
+  ).toContainText(carlosRenomeado);
+
+  // 5. Edita de novo, TROCANDO o responsável.
+  await page.getByTestId("registro-card").getByRole("button", { name: "Editar" }).click();
+  const dialog2 = page.getByRole("dialog");
+  await escolherTecnico(page, "Responsável", bruno, dialog2);
+  await dialog2.getByRole("button", { name: "Salvar" }).click();
+  await expect(dialog2).toBeHidden();
+
+  // 6. Agora sim o snapshot mudou — foi alteração explícita do fato.
+  await page.goto(instalacaoPath);
+  await expect(page.getByText(`Responsável: ${bruno}`)).toBeVisible();
+  await expect(page.getByText(`Responsável: ${carlos}`, { exact: true })).toHaveCount(0);
 });
