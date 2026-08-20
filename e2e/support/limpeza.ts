@@ -28,6 +28,8 @@ import { Client } from "pg";
 const MARCADOR_CLIENTE = "E2E %";
 /** Produto criado por teste: `E2E-{rótulo}-{timestamp}-{seq}`. */
 const MARCADOR_PRODUTO = "E2E-%";
+/** Técnico criado por teste: `E2E Tecnico {timestamp}`. */
+const MARCADOR_TECNICO = "E2E %";
 
 export interface ContagemResiduos {
   clientes: number;
@@ -36,6 +38,7 @@ export interface ContagemResiduos {
   instalacoes: number;
   registros: number;
   custos: number;
+  tecnicos: number;
 }
 
 export interface ResultadoLimpeza {
@@ -106,8 +109,9 @@ async function contar(client: Client): Promise<ContagemResiduos> {
           WHERE "registroId" IN (
             SELECT id FROM instalacao_registros
              WHERE "instalacaoId" IN (${INSTALACOES_E2E})
-          )) AS custos`,
-    [MARCADOR_CLIENTE, MARCADOR_PRODUTO],
+          )) AS custos,
+       (SELECT count(*) FROM tecnicos WHERE nome LIKE $3) AS tecnicos`,
+    [MARCADOR_CLIENTE, MARCADOR_PRODUTO, MARCADOR_TECNICO],
   );
   const r = rows[0];
   return {
@@ -117,6 +121,7 @@ async function contar(client: Client): Promise<ContagemResiduos> {
     instalacoes: Number(r.instalacoes),
     registros: Number(r.registros),
     custos: Number(r.custos),
+    tecnicos: Number(r.tecnicos),
   };
 }
 
@@ -125,6 +130,7 @@ async function contar(client: Client): Promise<ContagemResiduos> {
  *
  *   Instalacao.propostaId    → Restrict  ⇒ instalações antes de propostas
  *   PropostaItem.produtoId   → Restrict  ⇒ itens antes de produtos
+ *   Tecnico → Restrict       ⇒ técnicos por último
  *
  * `propostas.currentRevisionId` aponta para `proposta_revisoes`; o vínculo é
  * zerado antes de apagar as revisões, senão a FK bloqueia.
@@ -199,6 +205,11 @@ async function apagar(client: Client): Promise<void> {
   // ── Cadastros base ──────────────────────────────────────────────────────
   await client.query(`DELETE FROM produtos WHERE codigo LIKE $1`, p);
   await client.query(`DELETE FROM clientes WHERE nome LIKE $1`, c);
+
+  // ── Técnicos ────────────────────────────────────────────────────────────
+  // Por ÚLTIMO: `Instalacao.tecnicoResponsavelId` e `InstalacaoRegistro.tecnicoId`
+  // são Restrict — instalações e registros precisam ter saído antes.
+  await client.query(`DELETE FROM tecnicos WHERE nome LIKE $1`, [MARCADOR_TECNICO]);
 }
 
 /**

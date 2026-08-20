@@ -177,6 +177,7 @@ test("navegação principal entre os módulos", async ({ page }) => {
     "Propostas",
     "Instalações",
     "Vendedores",
+    "Técnicos",
     "Configurações",
   ]);
 
@@ -184,6 +185,7 @@ test("navegação principal entre os módulos", async ({ page }) => {
     ["Clientes", "/clientes"],
     ["Produtos", "/produtos"],
     ["Vendedores", "/vendedores"],
+    ["Técnicos", "/tecnicos"],
     ["Configurações", "/configuracoes"],
     ["Instalações", "/instalacoes"],
     ["Dashboard", "/dashboard"],

@@ -1,5 +1,6 @@
 import {
   FileText,
+  HardHat,
   LayoutDashboard,
   Package,
   Settings,
@@ -15,8 +16,9 @@ import type { NavItem } from "@/types";
  *
  * A ordem é deliberada (Sprint 4.0.3) e travada por teste: o Dashboard abre,
  * depois vêm os cadastros que alimentam uma proposta (Cliente e Produto), então
- * o fluxo comercial (Propostas) e o operacional (Instalações), e por fim
- * Vendedores e Configurações.
+ * o fluxo comercial (Propostas) e o operacional (Instalações), depois os
+ * cadastros de pessoas que aparecem neles (Vendedores e Técnicos) e por fim
+ * Configurações.
  *
  * A home da aplicação (`/`) continua abrindo Propostas.
  */
@@ -27,5 +29,6 @@ export const mainNavigation: NavItem[] = [
   { title: "Propostas", href: "/propostas", icon: FileText },
   { title: "Instalações", href: "/instalacoes", icon: Wrench },
   { title: "Vendedores", href: "/vendedores", icon: UserSquare },
+  { title: "Técnicos", href: "/tecnicos", icon: HardHat },
   { title: "Configurações", href: "/configuracoes", icon: Settings },
 ];

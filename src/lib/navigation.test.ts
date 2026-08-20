@@ -13,6 +13,7 @@ const ORDEM_ESPERADA = [
   "Propostas",
   "Instalações",
   "Vendedores",
+  "Técnicos",
   "Configurações",
 ];
 
@@ -21,8 +22,8 @@ describe("mainNavigation", () => {
     expect(mainNavigation.map((i) => i.title)).toEqual(ORDEM_ESPERADA);
   });
 
-  it("tem exatamente sete itens — nenhum grupo ou submenu novo", () => {
-    expect(mainNavigation).toHaveLength(7);
+  it("tem exatamente oito itens — nenhum grupo ou submenu novo", () => {
+    expect(mainNavigation).toHaveLength(8);
   });
 
   it("preserva as rotas de cada item", () => {
@@ -35,6 +36,7 @@ describe("mainNavigation", () => {
       Propostas: "/propostas",
       Instalações: "/instalacoes",
       Vendedores: "/vendedores",
+      Técnicos: "/tecnicos",
       Configurações: "/configuracoes",
     });
   });
