@@ -528,7 +528,7 @@ model Instalacao {
   tecnicoResponsavelId String?
   tecnicoResponsavel   Tecnico? @relation(fields: [tecnicoResponsavelId], references: [id], onDelete: Restrict)
 
-  /// Texto livre. Snapshot histórico de quem acompanha — NUNCA vira FK.
+  /// DEPRECADO — sai na migration `tecnicos_drop_texto`. Nenhum código novo lê.
   responsavelAtual String?
 
   status StatusInstalacao @default(A_AGENDAR)
@@ -594,16 +594,19 @@ model InstalacaoRegistro {
   aconteceuEm DateTime
 
   /// Quem executou/acompanhou. RESTRICT: técnico usado nunca é apagado.
-  tecnicoId String?
-  tecnico   Tecnico? @relation(fields: [tecnicoId], references: [id], onDelete: Restrict)
+  tecnicoId String
+  tecnico   Tecnico @relation(fields: [tecnicoId], references: [id], onDelete: Restrict)
 
   /// Snapshot do nome do Técnico no momento em que ELE foi atribuído a este
   /// registro. Derivado NO SERVICE a partir do Tecnico persistido — nunca
-  /// recebido do navegador. Vira obrigatório na Migration B.
-  responsavelNome String?
+  /// recebido do navegador (mesma regra do endereço, ADR-0400).
+  ///
+  /// NÃO é reescrito em edição comum: só quando o `tecnicoId` muda. Ver §6.2 da
+  /// spec e o ADR-0408.
+  responsavelNome String
 
-  /// Texto livre OBRIGATÓRIO. Snapshot histórico — NUNCA vira FK.
-  responsavel String
+  /// DEPRECADO — sai na migration `tecnicos_drop_texto`. Nenhum código novo lê.
+  responsavel String?
 
   relatorio String @db.Text
 
