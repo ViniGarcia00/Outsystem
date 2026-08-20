@@ -228,6 +228,7 @@ export function InstalacaoWorkspace({
               instalacaoId={data.id}
               registros={data.registros}
               readOnly={readOnly}
+              tecnicos={tecnicos}
             />
           </section>
 

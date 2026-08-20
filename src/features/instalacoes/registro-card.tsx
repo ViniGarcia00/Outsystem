@@ -21,6 +21,9 @@ import { CATEGORIA_CUSTO_LABEL, TIPO_REGISTRO_LABEL } from "./labels";
  *
  * Todos os botões são `type="button"`: o card vive dentro do `<form>` do
  * workspace e um `type` ausente submeteria o cabeçalho da instalação.
+ *
+ * O responsável exibido é `responsavelNome`, o SNAPSHOT — não o nome atual do
+ * Técnico. Renomear o cadastro não reescreve um fato já registrado (ADR-0408).
  */
 export function RegistroCard({
   registro,
@@ -49,7 +52,7 @@ export function RegistroCard({
               </Badge>
             </div>
             <p className="text-sm text-muted-foreground">
-              Responsável: {registro.responsavel}
+              Responsável: {registro.responsavelNome}
             </p>
           </div>
 

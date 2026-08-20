@@ -9,6 +9,7 @@ import { PageEmpty } from "@/components/app";
 import { ConfirmDialog } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import type { RegistroDTO } from "@/services/instalacao-registro.service";
+import type { TecnicoOption } from "@/services/tecnico.service";
 
 import { RegistroCard } from "./registro-card";
 import {
@@ -29,10 +30,12 @@ export function Cronologia({
   instalacaoId,
   registros,
   readOnly,
+  tecnicos,
 }: {
   instalacaoId: string;
   registros: RegistroDTO[];
   readOnly: boolean;
+  tecnicos: TecnicoOption[];
 }) {
   const router = useRouter();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -119,6 +122,7 @@ export function Cronologia({
         registro={emEdicao}
         submitting={submitting}
         onConfirm={confirmar}
+        tecnicos={tecnicos}
       />
 
       <ConfirmDialog

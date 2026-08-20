@@ -12,6 +12,9 @@ import { prisma } from "@/infrastructure/database";
  * - NENHUM total é persistido: o cálculo é do módulo puro `custos.ts`.
  * - Estas operações NÃO gravam InstalacaoAuditoria (ADR-0401): cronologia
  *   operacional e trilha técnica são mecanismos separados.
+ * - O responsável é VÍNCULO com Tecnico mais SNAPSHOT do nome (ADR-0408). O
+ *   snapshot é derivado aqui dentro, do Tecnico persistido, e só é reescrito
+ *   quando o técnico do registro MUDA — editar o relatório não mexe nele.
  */
 
 export interface CustoDTO {
@@ -25,7 +28,9 @@ export interface RegistroDTO {
   id: string;
   tipo: TipoRegistroInstalacao;
   aconteceuEm: Date;
-  responsavel: string;
+  tecnicoId: string;
+  /** Nome do responsável quando ELE foi atribuído a este registro. */
+  responsavelNome: string;
   relatorio: string;
   createdAt: Date;
   custos: CustoDTO[];
@@ -40,17 +45,36 @@ export interface CustoInput {
 export interface RegistroInput {
   tipo: TipoRegistroInstalacao;
   aconteceuEm: Date;
-  responsavel: string;
+  tecnicoId: string;
   relatorio: string;
   custos: CustoInput[];
 }
 
 export const REGISTRO_NAO_ENCONTRADO = "Registro não encontrado.";
+export const TECNICO_NAO_ENCONTRADO = "Técnico não encontrado.";
 
 /** Mensagem oficial do bloqueio de exclusão (ADR-0401). */
 export const REGISTRO_COM_CUSTOS =
   "Este registro possui custos lançados e não pode ser excluído. " +
   "Edite o registro para corrigir os custos.";
+
+type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
+
+/**
+ * Nome do Técnico PERSISTIDO, lido dentro da transação.
+ *
+ * O nome NUNCA vem do navegador — é a mesma regra do snapshot de endereço
+ * (ADR-0400), e pelo mesmo motivo: uma garantia de integridade não pode depender
+ * do estado de um formulário.
+ */
+async function nomeDoTecnico(tx: Tx, tecnicoId: string): Promise<string> {
+  const t = await tx.tecnico.findUnique({
+    where: { id: tecnicoId },
+    select: { nome: true },
+  });
+  if (!t) throw new Error(TECNICO_NAO_ENCONTRADO);
+  return t.nome;
+}
 
 const trimOrNull = (v?: string | null): string | null => {
   const t = v?.trim();
@@ -88,7 +112,8 @@ type LinhaRegistro = {
   id: string;
   tipo: string;
   aconteceuEm: Date;
-  responsavel: string;
+  tecnicoId: string;
+  responsavelNome: string;
   relatorio: string;
   createdAt: Date;
   custos: {
@@ -104,7 +129,8 @@ export function mapRegistro(r: LinhaRegistro): RegistroDTO {
     id: r.id,
     tipo: r.tipo as TipoRegistroInstalacao,
     aconteceuEm: r.aconteceuEm,
-    responsavel: r.responsavel,
+    tecnicoId: r.tecnicoId,
+    responsavelNome: r.responsavelNome,
     relatorio: r.relatorio,
     createdAt: r.createdAt,
     custos: r.custos.map((c) => ({
@@ -132,12 +158,15 @@ export async function criarRegistro(
   input: RegistroInput,
 ): Promise<{ id: string }> {
   return prisma.$transaction(async (tx) => {
+    const responsavelNome = await nomeDoTecnico(tx, input.tecnicoId);
+
     const criado = await tx.instalacaoRegistro.create({
       data: {
         instalacaoId,
         tipo: input.tipo,
         aconteceuEm: input.aconteceuEm,
-        responsavel: input.responsavel.trim(),
+        tecnicoId: input.tecnicoId,
+        responsavelNome,
         relatorio: input.relatorio.trim(),
       },
       select: { id: true },
@@ -166,16 +195,31 @@ export async function atualizarRegistro(
   await prisma.$transaction(async (tx) => {
     const atual = await tx.instalacaoRegistro.findUnique({
       where: { id },
-      select: { id: true },
+      select: { id: true, tecnicoId: true },
     });
     if (!atual) throw new Error(REGISTRO_NAO_ENCONTRADO);
+
+    // A REGRA (ADR-0408): `responsavelNome` é o nome do responsável no momento
+    // em que ELE foi atribuído a este registro — não o nome que o Técnico tinha
+    // na última edição de qualquer campo.
+    //
+    // Corrigir o relatório de um fato antigo NÃO pode reescrever quem constava
+    // como responsável naquele dia. Trocar o responsável, sim: aí o fato
+    // operacional mudou, por decisão explícita de quem editou.
+    //
+    // `undefined` faz o Prisma NÃO tocar na coluna. Não confundir com `null`.
+    const trocouTecnico = atual.tecnicoId !== input.tecnicoId;
+    const responsavelNome = trocouTecnico
+      ? await nomeDoTecnico(tx, input.tecnicoId)
+      : undefined;
 
     await tx.instalacaoRegistro.update({
       where: { id },
       data: {
         tipo: input.tipo,
         aconteceuEm: input.aconteceuEm,
-        responsavel: input.responsavel.trim(),
+        tecnicoId: input.tecnicoId,
+        responsavelNome,
         relatorio: input.relatorio.trim(),
       },
     });

@@ -7,8 +7,10 @@ import { dataHoraDeInput, ehDataHoraDeInputValida } from "./datas";
 /**
  * Schemas do registro da cronologia (Sprint 4.0.2).
  *
- * Responsável é TEXTO LIVRE e OBRIGATÓRIO (ADR-0400/0401): não existe cadastro,
- * então a validação é apenas "não vazio".
+ * Responsável é VÍNCULO com o cadastro de Técnicos e continua OBRIGATÓRIO
+ * (ADR-0408, supersede parcial do ADR-0400/0401). O schema carrega o id; o NOME
+ * jamais trafega pelo formulário — o snapshot `responsavelNome` é derivado no
+ * service, a partir do Tecnico persistido.
  *
  * A data-hora permanece como texto do `<input type="datetime-local">` — a
  * conversão para `Date` é da Server Action, pelo mesmo motivo da 4.0.1:
@@ -55,7 +57,7 @@ export const registroSchema = z.object({
       const d = dataHoraDeInput(v);
       return d !== null && d.getTime() <= Date.now();
     }, "O acontecimento não pode estar no futuro."),
-  responsavel: requiredText("Responsável", 120),
+  tecnicoId: requiredText("Responsável", 40),
   relatorio: requiredText("Relatório", 5000),
   custos: z.array(custoSchema),
 });

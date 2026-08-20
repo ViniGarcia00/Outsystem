@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
 
-import { SelectField, TextField, TextareaField } from "@/components/forms";
+import { SelectField, TextareaField, TextField } from "@/components/forms";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,11 +15,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { RegistroDTO } from "@/services/instalacao-registro.service";
+import type { TecnicoOption } from "@/services/tecnico.service";
 
 import { CustosEditor } from "./custos-editor";
 import { dataHoraParaInput } from "./datas";
 import { TIPO_REGISTRO_LABEL, TIPOS_REGISTRO_ORDER } from "./labels";
 import { registroSchema, type RegistroValues } from "./registro-schema";
+import { TecnicoSelectField } from "./tecnico-select-field";
 
 const TIPO_OPTIONS = TIPOS_REGISTRO_ORDER.map((value) => ({
   value,
@@ -42,19 +44,21 @@ export function RegistroDialog({
   registro,
   submitting,
   onConfirm,
+  tecnicos,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   registro: RegistroDTO | null;
   submitting: boolean;
   onConfirm: (values: RegistroValues) => void;
+  tecnicos: TecnicoOption[];
 }) {
   const form = useForm<RegistroValues>({
     resolver: zodResolver(registroSchema),
     defaultValues: {
       tipo: "VISITA_CLIENTE",
       aconteceuEm: "",
-      responsavel: "",
+      tecnicoId: "",
       relatorio: "",
       custos: [],
     },
@@ -67,7 +71,7 @@ export function RegistroDialog({
     form.reset({
       tipo: registro?.tipo ?? "VISITA_CLIENTE",
       aconteceuEm: dataHoraParaInput(registro?.aconteceuEm ?? new Date()),
-      responsavel: registro?.responsavel ?? "",
+      tecnicoId: registro?.tecnicoId ?? "",
       relatorio: registro?.relatorio ?? "",
       custos:
         registro?.custos.map((c) => ({
@@ -103,10 +107,10 @@ export function RegistroDialog({
                 type="datetime-local"
               />
             </div>
-            <TextField
-              name="responsavel"
+            <TecnicoSelectField
+              name="tecnicoId"
               label="Responsável"
-              placeholder="Ex.: Carlos"
+              options={tecnicos}
             />
             <TextareaField
               name="relatorio"

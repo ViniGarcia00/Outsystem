@@ -5,7 +5,7 @@ import { registroSchema } from "./registro-schema";
 const base = {
   tipo: "VISITA_CLIENTE" as const,
   aconteceuEm: "2026-08-18T10:00",
-  responsavel: "Carlos",
+  tecnicoId: "ckl0000000000000000000001",
   relatorio: "Realizada vistoria inicial.",
   custos: [],
 };
@@ -50,10 +50,18 @@ describe("registroSchema", () => {
     expect(r.success).toBe(false);
   });
 
-  it("REJEITA responsável vazio", () => {
-    expect(
-      registroSchema.safeParse({ ...base, responsavel: "   " }).success,
-    ).toBe(false);
+  it("exige o técnico responsável", () => {
+    expect(registroSchema.safeParse({ ...base, tecnicoId: "" }).success).toBe(
+      false,
+    );
+  });
+
+  it("NÃO aceita mais nome digitado — responsável é vínculo (ADR-0408)", () => {
+    // Um nome enviado pelo formulário precisa ser DESCARTADO no parse: o
+    // snapshot é derivado no service, a partir do Técnico persistido.
+    const r = registroSchema.safeParse({ ...base, responsavel: "Fulano" });
+    expect(r.success).toBe(true);
+    expect(r.success && "responsavel" in r.data).toBe(false);
   });
 
   it("REJEITA relatório vazio", () => {

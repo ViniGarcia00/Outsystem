@@ -200,12 +200,7 @@ export async function getInstalacao(
     estado: i.estado,
     createdAt: i.createdAt,
     updatedAt: i.updatedAt,
-    // `responsavel` (coluna antiga da cronologia) já é nullable no banco desde
-    // a Task 5, mas `mapRegistro` ainda exige string — a Task 7 substitui essa
-    // leitura por tecnicoId/responsavelNome. Até lá, "" é o vazio de sempre.
-    registros: i.registros.map((r) =>
-      mapRegistro({ ...r, responsavel: r.responsavel ?? "" }),
-    ),
+    registros: i.registros.map(mapRegistro),
   };
 }
 
