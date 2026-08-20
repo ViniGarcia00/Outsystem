@@ -212,6 +212,30 @@ model Vendedor {
   @@map("vendedores")
 }
 
+/// Técnico — pessoa que executa ou acompanha o trabalho na Instalação.
+///
+/// NÃO é Vendedor (ADR-0408): um instalador não vende, e reaproveitar aquele
+/// cadastro poluiria o autocomplete da Proposta e distorceria a regra de
+/// exclusão "já foi usado em uma proposta".
+///
+/// NÃO é Usuário: não há login, permissão nem agenda. Quando houver
+/// autenticação, "registrado por" será campo NOVO e aditivo, separado deste
+/// vínculo — o Técnico responde por QUEM FEZ o trabalho, não por quem digitou.
+model Tecnico {
+  id    String  @id @default(cuid())
+  ativo Boolean @default(true)
+  nome  String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  instalacoes Instalacao[]
+  registros   InstalacaoRegistro[]
+
+  @@index([ativo])
+  @@map("tecnicos")
+}
+
 // ---------------------------------------------------------------------------
 // Propostas — hierarquia: Proposta > Revisão > Seção > Item
 // ---------------------------------------------------------------------------
@@ -499,6 +523,11 @@ model Instalacao {
   propostaId String?
   proposta   Proposta? @relation(fields: [propostaId], references: [id], onDelete: Restrict)
 
+  /// Responsável ATUAL — estado corrente, não fato histórico. Renomear o
+  /// Técnico DEVE refletir aqui; por isso não há snapshot textual (ADR-0408).
+  tecnicoResponsavelId String?
+  tecnicoResponsavel   Tecnico? @relation(fields: [tecnicoResponsavelId], references: [id], onDelete: Restrict)
+
   /// Texto livre. Snapshot histórico de quem acompanha — NUNCA vira FK.
   responsavelAtual String?
 
@@ -526,6 +555,7 @@ model Instalacao {
 
   @@index([clienteId])
   @@index([status])
+  @@index([tecnicoResponsavelId])
   @@map("instalacoes")
 }
 
@@ -563,6 +593,15 @@ model InstalacaoRegistro {
   /// históricos são permitidos). A timeline ordena por este campo.
   aconteceuEm DateTime
 
+  /// Quem executou/acompanhou. RESTRICT: técnico usado nunca é apagado.
+  tecnicoId String?
+  tecnico   Tecnico? @relation(fields: [tecnicoId], references: [id], onDelete: Restrict)
+
+  /// Snapshot do nome do Técnico no momento em que ELE foi atribuído a este
+  /// registro. Derivado NO SERVICE a partir do Tecnico persistido — nunca
+  /// recebido do navegador. Vira obrigatório na Migration B.
+  responsavelNome String?
+
   /// Texto livre OBRIGATÓRIO. Snapshot histórico — NUNCA vira FK.
   responsavel String
 
@@ -574,6 +613,7 @@ model InstalacaoRegistro {
   custos InstalacaoCusto[]
 
   @@index([instalacaoId, aconteceuEm])
+  @@index([tecnicoId])
   @@map("instalacao_registros")
 }
 
