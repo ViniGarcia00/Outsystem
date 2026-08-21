@@ -18,6 +18,10 @@ import { registroSchema, type RegistroValues } from "./registro-schema";
  * A conversão da data-hora acontece aqui, não no schema: transformar no Zod
  * faria o tipo de entrada divergir do de saída, e o React Hook Form manipula o
  * de entrada.
+ *
+ * O `instalacaoId` NÃO serve só para `revalidatePath`: ele é repassado ao
+ * service, que condiciona a busca do registro àquela instalação. A action é uma
+ * fronteira pública — a integridade do agregado é garantida no service.
  */
 
 /** Converte a data-hora do formulário; o schema já garantiu o formato. */
@@ -54,7 +58,7 @@ export async function atualizarRegistroAction(
     return fail("Dados inválidos. Verifique os campos destacados.");
   }
   try {
-    await atualizarRegistro(registroId, paraInput(parsed.data));
+    await atualizarRegistro(instalacaoId, registroId, paraInput(parsed.data));
     revalidatePath(`/instalacoes/${instalacaoId}`);
     return ok(undefined);
   } catch (error) {
@@ -67,7 +71,7 @@ export async function excluirRegistroAction(
   registroId: string,
 ): Promise<ActionResult> {
   try {
-    await excluirRegistro(registroId);
+    await excluirRegistro(instalacaoId, registroId);
     revalidatePath(`/instalacoes/${instalacaoId}`);
     return ok(undefined);
   } catch (error) {

@@ -548,3 +548,70 @@ test("Instalações: renomear o técnico NÃO reescreve a cronologia; trocar o r
   await expect(page.getByText(`Responsável: ${bruno}`)).toBeVisible();
   await expect(page.getByText(`Responsável: ${carlos}`, { exact: true })).toHaveCount(0);
 });
+
+test("Instalações: operar na cronologia de uma instalação não toca a outra", async ({
+  page,
+}) => {
+  // Rede de regressão, no nível da interface, para a invariante do agregado
+  // (Sprint 4.1.1): editar ou excluir um registro exige que ele PERTENÇA à
+  // instalação informada.
+  //
+  // O par cruzado (`instalacaoId` de A + `registroId` de B) NÃO é alcançável
+  // pelo navegador — a tela sempre manda o par certo. Quem cobre o caminho
+  // forjado é o teste de integração do service
+  // (`src/services/instalacao-registro.integration.test.ts`), que é onde a
+  // garantia mora. Aqui provamos o lado observável: mexer em A não altera B.
+  const cliente = await criarCliente(page, "Isolamento Cliente");
+  const tecnico = await criarTecnico(page, "Isolamento");
+
+  const instalacaoA = await criarInstalacao(page, cliente);
+  await criarRegistro(page, {
+    tipo: "Visita ao cliente",
+    aconteceuEm: "2026-08-15T10:00",
+    responsavel: tecnico,
+    relatorio: "Registro da instalacao A.",
+  });
+
+  const instalacaoB = await criarInstalacao(page, cliente);
+  await criarRegistro(page, {
+    tipo: "Material comprado",
+    aconteceuEm: "2026-08-16T15:20",
+    responsavel: tecnico,
+    relatorio: "Registro da instalacao B, com custo.",
+    custos: [{ categoria: "Material", valor: "34000" }],
+  });
+
+  // Cada workspace enxerga APENAS a própria cronologia.
+  await page.goto(instalacaoA);
+  await expect(page.getByTestId("registro-card")).toHaveCount(1);
+  await expect(page.getByText("Registro da instalacao A.")).toBeVisible();
+  await expect(page.getByText("Registro da instalacao B, com custo.")).toHaveCount(0);
+
+  // Edita e depois exclui o registro de A.
+  await page.getByTestId("registro-card").getByRole("button", { name: "Editar" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Relatório").fill("Registro de A, corrigido.");
+  await dialog.getByRole("button", { name: "Salvar" }).click();
+  await expect(dialog).toBeHidden();
+
+  await page.goto(instalacaoA);
+  await expect(page.getByText("Registro de A, corrigido.")).toBeVisible();
+
+  await page.getByTestId("registro-card").getByRole("button", { name: "Excluir" }).click();
+  await page.getByRole("button", { name: "Confirmar" }).click();
+  await page.goto(instalacaoA);
+  await expect(page.getByTestId("registro-card")).toHaveCount(0);
+
+  // B permanece intacta: registro, relatório e custo.
+  await page.goto(instalacaoB);
+  await expect(page.getByTestId("registro-card")).toHaveCount(1);
+  await expect(page.getByText("Registro da instalacao B, com custo.")).toBeVisible();
+  await expect(page.getByTestId("registro-card")).toContainText("R$ 340,00");
+
+  // E o bloqueio por custos continua valendo em B.
+  await page.getByTestId("registro-card").getByRole("button", { name: "Excluir" }).click();
+  await page.getByRole("button", { name: "Confirmar" }).click();
+  await expect(page.getByText(/não pode ser excluído/i)).toBeVisible();
+  await page.goto(instalacaoB);
+  await expect(page.getByTestId("registro-card")).toHaveCount(1);
+});

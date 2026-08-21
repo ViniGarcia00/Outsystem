@@ -12,6 +12,10 @@ import { prisma } from "@/infrastructure/database";
  * - NENHUM total é persistido: o cálculo é do módulo puro `custos.ts`.
  * - Estas operações NÃO gravam InstalacaoAuditoria (ADR-0401): cronologia
  *   operacional e trilha técnica são mecanismos separados.
+ * - **Invariante do agregado:** editar ou excluir um registro exige que ele
+ *   PERTENÇA à instalação informada. A consulta é sempre condicionada por
+ *   `id` E `instalacaoId`; não pertencer devolve o mesmo "não encontrado" de
+ *   um id inexistente.
  * - O responsável é VÍNCULO com Tecnico mais SNAPSHOT do nome (ADR-0408). O
  *   snapshot é derivado aqui dentro, do Tecnico persistido, e só é reescrito
  *   quando o técnico do registro MUDA — editar o relatório não mexe nele.
@@ -187,16 +191,31 @@ export async function criarRegistro(
   });
 }
 
-/** Edição: substitui os custos por completo, dentro da mesma transação. */
+/**
+ * Edição: substitui os custos por completo, dentro da mesma transação.
+ *
+ * O registro é carregado **condicionado à instalação** (`id` E `instalacaoId`).
+ * Sem isso, uma chamada com o `instalacaoId` de A e o `registroId` de B editaria
+ * o histórico de B — a Instalação A funcionaria como chave para o agregado da
+ * outra. A garantia mora aqui, não na Server Action nem na tela: a interface
+ * pode mandar o par certo, mas integridade não pode depender disso.
+ *
+ * A checagem acontece ANTES do delete-and-recreate dos custos. Invertida, uma
+ * tentativa cruzada apagaria os custos do registro alvo antes de ser recusada.
+ */
 export async function atualizarRegistro(
+  instalacaoId: string,
   id: string,
   input: RegistroInput,
 ): Promise<void> {
   await prisma.$transaction(async (tx) => {
-    const atual = await tx.instalacaoRegistro.findUnique({
-      where: { id },
+    const atual = await tx.instalacaoRegistro.findFirst({
+      where: { id, instalacaoId },
       select: { id: true, tecnicoId: true },
     });
+    // Registro inexistente e registro de outra instalação devolvem a MESMA
+    // mensagem, de propósito: dizer "esse registro é da instalação 1050"
+    // vazaria a existência de um agregado vizinho.
     if (!atual) throw new Error(REGISTRO_NAO_ENCONTRADO);
 
     // A REGRA (ADR-0408): `responsavelNome` é o nome do responsável no momento
@@ -239,16 +258,29 @@ export async function atualizarRegistro(
 }
 
 /**
- * Exclusão: permitida apenas quando o registro NÃO tem custos.
+ * Exclusão: permitida apenas quando o registro pertence à instalação informada
+ * E não tem custos.
  *
- * A checagem é aqui, não na interface: o `onDelete: Cascade` do banco apagaria
- * os custos junto, que é justamente o que a regra impede (ADR-0401).
+ * A ordem importa. Primeiro o pertencimento, depois os custos: um registro de
+ * outra instalação nem chega a ser avaliado quanto a custos, e a resposta é a
+ * mesma de "não encontrado".
+ *
+ * A checagem de custos é aqui, não na interface: o `onDelete: Cascade` do banco
+ * apagaria os custos junto, que é justamente o que a regra impede (ADR-0401).
+ *
+ * O `deleteMany` repete as duas condições em vez de apagar por `id` já
+ * verificado — assim a janela entre a leitura e a escrita não é explorável.
  */
-export async function excluirRegistro(id: string): Promise<void> {
-  const custos = await prisma.instalacaoCusto.count({
-    where: { registroId: id },
+export async function excluirRegistro(
+  instalacaoId: string,
+  id: string,
+): Promise<void> {
+  const registro = await prisma.instalacaoRegistro.findFirst({
+    where: { id, instalacaoId },
+    select: { id: true, _count: { select: { custos: true } } },
   });
-  if (custos > 0) throw new Error(REGISTRO_COM_CUSTOS);
+  if (!registro) throw new Error(REGISTRO_NAO_ENCONTRADO);
+  if (registro._count.custos > 0) throw new Error(REGISTRO_COM_CUSTOS);
 
-  await prisma.instalacaoRegistro.delete({ where: { id } });
+  await prisma.instalacaoRegistro.deleteMany({ where: { id, instalacaoId } });
 }

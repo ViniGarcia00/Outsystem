@@ -1204,6 +1204,19 @@ Sprint de refinamento (escopo estrito):
   checagem está no **service**, porque o `onDelete: Cascade` apagaria os custos
   junto — que é exatamente o que a regra impede. A interface **não** oferece
   caminho que use a cascade para contornar a regra.
+- **Pertencimento ao agregado (reforçado na Sprint 4.1.1):** editar ou excluir um
+  registro exige que ele **pertença à Instalação informada** — a consulta é
+  condicionada por `id` **E** `instalacaoId`. Antes, as duas operações buscavam
+  só pelo `registroId`: a Server Action recebia o `instalacaoId` e o usava apenas
+  para `revalidatePath`, de modo que uma chamada forjada com o par cruzado
+  (`instalacaoId` de A, `registroId` de B) alcançava o histórico de B. A
+  interface sempre mandou o par certo, mas integridade de agregado não pode
+  depender disso. Registro de outra instalação e registro inexistente devolvem a
+  **mesma** mensagem ("Registro não encontrado."), para não vazar a existência de
+  um agregado vizinho. A checagem vem **antes** do delete-and-recreate dos
+  custos — invertida, uma tentativa recusada ainda teria apagado os custos do
+  alvo. Coberto por teste de integração do service, que é a única camada onde o
+  par cruzado é expressável.
 - **Custos são INTERNOS:** não alteram a Proposta, não recalculam total
   comercial, não geram cobrança, aditivo, contrato, PDF nem comissão. Servirão
   para análise de margem no futuro.

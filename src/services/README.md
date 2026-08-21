@@ -20,3 +20,24 @@ Services implementados por domínio:
 As **Server Actions** (em `features/*/actions.ts`) chamam estes services e
 padronizam o retorno como `ActionResult<T>` (ver `src/types`). Os services em si
 retornam dados/DTOs e lançam erros de domínio (tratados na fronteira da action).
+
+## Integridade de agregado (pai → filho)
+
+Quando um service opera sobre um **filho** a partir de um id de **pai** recebido
+do chamador, a consulta deve ser condicionada aos DOIS ids. Vale hoje para
+`instalacao-registro.service.ts`:
+
+```ts
+// Correto — o registro só é encontrado dentro da instalação informada.
+await tx.instalacaoRegistro.findFirst({ where: { id, instalacaoId } });
+
+// Errado — confia que o instalacaoId recebido corresponde ao registro.
+await tx.instalacaoRegistro.findUnique({ where: { id } });
+```
+
+Não pertencer devolve a **mesma** mensagem de "não encontrado" que um id
+inexistente: dizer de qual agregado o registro é vazaria informação entre
+agregados vizinhos.
+
+A garantia mora aqui, nunca na Server Action nem na tela. A interface pode mandar
+o par certo — integridade não pode depender disso.

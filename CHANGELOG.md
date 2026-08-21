@@ -19,6 +19,17 @@ existente: o `DROP COLUMN` das duas colunas de texto é detalhe interno de
 persistência, migrado sem perda, não interface pública — por isso também não é
 MAJOR. Ver ADR-0408.
 
+
+### Corrigido
+
+- **Integridade do agregado da cronologia.** Editar ou excluir um registro passou
+  a exigir que ele **pertença à Instalação informada**. As duas operações
+  buscavam o registro só pelo próprio id — o `instalacaoId` que a Server Action
+  recebia servia apenas para revalidar a página. Uma chamada forjada com o par
+  cruzado (instalação A + registro de B) alcançava o histórico da outra
+  instalação. A tela sempre mandou o par certo, então nenhum dado real foi
+  afetado; a correção fecha o caminho no service, que é onde a garantia precisa
+  morar. Apurado na revisão final desta própria versão, antes do release.
 ### Adicionado
 
 - **Cadastro de Técnicos** (`/tecnicos`), no molde de Vendedores: `nome`
