@@ -450,7 +450,7 @@ ADR-0402 e o item de busca escalável no `BACKLOG.md`.
 - **Integração (Vitest + PostgreSQL real):** invariantes de domínio e persistência
   que a suíte pura não alcança, em `src/**/*.integration.test.ts`, com config
   própria (`vitest.integration.config.ts`) e comando próprio
-  (`npm run test:integration`). Ficam **fora** de `npm run test`, que continua
+  (`npm run test:integration`). Ver DECISIONS.md (ADR-0409). Ficam **fora** de `npm run test`, que continua
   puro e sem banco. A regra de bolso: quando a garantia É a consulta — como o
   pertencimento do registro da cronologia à sua Instalação (`id` **E**
   `instalacaoId`) —, mockar o Prisma provaria apenas que o mock foi chamado, e a

@@ -1493,6 +1493,13 @@ Os quatro casos cruzados foram verificados como **discriminantes**: removendo a
 guarda, eles falham; restaurando, passam. Sem esse passo, passariam também na
 versão vulnerável.
 
+### ADRs criadas
+
+ADR-0409 — Estratégia de testes: três suítes separadas, todas obrigatórias
+(unidade sem banco, integração contra PostgreSQL real, smoke/E2E pelo
+navegador). Registra também o reforço da invariante de pertencimento do
+registro à Instalação, que já havia sido acrescentada como bullet ao ADR-0401.
+
 ### Gate de qualidade
 
 | Item | Resultado |
@@ -1522,5 +1529,6 @@ versão vulnerável.
 ### Commits
 
 - `1337afa` — registro da cronologia condicionado à instalação informada
-- fechamento: `test:integration` no gate oficial e documentação (este commit)
+- `f6f352c` — `test:integration` passa a integrar o gate oficial
+- fechamento: ADR-0409, estratégia de testes de integração (este commit)
 

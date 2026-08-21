@@ -1587,3 +1587,54 @@ Sprint de refinamento (escopo estrito):
   duas colunas de texto livre só é alcançado depois que a guarda prova que
   toda linha tem vínculo — nenhum dado é perdido: os 3 registros reais
   continuam legíveis, com a mesma grafia de antes.
+
+---
+
+## Sprint 4.1.1 — Integridade do agregado da cronologia (fechamento da 1.4.0)
+
+### ADR-0409 — Estratégia de testes: três suítes separadas, todas obrigatórias
+
+- **Contexto:** até a 1.4.0 o projeto tinha duas suítes — unidade (Vitest,
+  módulos puros) e smoke/E2E (Playwright, navegador). A correção de integridade
+  do agregado da cronologia expôs uma lacuna entre elas. A regra sob teste
+  ("um registro só pode ser editado ou excluído dentro da Instalação a que
+  pertence") **é** uma condição de consulta: `where: { id, instalacaoId }`. Com o
+  Prisma mockado, o teste provaria apenas que o mock foi chamado com certos
+  argumentos — o que já era verdade na versão vulnerável. E a interface nunca
+  produz o par cruzado, então o E2E também não alcança o caso. Existia uma classe
+  de invariante que **nenhuma** das duas suítes conseguia provar.
+- **Decisão — três camadas, com fronteiras por natureza da garantia:**
+  - **Unidade — `npm run test`.** Lógica pura: funções, schemas Zod, mappers,
+    cálculos, regras que não precisam de infraestrutura real. Rápidos,
+    determinísticos, **sem PostgreSQL**, executáveis isoladamente e em qualquer
+    máquina.
+  - **Integração — `npm run test:integration`.** Services, persistência,
+    transações, constraints — comportamento cuja fidelidade depende do
+    PostgreSQL/Prisma **reais**. Config e comando próprios
+    (`vitest.integration.config.ts`, `src/**/*.integration.test.ts`).
+  - **Smoke/E2E — `npm run test:e2e`.** Fluxo completo pelo navegador: UI,
+    navegação, integração entre camadas, as principais jornadas do usuário.
+- **Critério para escolher a camada — não migrar tudo para integração:** use
+  integração **quando a resposta que se quer provar depende do banco real**. Se a
+  regra é computável sem IO, é teste de unidade; se só se manifesta pela tela, é
+  E2E. Testes de integração são mais lentos, exigem banco disponível e escrevem
+  dados — o custo só se justifica quando a infraestrutura É a garantia.
+- **As três suítes permanecem SEPARADAS.** Testes de integração **não** entram em
+  `npm run test`. A razão é preservar essa suíte como pura, rápida e executável
+  mesmo sem PostgreSQL disponível — é a que roda a cada alteração, e um
+  desenvolvedor sem banco configurado precisa continuar podendo rodá-la. A suíte
+  de integração tem responsabilidade diferente e ciclo de vida diferente (cria e
+  apaga os próprios dados, marcados com `E2E `, o mesmo marcador que o
+  `globalTeardown` do Playwright varre).
+- **Gate oficial** (`docs/CHECKLIST_RELEASE.md`), na ordem lógica, sem remover
+  nenhum critério anterior: Lint · Typecheck · Build · **Unit Tests** ·
+  **Integration Tests** · **Smoke/E2E** · `/api/health` · `/dev/diagnostics` ·
+  PostgreSQL · Prisma · Documentação · CHANGELOG · VERSION · Commit. Quem roda o
+  gate roda os **três** comandos de teste; nenhum deles executa os outros.
+- **Consequência:** invariantes de domínio que vivem na fronteira com o banco
+  passam a ter onde ser provadas. O detalhe operacional (comandos, tabela do
+  gate, quando cada suíte se aplica) fica em `README.md`, `ARCHITECTURE.md` §8 e
+  `docs/CHECKLIST_RELEASE.md` — este ADR registra a decisão e a razão. O primeiro
+  caso coberto é o pertencimento do registro da cronologia à sua Instalação,
+  cujos quatro cenários cruzados foram verificados como **discriminantes**:
+  removida a guarda, falham; restaurada, passam.

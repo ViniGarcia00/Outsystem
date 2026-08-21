@@ -61,7 +61,7 @@ Fundir as duas tornaria toda a suíte dependente de banco. Quem roda o gate roda
   **unit 17/17**, smoke 7/7, /api/health 200"*, e o commit `df0717e` (Sprint
   3.2.1) valida *"test 17/17"*. Os testes unitários já faziam parte do gate na
   prática; a tabela apenas passou a refletir isso.
-- **Item 5 (Integração) incluído na Release 1.4.0.** Nasceu com a correção de
+- **Item 5 (Integração) incluído na Release 1.4.0 (ADR-0409).** Nasceu com a correção de
   integridade do agregado da cronologia, apurada na revisão final da própria
   1.4.0. Diferente do item 4, é regra **nova**: não havia teste de service no
   projeto antes disso. A suíte roda contra o banco local e cada teste apaga os
