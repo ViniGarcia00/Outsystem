@@ -1442,3 +1442,85 @@ nunca excluir, datas com fuso fixo — continua valendo integralmente).
 - `ddad9a0` — remove as colunas de texto do responsável
 - `8edee38` — cobertura E2E do vínculo com Técnico e da regra do snapshot
 - fechamento desta Sprint: ADR-0408, documentação e VERSION 1.4.0 (este commit)
+
+---
+
+## Sprint 4.1.1 — Integridade do agregado da cronologia (fechamento da 1.4.0)
+
+Ciclo curto, aberto **pela revisão final da própria 1.4.0**, antes do merge na
+`main`. Não é uma Sprint nova: é o fechamento da 1.4.0, e por isso a `VERSION`
+permanece em `1.4.0`.
+
+### O defeito
+
+`atualizarRegistro` e `excluirRegistro` recebiam apenas o `registroId`. A Server
+Action recebia também o `instalacaoId`, mas o usava só para `revalidatePath` —
+nunca chegava ao service. Uma chamada forjada com o par cruzado (`instalacaoId`
+de A, `registroId` de B) alcançava o histórico da instalação B.
+
+Nenhum dado real foi afetado: a interface sempre enviou o par correto. Mas a
+integridade do agregado dependia disso, que é exatamente o que não se pode
+aceitar — a Server Action é fronteira pública.
+
+### Correção
+
+As duas operações passaram a consultar por `id` **E** `instalacaoId`. Não
+pertencer devolve a **mesma** mensagem de `Registro não encontrado.` que um id
+inexistente, para não vazar a existência de um agregado vizinho. A checagem vem
+**antes** do delete-and-recreate dos custos — invertida, uma tentativa recusada
+ainda teria apagado os custos do alvo. O `deleteMany` repete as duas condições,
+para que a janela entre leitura e escrita não seja explorável.
+
+Auditadas também `criarRegistro`, `listarRegistros` e os três pontos de escrita
+de `InstalacaoCusto`: custos só são manipulados dentro de um registro já
+carregado, e **não existe action nem service que opere um `InstalacaoCusto` por
+id de forma independente**. Nenhuma correção adicional foi necessária.
+
+### Terceira suíte de teste — agora parte do gate oficial
+
+A garantia é uma condição de consulta, então nem a suíte pura nem o E2E a
+alcançam: com Prisma mockado o teste provaria apenas que o mock foi chamado, e a
+interface nunca produz o par cruzado. Nasceu daí
+`src/services/instalacao-registro.integration.test.ts`, com config e comando
+próprios (`vitest.integration.config.ts`, `npm run test:integration`).
+
+As três suítes ficam **separadas de propósito** — `npm run test` continua puro,
+rápido e executável sem PostgreSQL — e as três são obrigatórias. O
+`CHECKLIST_RELEASE.md` passou a listar **Integration Tests** como item 5 do gate,
+com os demais renumerados; README e ARCHITECTURE foram atualizados.
+
+Os quatro casos cruzados foram verificados como **discriminantes**: removendo a
+guarda, eles falham; restaurando, passam. Sem esse passo, passariam também na
+versão vulnerável.
+
+### Gate de qualidade
+
+| Item | Resultado |
+| --- | --- |
+| `npm run lint` | 0 erros |
+| `npm run typecheck` | 0 erros |
+| `npm run test` (Vitest — unidade) | **242/242** em 21 arquivos |
+| `npm run test:integration` (Vitest + PostgreSQL) | **10/10** |
+| `npm run build` | sucesso, 30 rotas |
+| `npm run test:e2e` (Playwright) | **26/26** |
+| Resíduo E2E após a suíte | **zero** nos 7 marcadores |
+| `/api/health` | `200 {"status":"ok","version":"1.4.0","database":"up"}` |
+| `/dev/diagnostics` | 200 · Saudável · Prisma conectado · PostgreSQL 18.1 |
+
+### Lições aprendidas
+
+- **Um id de pai recebido e não usado é um defeito esperando acontecer.** O
+  `instalacaoId` chegava à action e morria no `revalidatePath`; bastava isso para
+  o agregado ficar sem dono. Vale como regra de leitura de código: parâmetro que
+  entra e não participa da consulta merece explicação.
+- **Teste que passa não prova nada até falhar por ausência do código.** Os quatro
+  casos cruzados passavam vacuosamente contra a assinatura antiga; só a remoção
+  deliberada da guarda mostrou que discriminam.
+- **A camada do teste é ditada pela natureza da garantia.** Quando a regra É a
+  consulta, mock não serve e UI não alcança — sobra o service contra o banco.
+
+### Commits
+
+- `1337afa` — registro da cronologia condicionado à instalação informada
+- fechamento: `test:integration` no gate oficial e documentação (este commit)
+

@@ -433,7 +433,8 @@ ADR-0402 e o item de busca escalável no `BACKLOG.md`.
 | `npm run test`             | Testes (Vitest)                                  |
 | `npm run db:generate`      | Gera o Prisma Client                             |
 | `npm run typecheck`        | Verificação de tipos (tsc)                       |
-| `npm run test`             | Testes de unidade (Vitest)                       |
+| `npm run test`             | Testes de unidade (Vitest) — puros, sem banco     |
+| `npm run test:integration` | Testes de service contra o PostgreSQL real       |
 | `npm run test:e2e`         | Smoke tests (Playwright)                          |
 | `npm run db:migrate:deploy`| Aplica migrations (no servidor com DB)           |
 | `npm run db:seed`          | Popula dados de exemplo                          |
@@ -446,6 +447,15 @@ ADR-0402 e o item de busca escalável no `BACKLOG.md`.
   banco** — o padrão de `proposta-pdf.mapper.test.ts` e `contrato.mapper.test.ts`.
   O template do contrato tem teste de **integridade** que roda no CI, garantindo
   que as tags existem e que os placeholders manuais continuam literais.
+- **Integração (Vitest + PostgreSQL real):** invariantes de domínio e persistência
+  que a suíte pura não alcança, em `src/**/*.integration.test.ts`, com config
+  própria (`vitest.integration.config.ts`) e comando próprio
+  (`npm run test:integration`). Ficam **fora** de `npm run test`, que continua
+  puro e sem banco. A regra de bolso: quando a garantia É a consulta — como o
+  pertencimento do registro da cronologia à sua Instalação (`id` **E**
+  `instalacaoId`) —, mockar o Prisma provaria apenas que o mock foi chamado, e a
+  interface nem sempre consegue produzir o caso. Cada teste cria e apaga os
+  próprios dados, marcados com `E2E `.
 - **E2E smoke (Playwright):** fluxos mínimos de navegação e CRUD básico contra a
   aplicação real, em `e2e/`. Apenas Chromium, execução serial (os testes escrevem
   no banco); o `webServer` sobe a aplicação automaticamente. Ver DECISIONS.md

@@ -137,12 +137,20 @@ O projeto tem um **gate obrigatório** em
 npm run lint
 npm run typecheck
 npm run build
-npm run test        # Vitest
-npm run test:e2e    # Playwright
+npm run test              # Vitest — unidade, sem banco
+npm run test:integration  # Vitest — service contra o PostgreSQL real
+npm run test:e2e          # Playwright — ponta a ponta
 ```
 
 Mais `/api/health`, `/dev/diagnostics`, documentação, CHANGELOG, VERSION e
 commit. Se algum item falhar, a Sprint **não** está concluída.
+
+> **São três suítes, e as três são obrigatórias.** `npm run test` cobre regras
+> puras e não toca o banco — é o que a mantém rápida e executável em qualquer
+> máquina. `npm run test:integration` valida invariantes de domínio/persistência
+> contra o PostgreSQL real: coisas que não pertencem à suíte unitária (um Prisma
+> mockado provaria só que o mock foi chamado) nem dependem da UI. `npm run test`
+> **não** executa a de integração — rode os dois.
 
 > Os smoke tests **escrevem no banco** e rodam em série. Cada cenário cria os
 > próprios dados (cliente e produto com identificador único, prefixados por
@@ -158,7 +166,8 @@ commit. Se algum item falhar, a Sprint **não** está concluída.
 | `npm run start`             | Servidor de produção                          |
 | `npm run lint`              | ESLint                                        |
 | `npm run typecheck`         | Verificação de tipos (tsc)                    |
-| `npm run test`              | Testes de unidade (Vitest)                    |
+| `npm run test`              | Testes de unidade (Vitest) — puros, sem banco  |
+| `npm run test:integration`  | Testes de service contra o PostgreSQL real     |
 | `npm run test:e2e`          | Smoke tests (Playwright) — sobe a app sozinho |
 | `npm run test:e2e:ui`       | Smoke tests em modo interativo                |
 | `npm run db:generate`       | Gera o Prisma Client                          |
