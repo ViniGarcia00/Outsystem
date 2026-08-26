@@ -1532,3 +1532,34 @@ registro à Instalação, que já havia sido acrescentada como bullet ao ADR-040
 - `f6f352c` — `test:integration` passa a integrar o gate oficial
 - fechamento: ADR-0409, estratégia de testes de integração (este commit)
 
+
+---
+
+## Sprint 4.2 — Usuário único com papéis operacionais
+
+- **Versão:** 1.4.0 → **1.5.0**
+- **Data:** 2026-08-26
+- **Branch:** `sprint-4.2`
+- **Objetivo:** substituir os cadastros separados de **Vendedores** e
+  **Técnicos** por um cadastro único de **Usuários** com papéis independentes
+  (`ehVendedor`, `ehTecnico`), migrando dados e vínculos sem perda, e remover
+  "Custos acumulados" da apresentação do Dashboard.
+- **Spec:** `docs/superpowers/specs/2026-08-26-usuario-unico-papeis-design.md`
+- **Plano:** `docs/superpowers/plans/2026-08-26-sprint4-2-usuario-unico-papeis.md`
+- **ADR:** ADR-0410 (supersede parcial do ADR-0408)
+
+### Auditoria pré-migration
+
+_(preenchido na Task 2, antes de qualquer migration)_
+
+### Auditoria pós-migration
+
+_(preenchido na Task 21, após a M4)_
+
+### Gate de qualidade
+
+_(preenchido na Task 23)_
+
+### Commits
+
+_(preenchido na Task 23)_

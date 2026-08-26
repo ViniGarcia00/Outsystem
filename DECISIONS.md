@@ -1638,3 +1638,187 @@ Sprint de refinamento (escopo estrito):
   caso coberto é o pertencimento do registro da cronologia à sua Instalação,
   cujos quatro cenários cruzados foram verificados como **discriminantes**:
   removida a guarda, falham; restaurada, passam.
+
+---
+
+## Sprint 4.2 — Usuário único com papéis operacionais
+
+### ADR-0410 — Usuário único com papéis operacionais (supersede parcial do ADR-0408)
+
+- **Contexto:** o projeto tinha **dois** cadastros de pessoas — `Vendedor`
+  (Sprint 1) e `Tecnico` (Sprint 4.1) — e, na prática, as mesmas pessoas
+  apareciam nos dois. A auditoria de 2026-08-26 confirmou: 2 vendedores
+  (`Carlos Gomes`, `Vinicius Garcia`) e 1 técnico (`Vinicius`), sendo os dois
+  últimos a mesma pessoa em cadastros separados. Manter duas identidades para
+  uma pessoa obriga a cadastrar duas vezes, renomear duas vezes e inativar duas
+  vezes — e nada garante que as duas fiquem coerentes.
+- **Decisão:** um único model `Usuario` (`nome`, `ativo`, `ehVendedor`,
+  `ehTecnico`, `telefone`, `email`), com os dois papéis como flags
+  **independentes**. `Vendedor` e `Tecnico` deixam de existir como models,
+  tabelas, services, features e rotas.
+
+- **Este ADR é supersede PARCIAL do ADR-0408**, restrito a dois bullets. Todo o
+  resto daquele ADR continua valendo **integralmente** — em especial a regra do
+  snapshot `responsavelNome`, que é reafirmada abaixo e não sofreu uma única
+  alteração de comportamento nesta Sprint.
+
+- **Bullet superado nº 1 — "`Vendedor` continua não sendo reutilizado".** O
+  ADR-0408 argumentava que reaproveitar aquele cadastro "*poluiria o
+  autocomplete da Proposta com nomes que nunca deveriam aparecer ali, além de
+  distorcer a regra de exclusão 'já foi usado em uma proposta'*". **O argumento
+  estava correto — para um cadastro sem papéis.** Reutilizar `Vendedor` como
+  ele era em 2026-08-20 realmente colocaria instaladores no Select da Proposta.
+  O que mudou não foi o julgamento, foi a estrutura: a identidade passa a
+  carregar papéis explícitos, e **todo Select filtra pelo papel**
+  (`ativo && ehVendedor`, `ativo && ehTecnico`). Um técnico que não vende nunca
+  aparece na Proposta, porque `ehVendedor` é falso — não porque está em outra
+  tabela. A separação que o ADR-0408 obtinha por tabela, este ADR obtém por
+  papel, que é a dimensão que realmente descreve o problema.
+- **A segunda metade daquele argumento também é resolvida.** A regra de
+  exclusão deixa de ser vazia: `removeUsuario` conta os **três** vínculos
+  (`Proposta.vendedorId`, `Instalacao.tecnicoResponsavelId`,
+  `InstalacaoRegistro.tecnicoId`) e usa uma mensagem única
+  (`CANNOT_DELETE_USED_IN_RECORDS`). Para qualquer combinação de papéis a
+  contagem é significativa — o problema que o ADR-0408 apontava ("*um Técnico
+  nunca é usado em proposta nenhuma, então essa contagem ficaria sempre zerada e
+  sem sentido para ele*") existia justamente porque a regra olhava para uma
+  relação só.
+
+- **Bullet superado nº 2 — "Técnico não é Usuário" — superado apenas no NOME.**
+  O conteúdo daquele bullet **continua valendo e é reafirmado aqui**: este
+  `Usuario` **não é um principal de autenticação**. Não há login, senha,
+  permissão, sessão nem agenda. Ele responde "**quem fez o trabalho**", não
+  "quem operou o sistema". Quando o sistema ganhar autenticação, "registrado
+  por" será campo **novo e aditivo**, distinto destes vínculos — exatamente como
+  o ADR-0408 e o ADR-0400 já antecipavam. O que este ADR supera é a afirmação
+  literal de que a entidade não poderia se chamar `Usuario`; o compromisso de
+  não misturar identidade operacional com identidade de autenticação permanece
+  intacto.
+- **Risco aceito conscientemente:** o nome `Usuario` fica indisponível para o
+  futuro principal de autenticação. A alternativa (`Pessoa`, `Colaborador`) foi
+  considerada e recusada pelo dono do produto, que prefere o vocabulário
+  `Usuários` na interface. Quando a autenticação chegar, o principal precisará
+  de outro nome (`Conta`, `Login`, `Credencial`) ou de um vínculo opcional
+  `Usuario ↔ Conta`. A decisão é deliberada, não um descuido.
+
+- **`ativo` e papéis são eixos INDEPENDENTES.** `ativo` responde "esta pessoa
+  ainda atua"; os papéis respondem "o que ela faz". Disponível para um vínculo
+  **novo** naquele papel = `ativo && ehPapel`. Um usuário com os **dois papéis
+  desmarcados é válido** — é o cadastro criado antes de a função ser decidida;
+  proibir isso tornaria impossível cadastrar alguém antes de saber o papel, e a
+  consequência natural já basta: ele não aparece em Select nenhum.
+
+- **Regra dos filtros, com união obrigatória.** `listUsuarioOptions(papel,
+  incluirIds)` devolve **disponíveis ∪ os ids informados**. `incluirIds` carrega
+  quem já está vinculado àquele agregado, ainda que indisponível. Sem essa
+  união, abrir uma proposta cujo vendedor foi inativado mostraria o campo em
+  branco e salvar qualquer outra alteração apagaria o vínculo em silêncio — o
+  efeito colateral que o ADR-0408 já evitava para Técnico e que o Vendedor
+  **sofria** (débito registrado no `BACKLOG.md` naquela mesma Sprint). A
+  unificação dos dois Selects fecha esse débito por consequência mecânica.
+- **Duas causas de indisponibilidade, dois rótulos.** Antes só existia
+  inativação; agora a pessoa também pode perder o papel. O efeito operacional é
+  idêntico (some das escolhas novas), mas a ação corretiva não é, então o rótulo
+  distingue: `João (inativo)` — o rótulo que já existia, preservado — e
+  `João (sem papel de vendedor)`. **Um único sufixo, nunca dois:** quando as
+  duas condições valem, vence `(inativo)`, por ser a condição mais forte. A
+  regra vive em `features/usuarios/opcoes.ts`, módulo puro testado sem banco.
+
+- **Guarda de papel apenas em vínculo NOVO ou ALTERADO.** Escolher alguém sem o
+  papel é recusado no **service**, não só na tela. Mas a verificação compara o
+  vínculo persistido com o recebido, **dentro da transação**, e só age na
+  mudança:
+
+  ```
+  vínculo NOVO ou ALTERADO        → exige ativo && ehPapel; senão, erro
+  vínculo PREEXISTENTE inalterado → aceito sempre, sem verificação
+  vínculo removido (→ null)       → aceito sempre
+  ```
+
+  É isto que permite exigir o papel **sem** quebrar o histórico: uma proposta
+  cujo vendedor foi inativado, ou que perdeu o papel depois, continua salvável —
+  corrigir o desconto de uma proposta antiga não pode falhar por causa de uma
+  mudança de cadastro posterior. Trocar o vendedor, sim: aí é escolha nova, e
+  escolha nova respeita a regra vigente. A **duplicação** de proposta copia o
+  `vendedorId` sem passar pela guarda, pelo mesmo motivo: é vínculo copiado, não
+  escolhido. A forma é a mesma que `atualizarRegistro` já usava para o snapshot
+  (ADR-0408) — comparar o persistido com o recebido e agir só na mudança.
+
+- **Preservação histórica — nada é reescrito.** `InstalacaoRegistro.
+  responsavelNome` permanece, com a regra do ADR-0408 **sem uma alteração**:
+  reescrito somente quando o `tecnicoId` muda; `undefined` continua impedindo o
+  Prisma de tocar na coluna. Renomear um Usuário não altera retroativamente a
+  cronologia. Inativá-lo ou desmarcar seu papel não apaga nem altera vínculo
+  nenhum. `nomeDoTecnico` passou a ler de `usuarios` e a exigir o papel na mesma
+  consulta — uma leitura só, para que nome e verificação venham do mesmo estado.
+
+- **Migração em quatro etapas: três estruturais e genéricas, uma humana.**
+  - **M1 `usuarios_estrutura`** cria a tabela e a popula, **um Usuario por
+    cadastro de origem, sempre**.
+  - **M2 `usuarios_vinculos`** troca o alvo das três FKs.
+  - **M3 `usuarios_drop_legado`** apaga `vendedores` e `tecnicos`.
+  - **M4 `usuarios_consolidacao_outmat`** consolida duas pessoas específicas.
+- **R1 — o id de origem é PRESERVADO.** `usuarios.id` recebe `vendedores.id` ou
+  `tecnicos.id`. Os valores já gravados nas três colunas de vínculo **já são** os
+  ids corretos, então a M2 não contém um único `UPDATE`: ela remove e recria
+  constraints, sem tocar em valor nenhum. "Nenhum vínculo perdido" deixa de
+  depender de uma guarda e passa a ser **estruturalmente impossível de violar**.
+  Uma guarda de colisão (`INTERSECT` entre os dois conjuntos de id) roda antes de
+  qualquer `INSERT`, porque preservar o id só é seguro se os conjuntos forem
+  disjuntos — na Outmat são (cuid de 25 caracteres × uuid de 36), mas a migration
+  não pode depender disso. A preservação foi provada valor a valor: as sete
+  linhas de vínculo foram capturadas antes e depois da M2 e comparadas com
+  `diff`.
+- **R2 — M1–M3 não contêm uma única linha de lógica baseada em nome.** Sem
+  `lower`, sem `LIKE`, sem prefixo, sem normalização de espaço, sem remoção de
+  acento, sem chave normalizada. Um cadastro de origem vira um Usuario, sempre.
+  Isso leva à sua conclusão o princípio que o ADR-0408 já defendia — "*cada
+  grafia distinta vira um Técnico distinto, visível no cadastro, onde uma PESSOA
+  decide se os funde*" —, agora **sem exceção**: nenhuma migration estrutural
+  toma decisão de identidade. Com R1 isso também é uma necessidade técnica:
+  fundir na etapa estrutural descartaria o id do absorvido e quebraria as FKs
+  dele.
+- **R3 — as três FKs passam a `ON DELETE RESTRICT`.** `propostas.vendedorId` era
+  `SET NULL` desde a migration inicial, enquanto as duas FKs de técnico já eram
+  `RESTRICT`. Apagar um vendedor por qualquer caminho que não passasse por
+  `removeVendedor()` **zerava o vínculo da proposta em silêncio** — perda de
+  histórico, o oposto do que este ADR garante. Como a M2 reescrevia as três
+  constraints de qualquer forma, a divergência foi corrigida na própria Sprint,
+  sem virar débito. O banco passa a garantir o que a aplicação já afirmava em
+  `removeUsuario`.
+
+- **M4 — a consolidação é decisão humana, e as guardas provam isso.** "Vinicius"
+  e "Vinicius Garcia" são chaves **distintas** por qualquer normalização
+  defensável; fundi-las exigiria casamento por prefixo, que também fundiria
+  "Carlos" com "Carlos Gomes". A fusão foi **aprovada explicitamente pelo dono
+  do produto em 2026-08-26**, contra a auditoria, e vive isolada na M4. O
+  desenho da migration separa estritamente duas funções:
+  **os ids são o SELETOR; os nomes são apenas ASSERÇÃO.** Nenhuma linha é
+  escolhida por nome — as duas pessoas são endereçadas pelos ids literais
+  auditados, um cuid e um uuid, globalmente únicos, que não existem em nenhum
+  outro banco. Os nomes aparecem só dentro de `IF … RAISE EXCEPTION`, para
+  verificar que a premissa auditada continua válida. Duas semânticas de guarda,
+  deliberadamente diferentes: **ids ausentes** (outro banco) → `RETURN`
+  silencioso, nada acontece; **ids presentes com estado inesperado** →
+  `RAISE EXCEPTION`, aborta tudo. Banco diferente não é erro; banco igual em
+  estado inesperado é. Dois registros chamados "Vinicius" e "Vinicius Garcia" em
+  outra base, com outros ids, **jamais** seriam fundidos: a migration nem chega
+  a ler o nome deles. Antes do `DELETE` do absorvido, uma guarda prova zero
+  referências restantes; outra prova que os três registros continuam com
+  `responsavelNome = 'Vinicius'`. A coluna do snapshot **não aparece em nenhum
+  `SET` do arquivo**.
+
+- **Sem redirects de `/vendedores` e `/tecnicos`.** Aplicação interna, sem SEO,
+  sem link externo, sem API pública. Os únicos consumidores dessas URLs eram o
+  menu e os specs E2E, ambos reescritos. Um redirect manteria vivos por tempo
+  indeterminado os dois nomes que a Sprint existe para eliminar, com arquivos e
+  testes a manter. Um bookmark antigo devolve 404 e a pessoa usa o menu.
+
+- **Consequência:** um cadastro no lugar de dois, com `/usuarios` no menu entre
+  Instalações e Configurações (sete itens). Nenhuma mudança de contrato: as
+  colunas de FK mantêm os nomes (`vendedorId`, `tecnicoResponsavelId`,
+  `tecnicoId`), porque nomeiam o **papel no vínculo**, não a tabela de origem —
+  e por isso `proposta-pdf.mapper.ts` (`consultor`) e o resumo financeiro
+  oficial não mudaram uma linha. O Dashboard perdeu o card "Custos extras
+  acumulados" (apresentação apenas — `InstalacaoCusto`, categorias, cálculo e
+  histórico ficam intactos) e teve os cards restantes rebalanceados.
