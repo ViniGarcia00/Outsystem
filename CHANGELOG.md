@@ -4,6 +4,69 @@ Todas as mudanças relevantes deste projeto são documentadas aqui.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o
 projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [1.5.0] — 2026-08-26
+
+Sprint 4.2: os cadastros separados de **Vendedores** e **Técnicos** — que na
+prática representavam as mesmas pessoas — dão lugar a um cadastro único de
+**Usuários** com papéis independentes. Reúne a Sprint 4.2 inteira.
+
+### Adicionado
+
+- Cadastro de **Usuários** (`/usuarios`) com papéis independentes de Vendedor e
+  Técnico. A mesma pessoa pode exercer os dois (ADR-0410). `ativo` e papel são
+  eixos separados: usuário sem papel nenhum é válido e não aparece em select.
+- **Guarda de papel nos services**: escolher alguém sem o papel é recusado em
+  Proposta, Instalação e cronologia — **apenas** em vínculo novo ou alterado, o
+  que preserva o histórico.
+- Suíte de integração do cadastro (`usuario.service.integration.test.ts`) e novos
+  casos de integridade histórica na cronologia.
+- `scripts/db/audit-usuarios.ts` — auditoria pré/pós de migração de dados.
+- `e2e/usuarios.spec.ts` — 11 cenários, incluindo a pessoa com os dois papéis.
+
+### Alterado
+
+- Selects de Vendedor e Técnico passam a filtrar por `ativo && papel`, e sempre
+  incluem quem já está vinculado, rotulado `(inativo)` ou `(sem papel de …)`
+  conforme a causa.
+- **Menu:** `Usuários` substitui `Vendedores` e `Técnicos` — sete itens.
+- `propostas.vendedorId` passa de `ON DELETE SET NULL` para **`RESTRICT`**,
+  alinhando as três FKs de `Usuario`. Antes, apagar um vendedor por fora do
+  service zerava o vínculo da proposta em silêncio.
+- **Dashboard:** "Custos extras acumulados" saiu da apresentação e os cards de
+  Comercial foram rebalanceados. O painel passou de 4 para 3 consultas.
+
+### Removido
+
+- Cadastros de **Vendedores** e **Técnicos**: models, tabelas, services,
+  features e rotas. **Sem redirects** de `/vendedores` e `/tecnicos` — aplicação
+  interna, sem SEO nem link externo (ADR-0410).
+
+### Corrigido
+
+- **Vendedor inativo desaparecia do cabeçalho da Proposta** (débito do
+  `BACKLOG.md`, aberto na Sprint 4.1). O Select agora inclui o vinculado.
+- `scripts/db/validate-crud.ts` verificava a mensagem de SKU duplicado pela
+  palavra "código", enquanto o service diz "SKU" — a checagem falhava em
+  silêncio. Defeito do script, não do service.
+
+### Migração
+
+Quatro etapas. **M1-M3 são estruturais e genéricas, sem uma única linha de
+lógica baseada em nome**; toda decisão humana de consolidação vive na M4.
+
+- `usuarios_estrutura` (M1) — cria `usuarios` **preservando o id de origem**, com
+  guarda de colisão entre os dois conjuntos de id.
+- `usuarios_vinculos` (M2) — troca o alvo das três FKs. **Não contém um único
+  `UPDATE`**: como os ids foram preservados, nenhum valor de vínculo é reescrito.
+- `usuarios_drop_legado` (M3) — `DROP TABLE vendedores, tecnicos`.
+- `usuarios_consolidacao_outmat` (M4) — funde "Vinicius" em "Vinicius Garcia",
+  decisão humana aprovada em 2026-08-26. Seleciona **por id**, usa os nomes
+  apenas como asserção, faz no-op seguro em outro banco e prova zero referências
+  antes do `DELETE`.
+
+**Preservação comprovada:** 2 propostas + 0 instalações + 3 registros, idênticos
+antes e depois; os 3 snapshots da cronologia continuam `"Vinicius"`.
+
 ## [1.4.0] — 2026-08-20
 
 Sprint 4.1: o responsável das Instalações — hoje texto digitado à mão em dois

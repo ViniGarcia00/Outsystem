@@ -39,9 +39,10 @@ Fontes de sistema (Segoe UI), sem CDN — build e deploy funcionam offline.
 ## Módulos
 
 - **Cadastros:** Configuração do Sistema (singleton, com upload de logo),
-  Clientes (PF/PJ), Produtos e Vendedores — CRUD completo, com inativação e
-  bloqueio de exclusão para registros já usados em proposta. Produtos têm **SKU
-  único** e ação **Clonar**.
+  Clientes (PF/PJ), Produtos e **Usuários** — CRUD completo, com inativação e
+  bloqueio de exclusão para registros já usados. Produtos têm **SKU único** e
+  ação **Clonar**. Usuário é identidade única com papéis independentes
+  (Vendedor / Técnico): a mesma pessoa pode exercer os dois (ADR-0410).
 - **Propostas (workspace):** tela única para criar, editar e revisar. Cabeçalho +
   seções + itens editados em memória e persistidos em **"Salvar Alterações"** /
   **"Criar Proposta"**. Itens reordenáveis por **drag & drop**; cada item carrega

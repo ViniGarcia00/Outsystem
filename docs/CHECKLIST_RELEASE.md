@@ -74,6 +74,14 @@ Fundir as duas tornaria toda a suíte dependente de banco. Quem roda o gate roda
   `sprint-3.1` inaugurou o modelo de branch, **formalizar (ou não) o merge como
   critério de conclusão é uma decisão em aberto**, registrada em `BACKLOG.md`.
   Enquanto não houver ADR, o merge é operação de fechamento, não item de gate.
+- **Auditoria pré/pós de migração de dados.** Introduzida na Sprint 4.2
+  (ADR-0410). Quando uma Sprint **migra dados entre estruturas**, as contagens de
+  vínculo antes e depois vão para o `PROJECT_HISTORY.md`, junto do `diff` que as
+  compara. A razão: uma migration **não é reexecutável** dentro de uma suíte de
+  teste — a prova de "nenhum vínculo perdido" é a guarda dentro da própria
+  migration (que aborta a transação inteira) somada à comparação documentada.
+  Testes de integração cobrem os invariantes do estado **pós**-migração, que é o
+  que uma suíte pode legitimamente afirmar.
 - **Gates manuais.** Alguns critérios não são automatizáveis e precisam de
   inspeção humana registrada. O caso vigente é a **homologação visual do Contrato
   .docx no Microsoft Word** (ADR-0330): nenhum teste prova fidelidade de fonte,

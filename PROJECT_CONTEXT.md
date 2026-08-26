@@ -45,7 +45,7 @@ Detalhes completos em **[ARCHITECTURE.md](./ARCHITECTURE.md)**.
 src/
   app/            rotas (1 pasta por menu) + layout + globals.css
   components/     ui · layout · shared · forms · tables
-  features/       dashboard · propostas · clientes · produtos · vendedores · tecnicos · configuracoes
+  features/       dashboard · propostas · clientes · produtos · usuarios · configuracoes
   infrastructure/ configuration · database · storage · logging
   services/ hooks/ lib/ types/ utils/
 prisma/           schema · migrations · seed
@@ -80,8 +80,8 @@ UX, testes e preparação)** concluídas.
 
 - ✅ Estrutura de pastas e camadas; layout base; tema claro/escuro/sistema.
 - ✅ **Banco PostgreSQL nativo** (usuário dedicado `outmat`); migrations + seed.
-- ✅ **CRUD completo**: Configuração (singleton), Clientes, Produtos, Vendedores,
-  Técnicos.
+- ✅ **CRUD completo**: Configuração (singleton), Clientes, Produtos, **Usuários**
+  (identidade única com papéis `ehVendedor`/`ehTecnico` — ADR-0410).
 - ✅ Listagens: busca instantânea, ordenação, paginação (20/pág), filtro de
   inativos, ações por linha — via `CrudListView` + `CrudLayout`.
 - ✅ Formulários: React Hook Form + Zod, autofocus, atalhos CTRL+S/ESC,

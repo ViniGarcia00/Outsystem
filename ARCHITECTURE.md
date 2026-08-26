@@ -43,7 +43,7 @@ importa o Prisma diretamente — o acesso a dados passa por `services`, que usam
 ```
 src/
   app/                       # Rotas (App Router) — 1 pasta por menu
-    dashboard/ propostas/ clientes/ produtos/ vendedores/ tecnicos/ configuracoes/
+    dashboard/ propostas/ clientes/ produtos/ usuarios/ configuracoes/
     layout.tsx               # ThemeProvider + TooltipProvider + AppShell
     page.tsx                 # redireciona "/" -> "/propostas"
     globals.css              # Tailwind v4 + tokens shadcn (light/dark)
@@ -57,7 +57,7 @@ src/
     tables/                  # DataTable (TanStack Table genérico)
 
   features/                  # Feature-First
-    dashboard/ clientes/ produtos/ vendedores/ tecnicos/ configuracoes/
+    dashboard/ clientes/ produtos/ usuarios/ configuracoes/
     propostas/               # workspace, seções, itens, serviços, totais
       pdf/                   # geração de PDF (@react-pdf/renderer)
         blocks/              #   cabeçalho, cliente, tabela, rodapé financeiro,
@@ -105,8 +105,7 @@ Prisma 7 com o generator `prisma-client` (saída em `src/generated/prisma`) e
 | --------------------- | ----------------------- | ------------------------------------------------ |
 | `Cliente`             | `clientes`              | Cadastro base                                    |
 | `Produto`             | `produtos`              | Cadastro base                                    |
-| `Vendedor`            | `vendedores`            | Cadastro base                                    |
-| `Tecnico`             | `tecnicos`              | Cadastro base                                    |
+| `Usuario`             | `usuarios`              | Cadastro base — identidade única com papéis `ehVendedor`/`ehTecnico` (ADR-0410) |
 | `Proposta`            | `propostas`             | Raiz (`proposalNumber` único, `currentRevisionId`, enum `modelo`) |
 | `PropostaRevisao`     | `proposta_revisoes`     | Versões (`revisionNumber` inteiro, único por proposta) |
 | `PropostaSecao`       | `proposta_secoes`       | **Agrupador neutro de itens** (ver abaixo)       |
@@ -206,22 +205,30 @@ cadastros (ADR-0106).
 
 ## 4.2. Regras de exclusão e inativação (cadastros)
 
-- **Inativação:** Cliente, Produto, Vendedor e Técnico têm `ativo` (default
-  `true`). As listagens mostram apenas ativos; o filtro "Mostrar inativos"
-  revela os demais.
+- **Inativação:** Cliente, Produto e Usuário têm `ativo` (default `true`). As
+  listagens mostram apenas ativos; o filtro "Mostrar inativos" revela os demais.
+- **Usuário tem um segundo eixo, independente do `ativo`: os PAPÉIS**
+  (`ehVendedor`, `ehTecnico`, ADR-0410). `ativo` diz se a pessoa ainda atua; o
+  papel diz o que ela faz. Disponível para um vínculo **novo** naquele papel =
+  `ativo && ehPapel`. Usuário sem papel nenhum é válido — não aparece em select
+  nenhum, e é o cadastro criado antes de a função ser decidida.
 - **Exclusão condicionada ao uso em propostas:** um registro só pode ser
   **excluído** se nunca foi usado em uma proposta; caso contrário deve ser
   **inativado** (mensagem padrão única).
-  - **Cliente** e **Vendedor** possuem relação com `Proposta` — a checagem já é
-    aplicada (`proposta.count`).
+  - **Cliente** possui relação com `Proposta` — a checagem já é aplicada
+    (`proposta.count`).
   - **Produto** passou a ter vínculo com a proposta: `PropostaItem.produtoId` com
     `onDelete: Restrict` (ADR-0207). A regra vale hoje — produto usado em
     proposta não é excluído. O texto original do ADR-0104 previa exatamente isso.
-  - **Técnico (Sprint 4.1, ADR-0408) é o primeiro cadastro cuja regra de
-    exclusão NÃO olha para `Proposta`.** A checagem de uso conta
-    `Instalacao.tecnicoResponsavelId` e `InstalacaoRegistro.tecnicoId`; um
-    Técnico nunca é usado em uma proposta. Mensagem própria,
-    `CANNOT_DELETE_USED_IN_INSTALACOES`, porque a existente fala em "propostas".
+  - **Usuário (Sprint 4.2, ADR-0410) é o único cadastro cuja regra conta TRÊS
+    relações**, porque a mesma identidade pode ter atuado nos dois papéis:
+    `Proposta.vendedorId`, `Instalacao.tecnicoResponsavelId` e
+    `InstalacaoRegistro.tecnicoId`. Mensagem própria,
+    `CANNOT_DELETE_USED_IN_RECORDS`, porque a padrão fala só em "propostas".
+    As três FKs são `ON DELETE RESTRICT` — o banco garante o mesmo que o
+    service afirma. (`propostas.vendedorId` era `SET NULL` e foi corrigida
+    nesta Sprint: apagar um vendedor por fora do service zerava o vínculo em
+    silêncio.)
 
 > **Nomenclatura — "Código" × "SKU".** Na interface (formulário, listagem, busca,
 > validações, tabela, PDF e autocomplete) o campo do produto chama-se **SKU**.
@@ -333,12 +340,17 @@ Cliente
 - **Sem "Nome do Projeto"** desde a Sprint 4.0.3 (ADR-0404): o campo foi
   removido estruturalmente, inclusive do banco. `Proposta.nomeProjeto`
   (ADR-0227) é outro campo, em outro model, e **permanece**.
-- **Responsável é vínculo com o cadastro de Técnicos** (ADR-0408, supersede
-  parcial do ADR-0400). A Instalação guarda só a FK — "responsável atual" é
-  estado corrente e acompanha o cadastro. O registro da cronologia guarda a FK
-  **e** `responsavelNome`, snapshot do nome no momento em que aquele responsável
-  lhe foi atribuído: renomear um Técnico não reescreve fatos já registrados.
-  `Vendedor` continua não sendo reutilizado.
+- **Responsável é vínculo com o cadastro de Usuários** (ADR-0410, que substitui
+  os cadastros separados de Vendedor e Técnico; a mecânica do vínculo vem do
+  ADR-0408, supersede parcial do ADR-0400). A Instalação guarda só a FK —
+  "responsável atual" é estado corrente e acompanha o cadastro. O registro da
+  cronologia guarda a FK **e** `responsavelNome`, snapshot do nome no momento em
+  que aquele responsável lhe foi atribuído: renomear um Usuário não reescreve
+  fatos já registrados, nem inativá-lo, nem desmarcar seu papel.
+- **O papel é exigido só em vínculo NOVO ou ALTERADO** (ADR-0410). O service
+  compara o vínculo persistido com o recebido, dentro da transação, e só então
+  exige `ativo && ehPapel`. É isso que permite exigir o papel sem quebrar o
+  histórico: uma proposta cujo vendedor perdeu o papel continua salvável.
 - **Cancelar, nunca excluir.** Concluir é mudar o status.
 - **Cronologia operacional × auditoria técnica** são separadas: a primeira
   (Sprint 4.0.2) é conteúdo que o usuário lê; a segunda é trilha de sistema,
