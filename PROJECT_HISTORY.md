@@ -1550,7 +1550,58 @@ registro à Instalação, que já havia sido acrescentada como bullet ao ADR-040
 
 ### Auditoria pré-migration
 
-_(preenchido na Task 2, antes de qualquer migration)_
+Saída de `npx tsx scripts/db/audit-usuarios.ts`, executada em 2026-08-26 **antes
+de qualquer migration**. É o lado "antes" da prova de que nenhum vínculo foi
+perdido.
+
+```json
+{
+  "cadastros": {
+    "vendedores": 2,
+    "tecnicos": 1,
+    "usuarios": null
+  },
+  "listas": {
+    "vendedores": [
+      "Carlos Gomes",
+      "Vinicius Garcia"
+    ],
+    "tecnicos": [
+      "Vinicius"
+    ],
+    "usuarios": null
+  },
+  "vinculos": {
+    "propostasComVendedor": 2,
+    "instalacoesComTecnico": 0,
+    "registros": 3
+  },
+  "cronologia": [
+    {
+      "id": "cmt1gqo01000000ucc1nvxjzf",
+      "tecnicoId": "2169f741-dad5-4034-af76-59f2c2f4a44a",
+      "responsavelNome": "Vinicius"
+    },
+    {
+      "id": "cmt1grpf1000100uckuik1v14",
+      "tecnicoId": "2169f741-dad5-4034-af76-59f2c2f4a44a",
+      "responsavelNome": "Vinicius"
+    },
+    {
+      "id": "cmt1gsyw3000200ucfmij1pll",
+      "tecnicoId": "2169f741-dad5-4034-af76-59f2c2f4a44a",
+      "responsavelNome": "Vinicius"
+    }
+  ]
+}
+```
+
+Leitura: **2 vendedores + 1 técnico**; **5 vínculos** (2 propostas, 0
+instalações com responsável, 3 registros); os 3 registros da cronologia apontam
+para o técnico `2169f741-…` e trazem o snapshot `"Vinicius"`.
+
+`Vinicius` (técnico) e `Vinicius Garcia` (vendedor) são a mesma pessoa em dois
+cadastros — a consolidação está aprovada e isolada na M4 (ADR-0410).
 
 ### Auditoria pós-migration
 
