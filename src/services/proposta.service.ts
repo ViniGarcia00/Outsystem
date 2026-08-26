@@ -258,6 +258,12 @@ export async function criarPropostaCompleta(
   payload: NovaPropostaPayload,
 ): Promise<{ id: string; proposalNumber: number }> {
   return prisma.$transaction(async (tx) => {
+    // Vínculo NOVO: exige papel de vendedor disponível (ADR-0410). Nulo é
+    // permitido — a proposta pode nascer sem vendedor (fluxo workspace-first).
+    if (payload.vendedorId) {
+      await assertPapel(tx, payload.vendedorId, "ehVendedor");
+    }
+
     const proposta = await tx.proposta.create({
       data: {
         clienteId: payload.clienteId,
@@ -375,6 +381,9 @@ export async function salvarProposta(
         status: true,
         currentRevisionId: true,
         currentRevision: { select: { revisionNumber: true } },
+        // O vínculo vigente, para comparar com o recebido. Lido DENTRO desta
+        // transação, junto do resto: comparação e escrita veem o mesmo estado.
+        vendedorId: true,
       },
     });
     if (p.status === "CANCELADA") {
@@ -382,6 +391,16 @@ export async function salvarProposta(
     }
     if (!p.currentRevisionId) {
       throw new Error("Revisão atual não encontrada.");
+    }
+
+    // A REGRA (ADR-0410): o papel é exigido apenas quando o vínculo MUDA.
+    //
+    // Uma proposta cujo vendedor foi inativado, ou que perdeu o papel depois,
+    // continua salvável — corrigir o desconto de uma proposta antiga não pode
+    // falhar por causa de uma mudança de cadastro posterior. Trocar o vendedor,
+    // sim: aí é escolha nova, e escolha nova respeita a regra vigente.
+    if (payload.vendedorId && payload.vendedorId !== p.vendedorId) {
+      await assertPapel(tx, payload.vendedorId, "ehVendedor");
     }
 
     let revisaoId = p.currentRevisionId;
@@ -634,6 +653,9 @@ export async function duplicarProposta(
     const nova = await tx.proposta.create({
       data: {
         clienteId: orig.clienteId,
+        // Vínculo COPIADO, não escolhido: não passa pela guarda de papel
+        // (ADR-0410). Duplicar uma proposta antiga nunca pode falhar porque o
+        // vendedor dela foi inativado ou perdeu o papel depois.
         vendedorId: orig.vendedorId,
         modelo: orig.modelo,
         nomeProjeto: orig.nomeProjeto,

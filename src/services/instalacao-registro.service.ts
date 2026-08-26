@@ -1,5 +1,6 @@
 import type { CategoriaCustoInstalacao } from "@/features/instalacoes/custos";
 import type { TipoRegistroInstalacao } from "@/features/instalacoes/labels";
+import { LABEL_PAPEL } from "@/features/usuarios/opcoes";
 import { prisma } from "@/infrastructure/database";
 
 /**
@@ -16,9 +17,11 @@ import { prisma } from "@/infrastructure/database";
  *   PERTENÇA à instalação informada. A consulta é sempre condicionada por
  *   `id` E `instalacaoId`; não pertencer devolve o mesmo "não encontrado" de
  *   um id inexistente.
- * - O responsável é VÍNCULO com Tecnico mais SNAPSHOT do nome (ADR-0408). O
- *   snapshot é derivado aqui dentro, do Tecnico persistido, e só é reescrito
- *   quando o técnico do registro MUDA — editar o relatório não mexe nele.
+ * - O responsável é VÍNCULO com Usuario mais SNAPSHOT do nome (ADR-0408,
+ *   preservado pelo ADR-0410). O snapshot é derivado aqui dentro, do Usuario
+ *   persistido, e só é reescrito quando o técnico do registro MUDA — editar o
+ *   relatório não mexe nele. O papel de técnico é obrigatório e verificado na
+ *   mesma leitura que produz o nome.
  */
 
 export interface CustoDTO {
@@ -55,7 +58,9 @@ export interface RegistroInput {
 }
 
 export const REGISTRO_NAO_ENCONTRADO = "Registro não encontrado.";
-export const TECNICO_NAO_ENCONTRADO = "Técnico não encontrado.";
+export const USUARIO_NAO_ENCONTRADO = "Usuário não encontrado.";
+/** Papel de técnico é OBRIGATÓRIO na cronologia (ADR-0410). */
+export const SEM_PAPEL_TECNICO = `O usuário selecionado não tem o papel de ${LABEL_PAPEL.ehTecnico}.`;
 
 /** Mensagem oficial do bloqueio de exclusão (ADR-0401). */
 export const REGISTRO_COM_CUSTOS =
@@ -65,19 +70,25 @@ export const REGISTRO_COM_CUSTOS =
 type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
 
 /**
- * Nome do Técnico PERSISTIDO, lido dentro da transação.
+ * Nome do Usuário PERSISTIDO, lido dentro da transação, com o papel de técnico
+ * exigido na MESMA leitura.
  *
  * O nome NUNCA vem do navegador — é a mesma regra do snapshot de endereço
  * (ADR-0400), e pelo mesmo motivo: uma garantia de integridade não pode depender
- * do estado de um formulário.
+ * do estado de um formulário. O papel entra aqui, e não em uma consulta
+ * separada, porque as duas respostas precisam vir do mesmo estado (ADR-0410).
+ *
+ * Diferente de Proposta e Instalação, aqui o responsável é OBRIGATÓRIO: um
+ * acontecimento da cronologia sem quem o executou não é um fato registrável.
  */
-async function nomeDoTecnico(tx: Tx, tecnicoId: string): Promise<string> {
-  const t = await tx.tecnico.findUnique({
-    where: { id: tecnicoId },
-    select: { nome: true },
+async function nomeDoTecnico(tx: Tx, usuarioId: string): Promise<string> {
+  const u = await tx.usuario.findUnique({
+    where: { id: usuarioId },
+    select: { nome: true, ativo: true, ehTecnico: true },
   });
-  if (!t) throw new Error(TECNICO_NAO_ENCONTRADO);
-  return t.nome;
+  if (!u) throw new Error(USUARIO_NAO_ENCONTRADO);
+  if (!u.ativo || !u.ehTecnico) throw new Error(SEM_PAPEL_TECNICO);
+  return u.nome;
 }
 
 const trimOrNull = (v?: string | null): string | null => {

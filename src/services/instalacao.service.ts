@@ -240,6 +240,12 @@ export async function criarInstalacao(
     });
     if (!cliente) throw new Error(CLIENTE_NAO_ENCONTRADO);
 
+    // Vínculo NOVO: exige papel de técnico disponível (ADR-0410). Nulo é
+    // permitido — a instalação pode nascer sem responsável definido.
+    if (input.tecnicoResponsavelId) {
+      await assertPapel(tx, input.tecnicoResponsavelId, "ehTecnico");
+    }
+
     const criada = await tx.instalacao.create({
       data: {
         clienteId: input.clienteId,
@@ -272,9 +278,19 @@ export async function atualizarInstalacao(
   await prisma.$transaction(async (tx) => {
     const atual = await tx.instalacao.findUnique({
       where: { id },
-      select: { status: true },
+      select: { status: true, tecnicoResponsavelId: true },
     });
     if (!atual) throw new Error(INSTALACAO_NAO_ENCONTRADA);
+
+    // Mesma regra da Proposta (ADR-0410): papel exigido só quando o
+    // responsável MUDA. Reagendar uma instalação cujo técnico foi inativado, ou
+    // que perdeu o papel, continua funcionando — o vínculo antigo é preservado.
+    if (
+      input.tecnicoResponsavelId &&
+      input.tecnicoResponsavelId !== atual.tecnicoResponsavelId
+    ) {
+      await assertPapel(tx, input.tecnicoResponsavelId, "ehTecnico");
+    }
 
     await tx.instalacao.update({ where: { id }, data: toData(input) });
 
