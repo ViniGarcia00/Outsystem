@@ -15,9 +15,10 @@ import {
   type RegistroDTO,
 } from "./instalacao-registro.service";
 import {
-  listTecnicoOptions,
-  type TecnicoOption,
-} from "./tecnico.service";
+  assertPapel,
+  listUsuarioOptions,
+  type UsuarioOption,
+} from "./usuario.service";
 
 /**
  * Serviço de Instalações (Sprint 4.0.1).
@@ -370,17 +371,19 @@ export async function searchPropostas(
 // ---------------------------------------------------------------------------
 
 /**
- * Opções do `Select` de responsável para UMA instalação: técnicos ativos **mais**
- * os já vinculados a ela — o responsável atual e o de cada registro da
- * cronologia —, mesmo inativos.
+ * Opções do `Select` de responsável para UMA instalação: usuários **disponíveis
+ * para o papel de técnico** (`ativo && ehTecnico`, ADR-0410) **mais** os já
+ * vinculados a ela — o responsável atual e o de cada registro da cronologia —,
+ * ainda que indisponíveis.
  *
- * Sem os vinculados, abrir uma instalação cujo técnico foi inativado mostraria o
- * campo em branco, e salvar qualquer outra alteração apagaria o vínculo em
- * silêncio. Uma consulta só serve a página inteira do workspace.
+ * Sem os vinculados, abrir uma instalação cujo técnico foi inativado (ou que
+ * perdeu o papel) mostraria o campo em branco, e salvar qualquer outra
+ * alteração apagaria o vínculo em silêncio. Uma consulta só serve a página
+ * inteira do workspace.
  */
-export async function listTecnicoOptionsDaInstalacao(
+export async function listUsuarioOptionsDaInstalacao(
   instalacaoId: string,
-): Promise<TecnicoOption[]> {
+): Promise<UsuarioOption[]> {
   const i = await prisma.instalacao.findUnique({
     where: { id: instalacaoId },
     select: {
@@ -388,9 +391,9 @@ export async function listTecnicoOptionsDaInstalacao(
       registros: { select: { tecnicoId: true } },
     },
   });
-  if (!i) return listTecnicoOptions();
+  if (!i) return listUsuarioOptions("ehTecnico");
 
-  return listTecnicoOptions([
+  return listUsuarioOptions("ehTecnico", [
     ...(i.tecnicoResponsavelId ? [i.tecnicoResponsavelId] : []),
     ...i.registros.map((r) => r.tecnicoId),
   ]);

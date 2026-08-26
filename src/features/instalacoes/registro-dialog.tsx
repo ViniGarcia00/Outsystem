@@ -15,13 +15,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { RegistroDTO } from "@/services/instalacao-registro.service";
-import type { TecnicoOption } from "@/services/tecnico.service";
+import { UsuarioSelectField } from "@/features/usuarios";
+import type { UsuarioOption } from "@/services/usuario.service";
 
 import { CustosEditor } from "./custos-editor";
 import { dataHoraParaInput } from "./datas";
 import { TIPO_REGISTRO_LABEL, TIPOS_REGISTRO_ORDER } from "./labels";
 import { registroSchema, type RegistroValues } from "./registro-schema";
-import { TecnicoSelectField } from "./tecnico-select-field";
 
 const TIPO_OPTIONS = TIPOS_REGISTRO_ORDER.map((value) => ({
   value,
@@ -51,7 +51,7 @@ export function RegistroDialog({
   registro: RegistroDTO | null;
   submitting: boolean;
   onConfirm: (values: RegistroValues) => void;
-  tecnicos: TecnicoOption[];
+  tecnicos: UsuarioOption[];
 }) {
   const form = useForm<RegistroValues>({
     resolver: zodResolver(registroSchema),
@@ -107,10 +107,11 @@ export function RegistroDialog({
                 type="datetime-local"
               />
             </div>
-            <TecnicoSelectField
+            <UsuarioSelectField
               name="tecnicoId"
               label="Responsável"
               options={tecnicos}
+              placeholder="Selecione o técnico"
             />
             <TextareaField
               name="relatorio"

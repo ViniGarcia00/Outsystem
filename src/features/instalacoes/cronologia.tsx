@@ -9,7 +9,7 @@ import { PageEmpty } from "@/components/app";
 import { ConfirmDialog } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import type { RegistroDTO } from "@/services/instalacao-registro.service";
-import type { TecnicoOption } from "@/services/tecnico.service";
+import type { UsuarioOption } from "@/services/usuario.service";
 
 import { RegistroCard } from "./registro-card";
 import {
@@ -35,7 +35,7 @@ export function Cronologia({
   instalacaoId: string;
   registros: RegistroDTO[];
   readOnly: boolean;
-  tecnicos: TecnicoOption[];
+  tecnicos: UsuarioOption[];
 }) {
   const router = useRouter();
   const [dialogOpen, setDialogOpen] = useState(false);

@@ -16,29 +16,37 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { TecnicoOption } from "@/services/tecnico.service";
+import type { UsuarioOption } from "@/services/usuario.service";
 
-/** Sentinela de "sem técnico" — o Select do shadcn não aceita value vazio. */
+/** Sentinela de "sem usuário" — o Select do shadcn não aceita value vazio. */
 const NENHUM = "__none__";
 
 /**
- * Escolha do Técnico responsável (ADR-0408) — mesmo padrão do Vendedor no
- * cabeçalho da Proposta: `Select` alimentado no servidor com os ativos.
+ * Escolha de um Usuário para um PAPEL (ADR-0410) — mesmo padrão do Vendedor no
+ * cabeçalho da Proposta: `Select` alimentado no servidor.
  *
- * As opções chegam prontas do service e já incluem os técnicos INATIVOS que
- * estejam vinculados, rotulados "(inativo)". É isso que impede o campo de
- * aparecer em branco quando alguém inativa um técnico já usado.
+ * As opções chegam prontas do service e já incluem os usuários INDISPONÍVEIS
+ * que estejam vinculados, rotulados. São **duas** as causas de
+ * indisponibilidade: a pessoa foi inativada (`Nome (inativo)`) ou perdeu o
+ * papel (`Nome (sem papel de técnico)`). É isso que impede o campo de aparecer
+ * em branco quando alguém inativa ou desmarca o papel de quem já estava
+ * vinculado.
+ *
+ * Serve aos dois papéis — daí o `placeholder` ser parametrizado.
  */
-export function TecnicoSelectField({
+export function UsuarioSelectField({
   name,
   label,
   options,
+  placeholder = "Selecione",
   opcional = false,
   disabled = false,
 }: {
   name: string;
   label: string;
-  options: TecnicoOption[];
+  options: UsuarioOption[];
+  /** Texto do campo vazio. Ex.: "Selecione o técnico". */
+  placeholder?: string;
   /** Quando true, oferece "Nenhum" e o valor pode ser null. */
   opcional?: boolean;
   disabled?: boolean;
@@ -59,7 +67,7 @@ export function TecnicoSelectField({
           >
             <FormControl>
               <SelectTrigger>
-                <SelectValue placeholder="Selecione o técnico" />
+                <SelectValue placeholder={placeholder} />
               </SelectTrigger>
             </FormControl>
             <SelectContent>

@@ -20,7 +20,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { InstalacaoDetalhe } from "@/services/instalacao.service";
-import type { TecnicoOption } from "@/services/tecnico.service";
+import { UsuarioSelectField } from "@/features/usuarios";
+import type { UsuarioOption } from "@/services/usuario.service";
 
 import { atualizarInstalacaoAction, cancelarInstalacaoAction } from "./actions";
 import { CancelarInstalacaoDialog } from "./cancelar-instalacao-dialog";
@@ -34,7 +35,6 @@ import {
   cabecalhoInstalacaoSchema,
   type CabecalhoInstalacaoValues,
 } from "./schema";
-import { TecnicoSelectField } from "./tecnico-select-field";
 
 const STATUS_OPTIONS = STATUS_ORDER.map((value) => ({
   value,
@@ -61,7 +61,7 @@ export function InstalacaoWorkspace({
   tecnicos,
 }: {
   data: InstalacaoDetalhe;
-  tecnicos: TecnicoOption[];
+  tecnicos: UsuarioOption[];
 }) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
@@ -167,10 +167,11 @@ export function InstalacaoWorkspace({
                   }}
                   disabled={readOnly}
                 />
-                <TecnicoSelectField
+                <UsuarioSelectField
                   name="tecnicoResponsavelId"
                   label="Responsável atual"
                   options={tecnicos}
+                  placeholder="Selecione o técnico"
                   opcional
                   disabled={readOnly}
                 />

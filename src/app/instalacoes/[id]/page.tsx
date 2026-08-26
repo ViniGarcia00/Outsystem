@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { InstalacaoWorkspace } from "@/features/instalacoes";
 import {
   getInstalacao,
-  listTecnicoOptionsDaInstalacao,
+  listUsuarioOptionsDaInstalacao,
 } from "@/services/instalacao.service";
 
 export const metadata: Metadata = { title: "Instalação" };
@@ -19,7 +19,7 @@ export default async function InstalacaoPage({
   const { id } = await params;
   const [instalacao, tecnicos] = await Promise.all([
     getInstalacao(id),
-    listTecnicoOptionsDaInstalacao(id),
+    listUsuarioOptionsDaInstalacao(id),
   ]);
   if (!instalacao) notFound();
 
