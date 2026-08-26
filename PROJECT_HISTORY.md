@@ -1748,7 +1748,7 @@ Vinicius Garcia   [x] Vendedor  [x] Técnico
 | 21 | `fbb6b04` | T20 — M4 (consolidação humana) |
 | 22 | `711d05c` | T21 — auditoria pós |
 | 23 | `2083551` | T22 — documentação final |
-| 24 | *este commit* | T23 — VERSION 1.5.0 e gate oficial |
+| 24 | `a8d9081` | T23 — VERSION 1.5.0 e gate oficial |
 
 ### Desvios do plano, e por quê
 
