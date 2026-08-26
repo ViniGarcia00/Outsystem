@@ -15,10 +15,7 @@ import {
   removeProduto,
 } from "@/services/produto.service";
 import { getConfiguracao, saveConfiguracao } from "@/services/configuracao.service";
-import {
-  createVendedor,
-  removeVendedor,
-} from "@/services/vendedor.service";
+import { createUsuario, removeUsuario } from "@/services/usuario.service";
 
 /**
  * Validação de CRUD contra o PostgreSQL REAL, exercitando a camada de services
@@ -69,7 +66,7 @@ async function cleanup() {
     },
   });
   await prisma.produto.deleteMany({ where: { codigo: "TESTE-CRUD" } });
-  await prisma.vendedor.deleteMany({ where: { nome: "Vendedor Teste CRUD" } });
+  await prisma.usuario.deleteMany({ where: { nome: "Usuario Teste CRUD" } });
 }
 
 async function main() {
@@ -166,7 +163,11 @@ async function main() {
         valorProduto: 1,
         valorServico: 0,
       }),
-    (m) => m.includes("código"),
+    // O projeto chama `Produto.codigo` de SKU na interface, e a mensagem do
+    // service segue esse vocabulário. O matcher aqui dizia "código" e falhava
+    // em silêncio desde que a mensagem passou a dizer "SKU" — defeito do
+    // script, não do service. Corrigido na Sprint 4.2.
+    (m) => m.includes("SKU"),
   );
   await removeProduto(produtoId);
   const produtos = await listProdutos(true);
@@ -175,15 +176,18 @@ async function main() {
     !produtos.some((p) => p.id === produtoId),
   );
 
-  // --- VENDEDORES ----------------------------------------------------------
-  console.log("\nVendedores:");
-  const vendedorId = await createVendedor({
+  // --- USUÁRIOS ------------------------------------------------------------
+  console.log("\nUsuários:");
+  // Cadastro único com os dois papéis (Sprint 4.2, ADR-0410).
+  const usuarioId = await createUsuario({
     ativo: true,
-    nome: "Vendedor Teste CRUD",
+    nome: "Usuario Teste CRUD",
+    ehVendedor: true,
+    ehTecnico: true,
   });
-  check("create", Boolean(vendedorId));
-  await removeVendedor(vendedorId);
-  check("excluir vendedor sem uso é permitido", true);
+  check("create", Boolean(usuarioId));
+  await removeUsuario(usuarioId);
+  check("excluir usuário sem uso é permitido", true);
 
   console.log(`\nResultado: ${passed} ok, ${failed} falha(s).`);
   if (failed > 0) process.exitCode = 1;

@@ -65,10 +65,29 @@ const CLIENTES = [
   },
 ];
 
-const VENDEDORES = [
-  { nome: "Ana Souza", telefone: "(31) 99999-1111", email: "ana@outmat.com.br" },
-  { nome: "Bruno Lima", telefone: "(31) 99999-2222" },
-  { nome: "Carla Mendes", email: "carla@outmat.com.br" },
+// Usuários de exemplo com PAPÉIS (Sprint 4.2, ADR-0410). Substitui a lista de
+// vendedores: agora a mesma pessoa pode ter os dois papéis, e "Carla Mendes"
+// reproduz esse caso — é o cenário que motivou a unificação.
+const USUARIOS = [
+  {
+    nome: "Ana Souza",
+    telefone: "(31) 99999-1111",
+    email: "ana@outmat.com.br",
+    ehVendedor: true,
+    ehTecnico: false,
+  },
+  {
+    nome: "Bruno Lima",
+    telefone: "(31) 99999-2222",
+    ehVendedor: false,
+    ehTecnico: true,
+  },
+  {
+    nome: "Carla Mendes",
+    email: "carla@outmat.com.br",
+    ehVendedor: true,
+    ehTecnico: true,
+  },
 ];
 
 const PRODUTOS = [
@@ -122,7 +141,7 @@ async function main() {
   // Isto torna `npm run db:seed` seguro para rodar a qualquer momento.
   const registrosExistentes =
     (await prisma.cliente.count()) +
-    (await prisma.vendedor.count()) +
+    (await prisma.usuario.count()) +
     (await prisma.produto.count()) +
     (await prisma.proposta.count());
 
@@ -135,7 +154,7 @@ async function main() {
   }
 
   await prisma.cliente.createMany({ data: CLIENTES });
-  await prisma.vendedor.createMany({ data: VENDEDORES });
+  await prisma.usuario.createMany({ data: USUARIOS });
   await prisma.produto.createMany({ data: PRODUTOS });
 
   // Propostas de exemplo (fundação — sem produtos/serviços). Cada uma nasce com
@@ -144,7 +163,10 @@ async function main() {
     select: { id: true },
     orderBy: { createdAt: "asc" },
   });
-  const vendedoresList = await prisma.vendedor.findMany({
+  // Só quem TEM o papel de vendedor pode ser vinculado a uma proposta — a
+  // guarda de `criarPropostaCompleta` recusaria os demais (ADR-0410).
+  const vendedoresList = await prisma.usuario.findMany({
+    where: { ativo: true, ehVendedor: true },
     select: { id: true },
     orderBy: { nome: "asc" },
   });
@@ -268,15 +290,15 @@ async function main() {
     });
   }
 
-  const [clientes, vendedores, produtos, propostas] = await Promise.all([
+  const [clientes, usuarios, produtos, propostas] = await Promise.all([
     prisma.cliente.count(),
-    prisma.vendedor.count(),
+    prisma.usuario.count(),
     prisma.produto.count(),
     prisma.proposta.count(),
   ]);
 
   console.log(
-    `Seed concluído: ${clientes} clientes, ${vendedores} vendedores, ${produtos} produtos, ${propostas} propostas.`,
+    `Seed concluído: ${clientes} clientes, ${usuarios} usuários, ${produtos} produtos, ${propostas} propostas.`,
   );
 }
 
