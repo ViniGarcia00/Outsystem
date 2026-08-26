@@ -1,3 +1,5 @@
+export { UsuariosList } from "./usuarios-list";
+export { UsuarioForm } from "./usuario-form";
 export { UsuarioSelectField } from "./usuario-select-field";
 export {
   usuarioSchema,
