@@ -28,8 +28,8 @@ import { Client } from "pg";
 const MARCADOR_CLIENTE = "E2E %";
 /** Produto criado por teste: `E2E-{rótulo}-{timestamp}-{seq}`. */
 const MARCADOR_PRODUTO = "E2E-%";
-/** Técnico criado por teste: `E2E Tecnico {timestamp}`. */
-const MARCADOR_TECNICO = "E2E %";
+/** Usuário criado por teste: `E2E Usuario {rótulo} {timestamp}`. */
+const MARCADOR_USUARIO = "E2E %";
 
 export interface ContagemResiduos {
   clientes: number;
@@ -38,7 +38,7 @@ export interface ContagemResiduos {
   instalacoes: number;
   registros: number;
   custos: number;
-  tecnicos: number;
+  usuarios: number;
 }
 
 export interface ResultadoLimpeza {
@@ -110,8 +110,8 @@ async function contar(client: Client): Promise<ContagemResiduos> {
             SELECT id FROM instalacao_registros
              WHERE "instalacaoId" IN (${INSTALACOES_E2E})
           )) AS custos,
-       (SELECT count(*) FROM tecnicos WHERE nome LIKE $3) AS tecnicos`,
-    [MARCADOR_CLIENTE, MARCADOR_PRODUTO, MARCADOR_TECNICO],
+       (SELECT count(*) FROM usuarios WHERE nome LIKE $3) AS usuarios`,
+    [MARCADOR_CLIENTE, MARCADOR_PRODUTO, MARCADOR_USUARIO],
   );
   const r = rows[0];
   return {
@@ -121,7 +121,7 @@ async function contar(client: Client): Promise<ContagemResiduos> {
     instalacoes: Number(r.instalacoes),
     registros: Number(r.registros),
     custos: Number(r.custos),
-    tecnicos: Number(r.tecnicos),
+    usuarios: Number(r.usuarios),
   };
 }
 
@@ -130,7 +130,11 @@ async function contar(client: Client): Promise<ContagemResiduos> {
  *
  *   Instalacao.propostaId    → Restrict  ⇒ instalações antes de propostas
  *   PropostaItem.produtoId   → Restrict  ⇒ itens antes de produtos
- *   Tecnico → Restrict       ⇒ técnicos por último
+ *   Usuario → Restrict       ⇒ usuários por último — TRÊS relações apontam
+ *                              para ele desde a Sprint 4.2 (ADR-0410):
+ *                              Proposta.vendedorId (NOVA),
+ *                              Instalacao.tecnicoResponsavelId e
+ *                              InstalacaoRegistro.tecnicoId
  *
  * `propostas.currentRevisionId` aponta para `proposta_revisoes`; o vínculo é
  * zerado antes de apagar as revisões, senão a FK bloqueia.
@@ -206,10 +210,17 @@ async function apagar(client: Client): Promise<void> {
   await client.query(`DELETE FROM produtos WHERE codigo LIKE $1`, p);
   await client.query(`DELETE FROM clientes WHERE nome LIKE $1`, c);
 
-  // ── Técnicos ────────────────────────────────────────────────────────────
-  // Por ÚLTIMO: `Instalacao.tecnicoResponsavelId` e `InstalacaoRegistro.tecnicoId`
-  // são Restrict — instalações e registros precisam ter saído antes.
-  await client.query(`DELETE FROM tecnicos WHERE nome LIKE $1`, [MARCADOR_TECNICO]);
+  // ── Usuários ────────────────────────────────────────────────────────────
+  // Por ÚLTIMO, e agora por TRÊS motivos (Sprint 4.2, ADR-0410): além de
+  // `Instalacao.tecnicoResponsavelId` e `InstalacaoRegistro.tecnicoId`, a
+  // `Proposta.vendedorId` também virou Restrict — antes era SET NULL, e apagar
+  // um vendedor zerava o vínculo em silêncio. Instalações E propostas precisam
+  // ter saído antes. A ordem acima já garante isso; este comentário existe para
+  // que ninguém a reordene sem perceber a dependência nova.
+  //
+  // Efeito colateral positivo: vendedores criados por teste passam a ser
+  // varridos. Antes nenhum era criado — se fosse, viraria resíduo permanente.
+  await client.query(`DELETE FROM usuarios WHERE nome LIKE $1`, [MARCADOR_USUARIO]);
 }
 
 /**
