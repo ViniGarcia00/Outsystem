@@ -53,15 +53,12 @@ export interface ProximaInstalacao {
 export interface DashboardDTO {
   propostas: { rascunho: number; emitidas: number };
   instalacoes: Record<StatusInstalacaoDashboard, number>;
-  /** Soma dos custos extras de todas as instalações. */
-  custosAcumulados: number;
   proximas: ProximaInstalacao[];
 }
 
 export interface FonteDashboard {
   propostasPorStatus: { status: StatusProposta; total: number }[];
   instalacoesPorStatus: { status: StatusInstalacao; total: number }[];
-  custosAcumulados: number;
   /**
    * Instalações com data agendada, ainda em curso. O service pode pré-filtrar no
    * SQL, desde que só remova o que a regra abaixo também removeria — o corte
@@ -121,9 +118,6 @@ export function montarDashboard(fonte: FonteDashboard): DashboardDTO {
       emitidas: contar(fonte.propostasPorStatus, "EMITIDA"),
     },
     instalacoes,
-    // Duas casas: a soma agrega N linhas independentes e o erro de ponto
-    // flutuante acumula — mesmo endurecimento de `features/instalacoes/custos.ts`.
-    custosAcumulados: Math.round(fonte.custosAcumulados * 100) / 100,
     proximas: selecionarProximas(fonte.candidatasProximas, fonte.inicioDeHoje),
   };
 }

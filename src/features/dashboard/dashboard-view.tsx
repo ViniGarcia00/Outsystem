@@ -8,7 +8,7 @@ import {
   STATUS_BADGE_VARIANT,
   STATUS_LABEL as STATUS_INSTALACAO_LABEL,
 } from "@/features/instalacoes/labels";
-import { formatCurrency, formatDate } from "@/utils";
+import { formatDate } from "@/utils";
 
 import {
   STATUS_INSTALACAO_DASHBOARD,
@@ -56,7 +56,9 @@ export function DashboardView({ dados }: { dados: DashboardDTO }) {
   return (
     <div className="space-y-8">
       <Grupo titulo="Comercial">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Dois indicadores: a fileira é de 2, não de 4. Com o grupo de Custos
+            removido (Sprint 4.2), uma fileira de 4 deixaria metade vazia. */}
+        <div className="grid gap-4 sm:grid-cols-2">
           <Indicador
             rotulo="Propostas em Rascunho"
             valor={String(dados.propostas.rascunho)}
@@ -77,15 +79,6 @@ export function DashboardView({ dados }: { dados: DashboardDTO }) {
               valor={String(dados.instalacoes[status])}
             />
           ))}
-        </div>
-      </Grupo>
-
-      <Grupo titulo="Custos">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Indicador
-            rotulo="Custos extras acumulados"
-            valor={formatCurrency(dados.custosAcumulados)}
-          />
         </div>
       </Grupo>
 

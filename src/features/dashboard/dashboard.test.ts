@@ -31,7 +31,6 @@ function proxima(
 const FONTE_VAZIA: FonteDashboard = {
   propostasPorStatus: [],
   instalacoesPorStatus: [],
-  custosAcumulados: 0,
   candidatasProximas: [],
   inicioDeHoje: INICIO_DE_HOJE,
 };
@@ -88,22 +87,12 @@ describe("montarDashboard — contagens", () => {
   });
 });
 
-describe("montarDashboard — custos", () => {
-  it("repassa a soma dos custos acumulados", () => {
-    const dto = montarDashboard({ ...FONTE_VAZIA, custosAcumulados: 455 });
-    expect(dto.custosAcumulados).toBe(455);
-  });
-
-  it("normaliza a 2 casas (erro de ponto flutuante da agregação)", () => {
-    const dto = montarDashboard({
-      ...FONTE_VAZIA,
-      custosAcumulados: 0.1 + 0.2,
-    });
-    expect(dto.custosAcumulados).toBe(0.3);
-  });
-
-  it("sem custos lançados, o acumulado é zero", () => {
-    expect(montarDashboard(FONTE_VAZIA).custosAcumulados).toBe(0);
+describe("montarDashboard — custos saíram do Dashboard (Sprint 4.2)", () => {
+  it("não expõe custos acumulados no DTO", () => {
+    // Apenas a APRESENTAÇÃO saiu. O custo por instalação segue intacto em
+    // `features/instalacoes/custos.ts`, com categorias, registros e histórico
+    // preservados (ADR-0410). O que sumiu foi o card do painel.
+    expect(montarDashboard(FONTE_VAZIA)).not.toHaveProperty("custosAcumulados");
   });
 });
 
@@ -186,7 +175,6 @@ describe("montarDashboard — estado vazio", () => {
         EM_ANDAMENTO: 0,
         CONCLUIDA: 0,
       },
-      custosAcumulados: 0,
       proximas: [],
     });
   });

@@ -18,17 +18,17 @@ import { inicioDoDiaBrasil } from "@/utils";
  * `features/dashboard/dashboard.ts`, módulo puro testado sem banco — mesmo par
  * service/mapper de `proposta-pdf`.
  *
- * Quatro consultas em paralelo, nenhuma redundante. Nada é agregado no cliente:
- * as contagens saem de `groupBy` e a soma dos custos de `aggregate`, no banco.
+ * Três consultas em paralelo, nenhuma redundante. Nada é agregado no cliente:
+ * as contagens saem de `groupBy`, no banco.
+ *
+ * A soma dos custos extras saiu na Sprint 4.2 (ADR-0410): o card deixou de
+ * existir no painel, e manter o `aggregate` seria consulta sem leitor. O custo
+ * por instalação continua intacto em `features/instalacoes/custos.ts`.
  *
  * Não conhece o PDF Geral de Produtos — os dois são independentes por decisão.
  */
 
 export type { DashboardDTO, ProximaInstalacao };
-
-/** `Decimal` do Prisma vira `number` NA BORDA do service (padrão do projeto). */
-const toNumber = (v: { toString(): string } | null): number =>
-  v ? Number(v.toString()) : 0;
 
 /** Nome de exibição do cliente — PJ mostra a razão social. */
 const nomeCliente = (c: {
@@ -41,10 +41,9 @@ const nomeCliente = (c: {
 export async function getDashboard(): Promise<DashboardDTO> {
   const inicioDeHoje = inicioDoDiaBrasil();
 
-  const [propostas, instalacoes, custos, candidatas] = await Promise.all([
+  const [propostas, instalacoes, candidatas] = await Promise.all([
     prisma.proposta.groupBy({ by: ["status"], _count: { _all: true } }),
     prisma.instalacao.groupBy({ by: ["status"], _count: { _all: true } }),
-    prisma.instalacaoCusto.aggregate({ _sum: { valor: true } }),
     // Pré-filtro SQL deliberadamente mais AMPLO que a regra: remove só o que a
     // regra pura também removeria (sem data agendada, já encerrada). O corte por
     // data e o limite de 5 ficam no módulo puro, que é onde estão testados —
@@ -75,7 +74,6 @@ export async function getDashboard(): Promise<DashboardDTO> {
       status: i.status as StatusInstalacao,
       total: i._count._all,
     })),
-    custosAcumulados: toNumber(custos._sum.valor),
     candidatasProximas: candidatas.map((i) => ({
       id: i.id,
       numero: i.numero,
