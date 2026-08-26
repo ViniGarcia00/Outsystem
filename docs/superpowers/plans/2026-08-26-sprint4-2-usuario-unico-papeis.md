@@ -53,11 +53,12 @@ Valem para **todas** as tasks. Copiadas da spec e do `AGENTS.md`.
 
 ---
 
-## ⚠️ Refinamentos que exigem aprovação antes da Task 4
+## ✅ Refinamentos aprovados em 2026-08-26
 
 A auditoria técnica feita para escrever este plano encontrou três pontos que
-**melhoram** o desenho aprovado. Os três desviam da letra da spec e estão
-isolados aqui para decisão explícita. **As Tasks 4–6 assumem os três aprovados.**
+**melhoram** o desenho aprovado. Os três desviam da letra da spec e foram
+**APROVADOS pelo dono do produto em 2026-08-26**, junto do plano. As Tasks 4-6,
+9 e 20 os assumem. O ADR-0410 (Task 1) registra os três.
 
 ### R1 — `usuarios.id` preserva o id do cadastro de origem
 
@@ -125,8 +126,9 @@ oposto do §3 do pedido. Hoje a única proteção é a contagem na aplicação.
 constraints de qualquer forma. Custo zero, e alinha o banco à regra que a
 aplicação já afirma.
 
-**Se você recusar R3**, a Task 5 mantém `SET NULL` em `propostas` e a Task 22
-registra o desvio no `BACKLOG.md`. Nada mais muda.
+**Aprovado sem ressalva:** corrigir nesta Sprint, sem registro no `BACKLOG.md`.
+Fica consistente com `removeUsuario`, que bloqueia a exclusão quando existe
+qualquer um dos três vínculos — agora o banco garante o mesmo.
 
 ---
 
@@ -487,8 +489,9 @@ tabela de origem, e é isso que mantém o mapper do PDF intacto:
   vendedor   Usuario? @relation("PropostaVendedor", fields: [vendedorId], references: [id], onDelete: Restrict)
 ```
 
-> `onDelete: Restrict` é o **R3**. Se R3 for recusado, omitir o `onDelete` aqui
-> (o default do Prisma para relação opcional é `SetNull`, o comportamento atual).
+> `onDelete: Restrict` é o **R3**, aprovado: alinha `Proposta.vendedorId` às
+> outras duas FKs. Sem ele, o default do Prisma para relação opcional seria
+> `SetNull` — o comportamento antigo, que zerava o vínculo em silêncio.
 
 Em `model Instalacao`:
 
@@ -541,7 +544,7 @@ compila — previsto e resolvido adiante.
 **Files:**
 - Create: `prisma/migrations/20260826000000_usuarios_estrutura/migration.sql`
 
-**Dependências:** Task 3. **Assume R1 e R2 aprovados.**
+**Dependências:** Task 3. Aplica **R1** (id preservado) e **R2** (sem matching por nome).
 
 - [ ] **Step 1: Escrever a migration**
 
@@ -589,6 +592,26 @@ CREATE TABLE "usuarios" (
 
 -- CreateIndex
 CREATE INDEX "usuarios_ativo_idx" ON "usuarios"("ativo");
+
+-- ---------------------------------------------------------------------------
+-- 0. GUARDA DE COLISAO — roda ANTES de qualquer INSERT.
+--
+--    Preservar o id de origem so e seguro se os dois conjuntos forem
+--    disjuntos. Na Outmat sao (cuid de 25 caracteres x uuid de 36), mas a
+--    migration nao pode depender disso: em um banco onde colidissem, o INSERT
+--    falharia com violacao de chave primaria no meio do caminho. Melhor
+--    recusar antes, com uma mensagem que diz o que aconteceu.
+-- ---------------------------------------------------------------------------
+DO $$
+DECLARE n int;
+BEGIN
+  SELECT count(*) INTO n
+    FROM (SELECT "id" FROM "vendedores" INTERSECT SELECT "id" FROM "tecnicos") x;
+  IF n > 0 THEN
+    RAISE EXCEPTION
+      '[usuarios] % id(s) colidem entre vendedores e tecnicos — preservar o id de origem seria impossivel; migration abortada, nada foi alterado', n;
+  END IF;
+END $$;
 
 -- ---------------------------------------------------------------------------
 -- 1. Um Usuario por VENDEDOR. Id, nome, ativo, contatos e createdAt preservados.
@@ -694,15 +717,15 @@ Nenhum vínculo tocado. `vendedores` e `tecnicos` intactos.
 **Files:**
 - Create: `prisma/migrations/20260826010000_usuarios_vinculos/migration.sql`
 
-**Dependências:** Task 4. **Assume R3 aprovado** (ver Step 1 se recusado).
+**Dependências:** Task 4. Aplica **R3** (as três FKs em `RESTRICT`).
 
 - [ ] **Step 1: Escrever a migration**
 
 ```sql
 -- Sprint 4.2 — repontamento das FKs para `usuarios` (ADR-0410).
 --
--- NENHUM VALOR DE VÍNCULO É REESCRITO. Esta migration não contém um único
--- UPDATE. As três colunas — propostas."vendedorId",
+-- ESTA MIGRATION REMOVE E RECRIA CONSTRAINTS, MAS NAO ALTERA OS VALORES DAS
+-- COLUNAS DE VINCULO. Nao contem um unico UPDATE — verificavel por grep. As três colunas — propostas."vendedorId",
 -- instalacoes."tecnicoResponsavelId" e instalacao_registros."tecnicoId" —
 -- guardam exatamente os mesmos valores antes e depois; muda só a tabela que a
 -- FK referencia. É a consequência direta de a M1 ter preservado os ids.
@@ -768,17 +791,31 @@ ALTER TABLE "instalacao_registros" ADD CONSTRAINT "instalacao_registros_tecnicoI
   ON DELETE RESTRICT ON UPDATE CASCADE;
 ```
 
-> **Se R3 for recusado:** trocar `ON DELETE RESTRICT` por `ON DELETE SET NULL`
-> **apenas** no bloco de `propostas`, e remover o parágrafo "MUDANÇA DELIBERADA"
-> do cabeçalho. Os outros dois já eram Restrict.
+- [ ] **Step 2: Capturar os valores ANTES de aplicar**
 
-- [ ] **Step 2: Aplicar**
+A M2 remove e recria constraints, mas **nao altera os valores das colunas de
+vinculo**. Esta captura e o lado "antes" da prova exigida na aprovacao.
+
+```bash
+PSQL="/c/Program Files/PostgreSQL/18/bin/psql.exe"
+VINC="SELECT 'P', id, coalesce(\"vendedorId\",'~') FROM propostas
+      UNION ALL SELECT 'I', id, coalesce(\"tecnicoResponsavelId\",'~') FROM instalacoes
+      UNION ALL SELECT 'R', id, \"tecnicoId\" FROM instalacao_registros ORDER BY 1,2;"
+
+PGPASSWORD='Exposec-2010' "$PSQL" -U postgres -h localhost -p 5432 \
+  -d db_outsystem -At -c "$VINC" > /tmp/vinculos-antes.txt
+wc -l /tmp/vinculos-antes.txt
+```
+
+Esperado: 7 linhas (3 propostas + 1 instalacao + 3 registros).
+
+- [ ] **Step 3: Aplicar**
 
 ```bash
 npm run db:migrate:deploy
 ```
 
-- [ ] **Step 3: Provar que as FKs apontam para `usuarios` e que nada mudou de valor**
+- [ ] **Step 4: Provar que as FKs apontam para `usuarios` e que NENHUM valor mudou**
 
 ```bash
 PGPASSWORD='Exposec-2010' "/c/Program Files/PostgreSQL/18/bin/psql.exe" \
@@ -791,9 +828,22 @@ SELECT con.conname, confrel.relname AS referencia,
  ORDER BY con.conname;"
 ```
 
-Esperado: as três constraints referenciando **`usuarios`**, todas `RESTRICT`
-(ou `propostas` em `SET NULL` se R3 recusado). Nenhuma linha referenciando
-`vendedores` ou `tecnicos`.
+Esperado: as três constraints referenciando **`usuarios`**, **todas
+`RESTRICT`** (R3). Nenhuma linha referenciando `vendedores` ou `tecnicos`.
+
+Agora o lado "depois", com a MESMA consulta, e o `diff` linha a linha:
+
+```bash
+PGPASSWORD='Exposec-2010' "$PSQL" -U postgres -h localhost -p 5432 \
+  -d db_outsystem -At -c "$VINC" > /tmp/vinculos-depois.txt
+
+diff /tmp/vinculos-antes.txt /tmp/vinculos-depois.txt \
+  && echo "VALORES DE VINCULO IDENTICOS — nenhuma coluna foi reescrita"
+```
+
+Esperado: `VALORES DE VINCULO IDENTICOS`. Nao e comparacao de *contagens* — e
+linha a linha, id a id. Se o `diff` acusar qualquer diferenca, **pare**: a M2
+nao pode ter tocado em valor nenhum.
 
 ```bash
 npx tsx scripts/db/audit-usuarios.ts > /tmp/audit-m2.json
@@ -803,7 +853,7 @@ diff <(jq .vinculos,.cronologia /tmp/audit-pre.json) \
 
 Esperado: `VINCULOS IDENTICOS`. É a prova de que nenhum valor foi reescrito.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add prisma/migrations/20260826010000_usuarios_vinculos
@@ -3573,10 +3623,9 @@ Nova seção no topo:
 
 - [ ] **Step 3: `BACKLOG.md`**
 
-Confirmar que o item do vendedor inativo está fechado (Task 10). Se **R3 tiver
-sido recusado**, acrescentar item novo: *"`propostas.vendedorId` continua
-`ON DELETE SET NULL` enquanto as outras duas FKs são `RESTRICT` — apagar um
-usuário fora do service zeraria o vínculo em silêncio."*
+Confirmar que o item do vendedor inativo está fechado (Task 10). **Nada a
+acrescentar sobre o R3**: a divergência de `ON DELETE` foi corrigida nesta
+Sprint, por decisão explícita, e não vira débito.
 
 - [ ] **Step 4: `docs/CHECKLIST_RELEASE.md`**
 
