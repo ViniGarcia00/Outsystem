@@ -196,44 +196,43 @@ model Produto {
   @@map("produtos")
 }
 
-model Vendedor {
-  id       String  @id @default(cuid())
-  ativo    Boolean @default(true)
-  nome     String
-  telefone String?
-  email    String?
+/// Usuario — pessoa que atua na operação, com PAPÉIS independentes (ADR-0410).
+///
+/// Substitui os cadastros separados de Vendedor e Técnico (supersede parcial do
+/// ADR-0408). A mesma pessoa pode ser vendedora, técnica, ambas ou nenhuma —
+/// antes era preciso cadastrá-la duas vezes, e nada mantinha as duas coerentes.
+///
+/// **NÃO é principal de autenticação.** Não há login, senha, permissão nem
+/// agenda. Quando o sistema ganhar autenticação, "registrado por" será campo
+/// NOVO e aditivo, separado destes vínculos: `vendedorId`/`tecnicoId` respondem
+/// QUEM FEZ o trabalho, não quem digitou.
+///
+/// `ativo` e os papéis são eixos INDEPENDENTES: `ativo` diz se a pessoa ainda
+/// atua; os papéis dizem o que ela faz. Disponível para um vínculo NOVO naquele
+/// papel = `ativo && ehPapel`. Usuário sem papel nenhum é válido — é o cadastro
+/// criado antes de a função ser decidida; ele só não aparece em select nenhum.
+model Usuario {
+  id         String  @id @default(cuid())
+  ativo      Boolean @default(true)
+  nome       String
+  /// Papel comercial. Filtra o Select de Vendedor da Proposta.
+  ehVendedor Boolean @default(false)
+  /// Papel operacional. Filtra os Selects de Técnico das Instalações.
+  ehTecnico  Boolean @default(false)
+  telefone   String?
+  email      String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  propostas Proposta[]
+  /// Relações NOMEADAS: são três para o mesmo model, e o Prisma exige o nome
+  /// explícito quando há mais de uma entre os mesmos dois models.
+  propostasComoVendedor Proposta[]           @relation("PropostaVendedor")
+  instalacoes           Instalacao[]         @relation("InstalacaoTecnico")
+  registros             InstalacaoRegistro[] @relation("RegistroTecnico")
 
   @@index([ativo])
-  @@map("vendedores")
-}
-
-/// Técnico — pessoa que executa ou acompanha o trabalho na Instalação.
-///
-/// NÃO é Vendedor (ADR-0408): um instalador não vende, e reaproveitar aquele
-/// cadastro poluiria o autocomplete da Proposta e distorceria a regra de
-/// exclusão "já foi usado em uma proposta".
-///
-/// NÃO é Usuário: não há login, permissão nem agenda. Quando houver
-/// autenticação, "registrado por" será campo NOVO e aditivo, separado deste
-/// vínculo — o Técnico responde por QUEM FEZ o trabalho, não por quem digitou.
-model Tecnico {
-  id    String  @id @default(cuid())
-  ativo Boolean @default(true)
-  nome  String
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  instalacoes Instalacao[]
-  registros   InstalacaoRegistro[]
-
-  @@index([ativo])
-  @@map("tecnicos")
+  @@map("usuarios")
 }
 
 // ---------------------------------------------------------------------------
@@ -297,8 +296,13 @@ model Proposta {
   /// tem cliente — garantido pela guarda de emissão. ADR-0210+ (refino 2.3).
   clienteId  String?
   cliente    Cliente?  @relation(fields: [clienteId], references: [id])
+  /// Usuário que atua como VENDEDOR nesta proposta (ADR-0410). A coluna nomeia
+  /// o PAPEL no vínculo, não a tabela de origem — por isso o nome não mudou
+  /// quando `Vendedor` virou `Usuario`, e o mapper do PDF segue intacto.
+  /// Restrict: vendedor vinculado nunca é apagado, e o vínculo nunca é zerado
+  /// em silêncio (antes era SET NULL — corrigido nesta Sprint).
   vendedorId String?
-  vendedor   Vendedor? @relation(fields: [vendedorId], references: [id])
+  vendedor   Usuario? @relation("PropostaVendedor", fields: [vendedorId], references: [id], onDelete: Restrict)
 
   /// Aponta para a revisão ATUAL da proposta (evita consultar/recalcular a
   /// última revisão a cada acesso). Relacionamento 1:1 opcional.
@@ -524,9 +528,10 @@ model Instalacao {
   proposta   Proposta? @relation(fields: [propostaId], references: [id], onDelete: Restrict)
 
   /// Responsável ATUAL — estado corrente, não fato histórico. Renomear o
-  /// Técnico DEVE refletir aqui; por isso não há snapshot textual (ADR-0408).
+  /// Usuário DEVE refletir aqui; por isso não há snapshot textual (ADR-0408).
+  /// Aponta para `Usuario` com papel de técnico (ADR-0410).
   tecnicoResponsavelId String?
-  tecnicoResponsavel   Tecnico? @relation(fields: [tecnicoResponsavelId], references: [id], onDelete: Restrict)
+  tecnicoResponsavel   Usuario? @relation("InstalacaoTecnico", fields: [tecnicoResponsavelId], references: [id], onDelete: Restrict)
 
   status StatusInstalacao @default(A_AGENDAR)
 
@@ -590,12 +595,13 @@ model InstalacaoRegistro {
   /// históricos são permitidos). A timeline ordena por este campo.
   aconteceuEm DateTime
 
-  /// Quem executou/acompanhou. RESTRICT: técnico usado nunca é apagado.
+  /// Quem executou/acompanhou — `Usuario` com papel de técnico (ADR-0410).
+  /// RESTRICT: usuário usado na cronologia nunca é apagado.
   tecnicoId String
-  tecnico   Tecnico @relation(fields: [tecnicoId], references: [id], onDelete: Restrict)
+  tecnico   Usuario @relation("RegistroTecnico", fields: [tecnicoId], references: [id], onDelete: Restrict)
 
   /// Snapshot do nome do Técnico no momento em que ELE foi atribuído a este
-  /// registro. Derivado NO SERVICE a partir do Tecnico persistido — nunca
+  /// registro. Derivado NO SERVICE a partir do Usuario persistido — nunca
   /// recebido do navegador (mesma regra do endereço, ADR-0400).
   ///
   /// NÃO é reescrito em edição comum: só quando o `tecnicoId` muda. Ver §6.2 da
