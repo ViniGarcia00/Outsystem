@@ -1694,8 +1694,90 @@ Vinicius Garcia   [x] Vendedor  [x] Técnico
 
 ### Gate de qualidade
 
-_(preenchido na Task 23)_
+| Item | Resultado |
+| --- | --- |
+| `npm run lint` | **0 erros** |
+| `npm run typecheck` | **0 erros** |
+| `npm run build` | sucesso, 26 rotas (`/usuarios`, `/usuarios/[id]`, `/usuarios/novo`; `/vendedores` e `/tecnicos` ausentes) |
+| `npm run test` (Vitest — unidade) | **250/250** em 22 arquivos |
+| `npm run test:integration` (Vitest + PostgreSQL) | **33/33** em 2 arquivos |
+| `npm run test:e2e` (Playwright) | **33/33** |
+| Resíduo E2E após a suíte | **zero** nos 7 marcadores (24 usuários varridos) |
+| `npm run db:validate` | **14 ok, 0 falhas** |
+| `/api/health` | `200 {"status":"ok","version":"1.5.0","database":"up"}` |
+| `/dev/diagnostics` | 200 · Saudável · 0,88 s |
+| PostgreSQL | **18.1** conectado · 32 ms |
+| Prisma | conectado · 2 ms · `migrate status`: *Database schema is up to date* |
+| Drift schema × banco | `migrate diff`: **No difference detected** |
+| `VERSION` / `package.json` | **1.5.0** / **1.5.0** |
+
+#### Verificações de apresentação
+
+| O quê | Resultado |
+| --- | --- |
+| `/dashboard` sem "Custos extras acumulados" | 0 ocorrências no HTML |
+| `/dashboard` grupos restantes | Comercial · Instalações · Próximas Instalações |
+| Menu | só `/usuarios`; `/vendedores` e `/tecnicos` ausentes |
+| `/usuarios` | Carlos Gomes e Vinicius Garcia listados |
+| **Instalação 1045 — cronologia** | renderiza **`Vinicius`** (snapshot) enquanto o cadastro se chama **`Vinicius Garcia`**. É a prova visual central da Sprint: a fusão repontou o vínculo sem reescrever o histórico. |
 
 ### Commits
 
-_(preenchido na Task 23)_
+| # | Hash | Task |
+| --- | --- | --- |
+| 1 | `58054b7` | ajustes do plano aprovado (guarda de colisão M1, prova valor-a-valor M2) |
+| 2 | `caff5a9` | T1 — ADR-0410 e abertura da Sprint |
+| 3 | `7453d90` | T2 — script de auditoria + auditoria pré |
+| 4 | `47e7af6` | T3 — schema Prisma |
+| 5 | `79e003b` | T4 — M1 (cria `usuarios`, ids preservados) |
+| 6 | `a505fe6` | T5 — M2 (reaponta as três FKs, `RESTRICT`) |
+| 7 | `801a361` | T6 — M3 (drop de `vendedores` e `tecnicos`) |
+| 8 | `dbf8929` | T7 — módulo puro `opcoes.ts` |
+| 9 | `1979b41` | T8 — schema Zod |
+| 10 | `359d2c3` | T9 — `usuario.service.ts` + `assertPapel` |
+| 11 | `865a923` | T10 — select de Vendedor por papel |
+| 12 | `5578889` | T11 — select de Técnico por papel |
+| 13 | `ba65a8b` | T12 — guardas de papel nos três services |
+| 14 | `6dfc678` | T13 — integração: papel, histórico, cronologia |
+| 15 | `625e0fb` | T19 — seed e validate-crud (antecipada) |
+| 16 | `67eda45` | T14 — feature `usuarios/`, rotas e remoção dos antigos |
+| 17 | `ba9a21d` | T15 — menu |
+| 18 | `ee97c8c` | T16 — Dashboard |
+| 19 | `d4540b7` | T17 — cleanup E2E |
+| 20 | `557b652` | T18 — E2E de Usuários |
+| 21 | `fbb6b04` | T20 — M4 (consolidação humana) |
+| 22 | `711d05c` | T21 — auditoria pós |
+| 23 | `2083551` | T22 — documentação final |
+| 24 | *este commit* | T23 — VERSION 1.5.0 e gate oficial |
+
+### Desvios do plano, e por quê
+
+- **Task 19 antecipada para antes do gate da Task 14.** `npm run build` roda o
+  typecheck sobre `prisma/seed.ts` e `scripts/db/validate-crud.ts`, que só
+  deixavam de referenciar `prisma.vendedor` na Task 19. Sem a antecipação, o
+  gate da Task 14 era impossível de satisfazer.
+- **`CANNOT_DELETE_USED_IN_PROPOSTAS` foi mantida.** O plano dizia remover as
+  duas mensagens antigas; removê-la quebraria `cliente.service` e
+  `produto.service`, que a usam. Só `CANNOT_DELETE_USED_IN_INSTALACOES` saiu.
+- **`e2e/dashboard.spec.ts` precisou de ajuste não previsto**: afirmava a
+  existência do grupo "Custos", removido na Task 16. Passou a afirmar a
+  **ausência** dele.
+- **Defeito pré-existente corrigido em `scripts/db/validate-crud.ts`**: a
+  checagem de SKU duplicado casava a mensagem pela palavra "código", enquanto o
+  service diz "SKU" desde `75db63f`. Falhava em silêncio. Corrigido o matcher —
+  a mensagem, que é homologada, não mudou.
+
+### Lições aprendidas
+
+- **Preservar o id de origem transforma uma garantia em impossibilidade.** Com
+  `usuarios.id = vendedores.id`, a migration de vínculos não precisou de um
+  único `UPDATE`: "nenhum vínculo perdido" deixou de depender de uma guarda
+  correta e passou a depender de nada. A prova virou um `diff` de 7 linhas.
+- **Separar "seletor" de "asserção" é o que torna uma migration de dados segura
+  fora do banco em que foi escrita.** Selecionar por id (globalmente único) e
+  usar o nome apenas dentro de `IF … RAISE` dá as duas semânticas certas: no-op
+  em outro banco, explosão em estado inesperado.
+- **Uma flag de papel resolve o que uma tabela separada resolvia — e melhor.**
+  O ADR-0408 recusou reutilizar `Vendedor` por medo de poluir o autocomplete. O
+  medo era justo; a solução era o eixo errado. Filtrar por papel separa o que
+  precisava ser separado sem duplicar a identidade da pessoa.
