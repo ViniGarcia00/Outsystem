@@ -3,10 +3,17 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "@/infrastructure/database";
 import { CANNOT_DELETE_USED_IN_RECORDS } from "@/lib/messages";
 
+import { criarInstalacao } from "./instalacao.service";
+import {
+  criarPropostaCompleta,
+  salvarProposta,
+  type NovaPropostaPayload,
+} from "./proposta.service";
 import {
   createUsuario,
   listUsuarioOptions,
   removeUsuario,
+  semPapelMsg,
   updateUsuario,
 } from "./usuario.service";
 
@@ -166,5 +173,130 @@ describe("removeUsuario", () => {
     await expect(removeUsuario(vendedorId)).rejects.toThrow(
       CANNOT_DELETE_USED_IN_RECORDS,
     );
+  });
+});
+
+/** Apaga uma proposta criada pelo teste, respeitando o vínculo da revisão atual. */
+async function apagarProposta(id: string) {
+  await prisma.proposta.update({
+    where: { id },
+    data: { currentRevisionId: null },
+  });
+  await prisma.proposta.delete({ where: { id } });
+}
+
+/** Payload mínimo válido de proposta, com o vendedor do cenário. */
+const payloadProposta = (
+  vendedor: string | null,
+  validadeDias = 5,
+): NovaPropostaPayload => ({
+  clienteId,
+  vendedorId: vendedor,
+  modelo: "COMERCIAL",
+  validadeDias,
+  obsInternas: null,
+  obsProposta: null,
+  secoes: [],
+});
+
+describe("guarda de papel em Proposta (ADR-0410)", () => {
+  it("recusa vincular quem não tem papel de vendedor", async () => {
+    await expect(
+      criarPropostaCompleta(payloadProposta(tecnicoId)),
+    ).rejects.toThrow(semPapelMsg("ehVendedor"));
+  });
+
+  it("recusa vincular quem está inativo", async () => {
+    await expect(
+      criarPropostaCompleta(payloadProposta(inativoId)),
+    ).rejects.toThrow(semPapelMsg("ehVendedor"));
+  });
+
+  it("aceita nascer sem vendedor (fluxo workspace-first)", async () => {
+    const p = await criarPropostaCompleta(payloadProposta(null));
+    const lido = await prisma.proposta.findUniqueOrThrow({
+      where: { id: p.id },
+      select: { vendedorId: true },
+    });
+    expect(lido.vendedorId).toBeNull();
+    await apagarProposta(p.id);
+  });
+
+  // O caso central do §3: a guarda não pode quebrar histórico.
+  it("permite salvar uma proposta cujo vendedor perdeu o papel, sem trocá-lo", async () => {
+    const p = await criarPropostaCompleta(payloadProposta(ambosId));
+
+    // O vendedor perde o papel DEPOIS de vinculado.
+    await updateUsuario(ambosId, {
+      ativo: true,
+      nome: `${MARCA} Ambos`,
+      ehVendedor: false,
+      ehTecnico: true,
+    });
+
+    // Salvar outra alteração, mantendo o MESMO vendedor, continua funcionando.
+    await expect(
+      salvarProposta(p.id, payloadProposta(ambosId, 9)),
+    ).resolves.toBeTruthy();
+
+    const lido = await prisma.proposta.findUniqueOrThrow({
+      where: { id: p.id },
+      select: { vendedorId: true, validadeDias: true },
+    });
+    expect(lido.vendedorId).toBe(ambosId); // vínculo intacto
+    expect(lido.validadeDias).toBe(9);
+
+    // Mas TROCAR para outro indisponível continua recusado.
+    await expect(
+      salvarProposta(p.id, payloadProposta(inativoId, 9)),
+    ).rejects.toThrow(semPapelMsg("ehVendedor"));
+
+    await apagarProposta(p.id);
+    await updateUsuario(ambosId, {
+      ativo: true,
+      nome: `${MARCA} Ambos`,
+      ehVendedor: true,
+      ehTecnico: true,
+    });
+  });
+});
+
+describe("guarda de papel em Instalação (ADR-0410)", () => {
+  it("vincula um usuário com papel de técnico", async () => {
+    const i = await criarInstalacao({
+      clienteId,
+      propostaId: null,
+      tecnicoResponsavelId: tecnicoId,
+      status: "A_AGENDAR",
+      dataPrevista: null,
+      dataAgendada: null,
+      periodo: "",
+      observacoes: "",
+    });
+    const lido = await prisma.instalacao.findUniqueOrThrow({
+      where: { id: i.id },
+      select: { tecnicoResponsavelId: true },
+    });
+    expect(lido.tecnicoResponsavelId).toBe(tecnicoId);
+
+    await prisma.instalacaoAuditoria.deleteMany({
+      where: { instalacaoId: i.id },
+    });
+    await prisma.instalacao.delete({ where: { id: i.id } });
+  });
+
+  it("recusa vincular quem não tem papel de técnico", async () => {
+    await expect(
+      criarInstalacao({
+        clienteId,
+        propostaId: null,
+        tecnicoResponsavelId: vendedorId,
+        status: "A_AGENDAR",
+        dataPrevista: null,
+        dataAgendada: null,
+        periodo: "",
+        observacoes: "",
+      }),
+    ).rejects.toThrow(semPapelMsg("ehTecnico"));
   });
 });

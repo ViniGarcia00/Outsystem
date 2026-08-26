@@ -8,6 +8,7 @@ import {
   excluirRegistro,
   REGISTRO_COM_CUSTOS,
   REGISTRO_NAO_ENCONTRADO,
+  SEM_PAPEL_TECNICO,
   type RegistroInput,
 } from "./instalacao-registro.service";
 
@@ -38,6 +39,7 @@ const MARCA = `E2E Integridade ${Date.now()}`;
 
 let clienteId: string;
 let tecnicoId: string;
+let semPapelId: string;
 let instalacaoA: string;
 let instalacaoB: string;
 let registroA: string;
@@ -62,11 +64,20 @@ beforeAll(async () => {
   });
   clienteId = cliente.id;
 
-  const tecnico = await prisma.tecnico.create({
-    data: { nome: `${MARCA} Tecnico` },
+  // Usuario com papel de TÉCNICO (Sprint 4.2, ADR-0410). O papel é
+  // obrigatório na cronologia — sem ele, `criarRegistro` recusa.
+  const tecnico = await prisma.usuario.create({
+    data: { nome: `${MARCA} Tecnico`, ehTecnico: true },
     select: { id: true },
   });
   tecnicoId = tecnico.id;
+
+  // Usuário SEM o papel de técnico, para os casos negativos.
+  const semPapel = await prisma.usuario.create({
+    data: { nome: `${MARCA} Sem Papel`, ehVendedor: true, ehTecnico: false },
+    select: { id: true },
+  });
+  semPapelId = semPapel.id;
 
   const [a, b] = await Promise.all([
     prisma.instalacao.create({ data: { clienteId }, select: { id: true } }),
@@ -95,7 +106,8 @@ afterAll(async () => {
     where: { instalacaoId: { in: instalacoes } },
   });
   await prisma.instalacao.deleteMany({ where: { id: { in: instalacoes } } });
-  if (tecnicoId) await prisma.tecnico.deleteMany({ where: { id: tecnicoId } });
+  if (tecnicoId) await prisma.usuario.deleteMany({ where: { id: tecnicoId } });
+  if (semPapelId) await prisma.usuario.deleteMany({ where: { id: semPapelId } });
   if (clienteId) await prisma.cliente.deleteMany({ where: { id: clienteId } });
   await prisma.$disconnect();
 });
@@ -202,7 +214,7 @@ describe("regra de snapshot do Técnico — preservada pela correção", () => {
     const alvo = await criarRegistro(instalacaoA, entrada("Antes do rename."));
     const antes = await lerRegistro(alvo.id);
 
-    await prisma.tecnico.update({
+    await prisma.usuario.update({
       where: { id: tecnicoId },
       data: { nome: `${MARCA} Tecnico Renomeado` },
     });
@@ -212,5 +224,136 @@ describe("regra de snapshot do Técnico — preservada pela correção", () => {
     const depois = await lerRegistro(alvo.id);
     expect(depois?.relatorio).toBe("Depois do rename.");
     expect(depois?.responsavelNome).toBe(antes?.responsavelNome);
+  });
+});
+
+describe("papel de técnico na cronologia (ADR-0410)", () => {
+  it("recusa criar registro com usuário sem o papel de técnico", async () => {
+    await expect(
+      criarRegistro(instalacaoA, {
+        ...entrada("Tentativa sem papel."),
+        tecnicoId: semPapelId,
+      }),
+    ).rejects.toThrow(SEM_PAPEL_TECNICO);
+  });
+
+  it("recusa criar registro com usuário inativo", async () => {
+    const inativo = await prisma.usuario.create({
+      data: { nome: `${MARCA} Inativo`, ativo: false, ehTecnico: true },
+      select: { id: true },
+    });
+    await expect(
+      criarRegistro(instalacaoA, {
+        ...entrada("Tentativa com inativo."),
+        tecnicoId: inativo.id,
+      }),
+    ).rejects.toThrow(SEM_PAPEL_TECNICO);
+    await prisma.usuario.delete({ where: { id: inativo.id } });
+  });
+
+  it("recusa trocar o responsável por quem não tem o papel", async () => {
+    const alvo = await criarRegistro(instalacaoA, entrada("Troca invalida."));
+    await expect(
+      atualizarRegistro(instalacaoA, alvo.id, {
+        ...entrada("Troca invalida."),
+        tecnicoId: semPapelId,
+      }),
+    ).rejects.toThrow(SEM_PAPEL_TECNICO);
+
+    // O vínculo original permanece — a transação inteira foi revertida.
+    const r = await lerRegistro(alvo.id);
+    expect(r?.tecnicoId).toBe(tecnicoId);
+  });
+
+  it("aceita um usuário com os DOIS papéis", async () => {
+    const ambos = await prisma.usuario.create({
+      data: { nome: `${MARCA} Ambos`, ehVendedor: true, ehTecnico: true },
+      select: { id: true },
+    });
+    const { id } = await criarRegistro(instalacaoA, {
+      ...entrada("Feito por quem tambem vende."),
+      tecnicoId: ambos.id,
+    });
+
+    const r = await lerRegistro(id);
+    expect(r?.tecnicoId).toBe(ambos.id);
+    expect(r?.responsavelNome).toBe(`${MARCA} Ambos`);
+
+    await prisma.instalacaoRegistro.delete({ where: { id } });
+    await prisma.usuario.delete({ where: { id: ambos.id } });
+  });
+});
+
+describe("integridade histórica da cronologia (ADR-0408 preservado pelo 0410)", () => {
+  it("renomear o Usuário NÃO altera o snapshot de registro existente", async () => {
+    const alvo = await criarRegistro(instalacaoA, entrada("Fato consumado."));
+    const antes = await lerRegistro(alvo.id);
+
+    await prisma.usuario.update({
+      where: { id: tecnicoId },
+      data: { nome: `${MARCA} Outro Nome Completamente` },
+    });
+
+    const depois = await lerRegistro(alvo.id);
+    expect(depois?.responsavelNome).toBe(antes?.responsavelNome);
+    expect(depois?.tecnicoId).toBe(tecnicoId);
+  });
+
+  it("inativar o Usuário NÃO apaga nem altera o vínculo do registro", async () => {
+    const alvo = await criarRegistro(instalacaoA, entrada("Antes de inativar."));
+    const antes = await lerRegistro(alvo.id);
+
+    await prisma.usuario.update({
+      where: { id: tecnicoId },
+      data: { ativo: false },
+    });
+
+    const depois = await lerRegistro(alvo.id);
+    expect(depois?.tecnicoId).toBe(tecnicoId);
+    expect(depois?.responsavelNome).toBe(antes?.responsavelNome);
+
+    await prisma.usuario.update({
+      where: { id: tecnicoId },
+      data: { ativo: true },
+    });
+  });
+
+  it("desmarcar o papel NÃO apaga nem altera o vínculo do registro", async () => {
+    const alvo = await criarRegistro(instalacaoA, entrada("Antes de perder papel."));
+    const antes = await lerRegistro(alvo.id);
+
+    await prisma.usuario.update({
+      where: { id: tecnicoId },
+      data: { ehTecnico: false },
+    });
+
+    const depois = await lerRegistro(alvo.id);
+    expect(depois?.tecnicoId).toBe(tecnicoId);
+    expect(depois?.responsavelNome).toBe(antes?.responsavelNome);
+
+    await prisma.usuario.update({
+      where: { id: tecnicoId },
+      data: { ehTecnico: true },
+    });
+  });
+
+  it("trocar o responsável REESCREVE o snapshot, com o nome atual do novo", async () => {
+    const bruno = await prisma.usuario.create({
+      data: { nome: `${MARCA} Bruno`, ehTecnico: true },
+      select: { id: true },
+    });
+    const alvo = await criarRegistro(instalacaoA, entrada("Era do tecnico A."));
+
+    await atualizarRegistro(instalacaoA, alvo.id, {
+      ...entrada("Agora e do Bruno."),
+      tecnicoId: bruno.id,
+    });
+
+    const r = await lerRegistro(alvo.id);
+    expect(r?.tecnicoId).toBe(bruno.id);
+    expect(r?.responsavelNome).toBe(`${MARCA} Bruno`);
+
+    await prisma.instalacaoRegistro.delete({ where: { id: alvo.id } });
+    await prisma.usuario.delete({ where: { id: bruno.id } });
   });
 });
