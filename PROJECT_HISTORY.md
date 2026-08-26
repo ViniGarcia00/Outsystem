@@ -1605,7 +1605,92 @@ cadastros — a consolidação está aprovada e isolada na M4 (ADR-0410).
 
 ### Auditoria pós-migration
 
-_(preenchido na Task 21, após a M4)_
+Saída do **mesmo** `scripts/db/audit-usuarios.ts`, executada após as quatro
+migrations (M1-M4).
+
+```json
+{
+  "cadastros": {
+    "vendedores": null,
+    "tecnicos": null,
+    "usuarios": 2
+  },
+  "listas": {
+    "vendedores": null,
+    "tecnicos": null,
+    "usuarios": [
+      {
+        "id": "cmrf506fv00085sooe4qbu9dw",
+        "nome": "Carlos Gomes",
+        "ativo": true,
+        "ehVendedor": true,
+        "ehTecnico": false
+      },
+      {
+        "id": "cmrf51tt400095soowvrqfkl2",
+        "nome": "Vinicius Garcia",
+        "ativo": true,
+        "ehVendedor": true,
+        "ehTecnico": true
+      }
+    ]
+  },
+  "vinculos": {
+    "propostasComVendedor": 2,
+    "instalacoesComTecnico": 0,
+    "registros": 3
+  },
+  "cronologia": [
+    {
+      "id": "cmt1gqo01000000ucc1nvxjzf",
+      "tecnicoId": "cmrf51tt400095soowvrqfkl2",
+      "responsavelNome": "Vinicius"
+    },
+    {
+      "id": "cmt1grpf1000100uckuik1v14",
+      "tecnicoId": "cmrf51tt400095soowvrqfkl2",
+      "responsavelNome": "Vinicius"
+    },
+    {
+      "id": "cmt1gsyw3000200ucfmij1pll",
+      "tecnicoId": "cmrf51tt400095soowvrqfkl2",
+      "responsavelNome": "Vinicius"
+    }
+  ]
+}
+```
+
+#### Comparação pré × pós
+
+| Item | Pré | Pós | Observação |
+| --- | --- | --- | --- |
+| Cadastros | 2 vendedores + 1 técnico | **2 usuários** | fusão aprovada do Vinicius (M4) |
+| Propostas com vendedor | 2 | **2** | idêntico |
+| Instalações com técnico | 0 | **0** | idêntico |
+| Registros na cronologia | 3 | **3** | idêntico |
+| `responsavelNome` | `"Vinicius"` ×3 | `"Vinicius"` ×3 | **preservado** |
+| `tecnicoId` dos registros | `2169f741-…` (Vinicius) | `cmrf51tt…` (Vinicius Garcia) | repontado pela M4, por decisão |
+
+**Duas provas automatizadas, ambas verdes:**
+
+1. `diff` do bloco `vinculos` pré × pós → **VINCULOS PRESERVADOS: 2 + 0 + 3**.
+   Nenhum vínculo perdido.
+2. `diff` da lista de `responsavelNome` pré × pós → **SNAPSHOTS HISTORICOS
+   IDENTICOS**. Renomear, inativar, desmarcar papel ou fundir identidades não
+   reescreveu a cronologia (ADR-0408, preservado pelo ADR-0410).
+
+Prova adicional, colhida entre a M1 e a M2 (R1): as **7 linhas** de vínculo
+(`propostas.vendedorId`, `instalacoes.tecnicoResponsavelId`,
+`instalacao_registros.tecnicoId`) foram capturadas antes e depois da troca das
+constraints e comparadas com `diff` — **VALORES DE VINCULO IDENTICOS**. A M2
+remove e recria constraints, mas não contém um único `UPDATE`.
+
+Estado final:
+
+```
+Carlos Gomes      [x] Vendedor  [ ] Técnico
+Vinicius Garcia   [x] Vendedor  [x] Técnico
+```
 
 ### Gate de qualidade
 
