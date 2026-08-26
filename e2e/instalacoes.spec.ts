@@ -36,13 +36,17 @@ async function criarCliente(
   return nome;
 }
 
-/** Cria um técnico exclusivo do cenário e devolve o nome. */
+/**
+ * Cria um Usuário com o papel de TÉCNICO e devolve o nome (Sprint 4.2,
+ * ADR-0410). Sem o papel marcado, ele não apareceria no Select de responsável.
+ */
 async function criarTecnico(page: Page, rotulo: string): Promise<string> {
-  const nome = `E2E Tecnico ${rotulo} ${Date.now()}`;
-  await page.goto("/tecnicos/novo");
+  const nome = `E2E Usuario Tecnico ${rotulo} ${Date.now()}`;
+  await page.goto("/usuarios/novo");
   await page.getByLabel("Nome", { exact: true }).fill(nome);
+  await page.getByRole("switch", { name: "Técnico" }).click();
   await page.getByRole("button", { name: "Salvar" }).click();
-  await expect(page).toHaveURL(/\/tecnicos$/);
+  await expect(page).toHaveURL(/\/usuarios$/);
   return nome;
 }
 
@@ -292,7 +296,7 @@ test("Instalações: cronologia completa — registros, custos, ordem e exclusã
   const bruno = await criarTecnico(page, "Cronologia Bruno");
   const vinicius = await criarTecnico(page, "Cronologia Vinicius");
 
-  // Criar os técnicos navega para /tecnicos — volta ao workspace da instalação.
+  // Criar os técnicos navega para /usuarios — volta ao workspace da instalação.
   await page.goto(instalacaoPath);
 
   // 3. Visita ao cliente, com um custo de deslocamento.
@@ -383,7 +387,7 @@ test("Instalações: edição de registro substitui os custos, não duplica", as
   const carlos = await criarTecnico(page, "Edicao Carlos");
   const bruno = await criarTecnico(page, "Edicao Bruno");
 
-  // Criar os técnicos navega para /tecnicos — volta ao workspace da instalação.
+  // Criar os técnicos navega para /usuarios — volta ao workspace da instalação.
   await page.goto(instalacaoPath);
 
   await criarRegistro(page, {
@@ -460,7 +464,7 @@ test("Instalações: técnico inativado some das opções novas mas continua no 
   const instalacaoPath = new URL(page.url()).pathname;
 
   // Inativa o técnico DEPOIS de vinculado.
-  await page.goto("/tecnicos");
+  await page.goto("/usuarios");
   await page.getByRole("searchbox", { name: "Buscar" }).fill(tecnico);
   await page.getByRole("button", { name: "Ações" }).click();
   await page.getByRole("menuitem", { name: "Inativar" }).click();
@@ -508,14 +512,14 @@ test("Instalações: renomear o técnico NÃO reescreve a cronologia; trocar o r
 
   // 2. Cadastro renomeado.
   const carlosRenomeado = `${carlos} Almeida`;
-  await page.goto("/tecnicos");
+  await page.goto("/usuarios");
   await page.getByRole("searchbox", { name: "Buscar" }).fill(carlos);
   await page.getByRole("button", { name: "Ações" }).click();
   await page.getByRole("menuitem", { name: "Editar" }).click();
   await expect(page.getByLabel("Nome", { exact: true })).toHaveValue(carlos);
   await page.getByLabel("Nome", { exact: true }).fill(carlosRenomeado);
   await page.getByRole("button", { name: "Salvar" }).click();
-  await expect(page).toHaveURL(/\/tecnicos$/);
+  await expect(page).toHaveURL(/\/usuarios$/);
 
   // 3. Edita SÓ o relatório do registro.
   await page.goto(instalacaoPath);

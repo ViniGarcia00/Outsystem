@@ -113,14 +113,14 @@ test("abre a Configuração do Sistema", async ({ page }) => {
   await expect(page.getByLabel("Enviar logotipo")).toBeVisible();
 });
 
-test("abre Produtos e Vendedores", async ({ page }) => {
+test("abre Produtos e Usuários", async ({ page }) => {
   await page.goto("/produtos");
   await expect(page.getByRole("heading", { level: 1, name: "Produtos" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Novo" })).toBeVisible();
 
-  await nav(page).getByRole("link", { name: "Vendedores" }).click();
-  await expect(page).toHaveURL(/\/vendedores$/);
-  await expect(page.getByRole("heading", { level: 1, name: "Vendedores" })).toBeVisible();
+  await nav(page).getByRole("link", { name: "Usuários" }).click();
+  await expect(page).toHaveURL(/\/usuarios$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Usuários" })).toBeVisible();
 });
 
 test("Clientes: criar e editar (CRUD básico)", async ({ page }) => {
@@ -168,7 +168,7 @@ test("Clientes: criar e editar (CRUD básico)", async ({ page }) => {
 test("navegação principal entre os módulos", async ({ page }) => {
   await page.goto("/propostas");
 
-  // Ordem do menu (Sprint 4.0.3) — requisito de produto, não detalhe estético.
+  // Ordem do menu (Sprint 4.0.3, revista na 4.2) — requisito de produto.
   // O teste unitário trava `mainNavigation`; aqui provamos o que chega à tela.
   expect(await nav(page).getByRole("link").allTextContents()).toEqual([
     "Dashboard",
@@ -176,16 +176,14 @@ test("navegação principal entre os módulos", async ({ page }) => {
     "Produtos",
     "Propostas",
     "Instalações",
-    "Vendedores",
-    "Técnicos",
+    "Usuários",
     "Configurações",
   ]);
 
   for (const [name, path] of [
     ["Clientes", "/clientes"],
     ["Produtos", "/produtos"],
-    ["Vendedores", "/vendedores"],
-    ["Técnicos", "/tecnicos"],
+    ["Usuários", "/usuarios"],
     ["Configurações", "/configuracoes"],
     ["Instalações", "/instalacoes"],
     ["Dashboard", "/dashboard"],

@@ -27,17 +27,21 @@ async function criarCliente(page: Page, rotulo: string): Promise<string> {
   return nome;
 }
 
-/** Cria um técnico exclusivo do cenário e devolve o nome. */
+/**
+ * Cria um Usuário com o papel de TÉCNICO e devolve o nome (Sprint 4.2,
+ * ADR-0410). Sem o papel marcado, ele não apareceria no Select de responsável.
+ */
 async function criarTecnico(page: Page, rotulo: string): Promise<string> {
-  const nome = `E2E Tecnico ${rotulo} ${Date.now()}`;
-  await page.goto("/tecnicos/novo");
+  const nome = `E2E Usuario Tecnico ${rotulo} ${Date.now()}`;
+  await page.goto("/usuarios/novo");
   await page.getByLabel("Nome", { exact: true }).fill(nome);
+  await page.getByRole("switch", { name: "Técnico" }).click();
   await page.getByRole("button", { name: "Salvar" }).click();
-  await expect(page).toHaveURL(/\/tecnicos$/);
+  await expect(page).toHaveURL(/\/usuarios$/);
   return nome;
 }
 
-test("Dashboard: cards de Comercial, Instalações e Custos", async ({ page }) => {
+test("Dashboard: cards de Comercial e Instalações", async ({ page }) => {
   await page.goto("/dashboard");
   await expect(
     page.getByRole("heading", { level: 1, name: "Dashboard" }),
@@ -45,7 +49,7 @@ test("Dashboard: cards de Comercial, Instalações e Custos", async ({ page }) =
 
   // `exact` é obrigatório: "Instalações" também casaria com o título da seção
   // "Próximas Instalações", e o strict mode recusa o locator ambíguo.
-  for (const grupo of ["Comercial", "Instalações", "Custos"]) {
+  for (const grupo of ["Comercial", "Instalações"]) {
     await expect(
       page.getByRole("heading", { name: grupo, exact: true }),
     ).toBeVisible();
@@ -59,15 +63,21 @@ test("Dashboard: cards de Comercial, Instalações e Custos", async ({ page }) =
     "Aguardando material",
     "Em andamento",
     "Concluída",
-    "Custos extras acumulados",
   ]) {
     // `.first()`: rótulos como "Agendada" também aparecem como badge na seção
     // de próximas instalações, dependendo do estado do banco.
     await expect(page.getByText(card, { exact: true }).first()).toBeVisible();
   }
 
-  // Custos formatados em R$ — nunca um número cru nem texto fictício.
-  await expect(page.getByText(/^R\$\s/).first()).toBeVisible();
+  // "Custos extras acumulados" SAIU do Dashboard na Sprint 4.2 (ADR-0410).
+  // Só a apresentação: o custo por instalação segue intacto, e é coberto pelos
+  // testes de Cronologia em `instalacoes.spec.ts`.
+  await expect(
+    page.getByRole("heading", { name: "Custos", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByText("Custos extras acumulados", { exact: true }),
+  ).toHaveCount(0);
 
   // Escopo da V1: sem gráficos.
   await expect(page.locator("canvas")).toHaveCount(0);
