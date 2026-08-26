@@ -4,17 +4,20 @@
 
 ## Apurado na Sprint 4.1 — Cadastro de Técnicos (2026-08-20)
 
-- [ ] **Vendedor inativo desaparece do cabeçalho da Proposta** (prioridade média)
+- [x] **Vendedor inativo desaparece do cabeçalho da Proposta** (prioridade média)
       **Contexto:** `getPropostaFormOptions()` (`src/services/proposta.service.ts`)
-      filtra `where: { ativo: true }` sem unir o vendedor já vinculado. Uma
-      proposta cujo vendedor foi inativado depois abre com o `Select` em branco,
-      e salvar qualquer outra alteração apaga o vínculo em silêncio.
+      filtrava `where: { ativo: true }` sem unir o vendedor já vinculado. Uma
+      proposta cujo vendedor foi inativado depois abria com o `Select` em branco,
+      e salvar qualquer outra alteração apagava o vínculo em silêncio.
       **Apurado na Sprint 4.1**, ao desenhar o mesmo campo para Técnicos. A
       correção NÃO foi feita ali por estar fora do escopo aprovado.
-      **Aceite:** o vendedor vinculado aparece na lista mesmo inativo, rotulado
-      "(inativo)", como já faz `listTecnicoOptions` em `tecnico.service.ts`.
-      **Não fazer:** remover o filtro de ativos — isso ofereceria inativos como
-      opção nova, que é justamente o que a regra impede.
+      **FECHADO na Sprint 4.2 (ADR-0410).** `listUsuarioOptions(papel,
+      incluirIds)` devolve disponíveis ∪ vinculado, e o vinculado indisponível
+      aparece rotulado — `(inativo)` ou `(sem papel de vendedor)`, conforme a
+      causa. A correção foi consequência mecânica da unificação dos dois Selects:
+      manter o débito exigiria escrever a versão defeituosa de propósito.
+      O filtro de ativos **não** foi removido — inativo não vinculado continua
+      fora da lista, que é o que a regra sempre exigiu.
 
 ## Apurado na auditoria da Release 1.1.0 (2026-08-18)
 

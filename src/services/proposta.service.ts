@@ -1,6 +1,8 @@
 import { calcularResumoFinanceiro } from "@/features/propostas/totais";
 import { prisma } from "@/infrastructure/database";
 
+import { assertPapel, listUsuarioOptions } from "./usuario.service";
+
 /**
  * Serviço de Propostas (refino do fluxo — pré-2.3).
  *
@@ -137,16 +139,25 @@ export async function listPropostas(): Promise<PropostaListItem[]> {
   });
 }
 
-/** Opções (vendedores ativos) para o Select do workspace. Cliente usa autocomplete. */
-export async function getPropostaFormOptions(): Promise<{
-  vendedores: SelectOption[];
-}> {
-  const vendedores = await prisma.vendedor.findMany({
-    where: { ativo: true },
-    select: { id: true, nome: true },
-    orderBy: { nome: "asc" },
-  });
-  return { vendedores: vendedores.map((v) => ({ value: v.id, label: v.nome })) };
+/**
+ * Opções do Select de Vendedor do workspace. Cliente usa autocomplete.
+ *
+ * `vendedorIdVinculado` é o vendedor JÁ gravado na proposta que está sendo
+ * aberta. Ele entra na lista mesmo indisponível (inativo, ou sem o papel),
+ * rotulado — sem isso, abrir uma proposta cujo vendedor foi inativado mostraria
+ * o campo em branco e salvar qualquer outra alteração apagaria o vínculo em
+ * silêncio. Era o débito registrado no BACKLOG, fechado nesta Sprint (ADR-0410).
+ *
+ * Na criação não há vínculo prévio: o parâmetro fica ausente.
+ */
+export async function getPropostaFormOptions(
+  vendedorIdVinculado?: string | null,
+): Promise<{ vendedores: SelectOption[] }> {
+  const vendedores = await listUsuarioOptions(
+    "ehVendedor",
+    vendedorIdVinculado ? [vendedorIdVinculado] : [],
+  );
+  return { vendedores };
 }
 
 // ---------------------------------------------------------------------------
