@@ -1879,3 +1879,18 @@ CHANGELOG e VERSION atualizados · **gate visual manual aprovado**.
   9.2; o risco real é alguém depois aplicar o mesmo número à 8.1, que é multa de
   outra natureza e tem teto legal. O teste dedicado à 8.1 existe para esse erro
   futuro, não para o presente.
+
+### Commits
+
+| # | Hash | Conteúdo |
+| --- | --- | --- |
+| 1 | `0189590` | fechamento da release 1.5.1 — cláusulas 3.1 e 9.2 nos templates oficial e marcado, guards do script de marcação, 14 testes, documentação, ADR-0411, VERSION e `package.json` em 1.5.1 |
+
+- **Hash do commit de fechamento:** `0189590`
+
+Release entregue em **um único commit**, diferente da Sprint 4.2: o escopo é
+conteúdo de documento e não comportava fatiamento por task — o template, os
+guards que travam as contagens e os testes que provam o resultado só fazem
+sentido juntos, e um commit intermediário deixaria a suíte vermelha. O registro
+deste hash é feito em **commit documental separado**, seguindo o padrão do
+projeto (Sprint 4.2, `4b7ebd1`).
