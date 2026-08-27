@@ -1781,3 +1781,101 @@ Vinicius Garcia   [x] Vendedor  [x] Técnico
   O ADR-0408 recusou reutilizar `Vendedor` por medo de poluir o autocomplete. O
   medo era justo; a solução era o eixo errado. Filtrar por papel separa o que
   precisava ser separado sem duplicar a identidade da pessoa.
+
+---
+
+## Release 1.5.1 — Contrato: multa de rescisão e prazo de início
+
+- **Versão:** 1.5.0 → **1.5.1**
+- **Data:** 2026-08-27
+- **Branch:** `main` (trabalho direto, sem branch — release de conteúdo
+  documental, sem código de aplicação; coerente com o modelo anterior à Sprint
+  3.1, e o merge segue **fora** do gate por decisão em aberto no `BACKLOG.md`)
+- **Objetivo:** fixar no template oficial do contrato dois termos comerciais que
+  até aqui eram digitados à mão no Word a cada envio — a **multa de rescisão**
+  (cláusula 9.2) e o **prazo de início** (cláusula 3.1) —, sem tocar em código de
+  aplicação e sem alterar a formatação homologada.
+- **ADR:** ADR-0411 (supersede parcial do ADR-0330)
+- **Escopo recusado deliberadamente:** a **cláusula 8.1** (multa de inadimplência)
+  **não** foi alterada e permanece em **2%**.
+
+### O que mudou no documento
+
+| Cláusula | Antes | Depois |
+| --- | --- | --- |
+| 9.2 — multa de rescisão | `multa de [Nº]% sobre o saldo do contrato` | `multa de 20% (vinte por cento) sobre o saldo do contrato` |
+| 3.1 — prazo de início | `terão início em até [Nº] dias úteis após a confirmação do pagamento da entrada e a disponibilização do local…` | `O início dos serviços não depende de data previamente fixada. … em até 10 (dez) dias úteis contados da autorização formal do CONTRATANTE, assim entendida a confirmação do pagamento previsto na Cláusula 2.2 acompanhada da disponibilização do local…` |
+| 8.1 — multa de inadimplência | `multa de 2% sobre o valor em aberto` | **inalterada** |
+
+`[Nº]` caiu de **5 → 3** no oficial e de **4 → 2** no marcado. Restam os dois
+genuinamente variáveis por obra: prazo de conclusão (3.1) e prazo de aceite (5.5).
+
+### Decisões de produto tomadas na abertura
+
+| # | Decisão | Escolha |
+| --- | --- | --- |
+| 0.1 | Qual multa recebe 20% | **9.2** (rescisão); 8.1 permanece 2% |
+| 0.2 | Unidade do prazo | **dias ÚTEIS** |
+| 0.3 | Redação da 3.1 | **Opção A** — define "autorização formal" na própria cláusula |
+| 0.8 | Estratégia de release | **split** — 1.5.1 (contrato) antes da 1.6.0 (sprint funcional) |
+
+### Provas de preservação da formatação
+
+- **Round-trip do `.docx` verificado antes de qualquer edição:** 22 entradas, 0
+  divergentes, sem BOM. Sem essa prova, nada do resto valeria.
+- **Só os parágrafos 22 (3.1) e 46 (9.2)** do `word/document.xml` mudaram — os
+  outros 71 ficaram byte a byte idênticos.
+- **As outras 21 entradas do `.docx`** ficaram byte a byte idênticas.
+- A **invariante do próprio `scripts/marcar-template-contrato.mjs`** passou
+  ("removendo texto e realce de ambos, o resto é idêntico"), provando que fonte,
+  margens, cabeçalho, rodapé, espaçamentos, numeração e estilos não foram tocados.
+- Realces: **16 → 4** (só os manuais restantes seguem amarelos).
+
+### Gate visual manual — APROVADO
+
+Gate obrigatório do ADR-0330, executado no **Microsoft Word** pelo dono do
+produto em **2026-08-27**, sobre o contrato gerado da **Proposta 1016 (Rev.2)**,
+proposta real. Nenhum teste automatizado prova fidelidade de fonte, margem ou
+layout — só a inspeção humana.
+
+Conferidos e aprovados: cláusula 3.1; cláusula 8.1; cláusula 9.2;
+`10 (dez) dias úteis` como texto normal; `20% (vinte por cento)` como texto
+normal; ausência de realce amarelo/azul indevido nesses valores; fonte; margens;
+cabeçalho; rodapé; numeração; quebras de página; Anexo II; e os demais campos
+manuais destacados.
+
+### Gate oficial (`docs/CHECKLIST_RELEASE.md`)
+
+Lint 0 · Typecheck 0 · Build OK · **Unit 264/264** · **Integração 33/33** ·
+**E2E 33/33** (limpeza com resíduo zero) · `/api/health` 200 (`db up`, versão
+`1.5.1`) · `/dev/diagnostics` 200 · PostgreSQL e Prisma OK · documentação,
+CHANGELOG e VERSION atualizados · **gate visual manual aprovado**.
+
+### Problemas encontrados
+
+- **`render.test.ts` não estava mapeado na auditoria e quebrou o gate.** A
+  auditoria localizou o contador de `[Nº]` em `template.test.ts` e no script de
+  marcação, mas não o terceiro, que afirma `toBe(4)` sobre o documento
+  **renderizado**. A suíte unitária o pegou na primeira execução.
+- **Como foi resolvido:** contador corrigido para `2` e o arquivo **ampliado** com
+  7 asserções sobre o documento entregue — que é onde as emendas entre runs
+  aparecem. A falha não foi um contratempo: foi a guarda funcionando.
+
+### Lições aprendidas
+
+- **Auditar "onde o número aparece" não é o mesmo que auditar "quem afirma o
+  número".** O `[Nº]` estava em dois lugares que o grep achou e num terceiro que
+  só a execução revelou. Rodar a suíte cedo custa menos que mapear exaustivamente.
+- **Provar o round-trip ANTES de editar um binário versionado.** Reescrever o zip
+  podia, sozinho, alterar entradas não relacionadas. Verificar isso primeiro
+  transformou todas as provas seguintes em afirmações sobre a edição, não sobre a
+  ferramenta.
+- **A formatação certa vem do próprio documento, não da preferência de quem
+  edita.** O template tinha três estilos com significados distintos — corpo
+  (termo fixo), negrito+azul (dado variável) e amarelo (preencher à mão).
+  Comparar com como o documento já escrevia "2%" e "3 (três) meses" respondeu a
+  questão sem opinião.
+- **Fixar um valor é também impedir que ele se espalhe.** A decisão foi 20% na
+  9.2; o risco real é alguém depois aplicar o mesmo número à 8.1, que é multa de
+  outra natureza e tem teto legal. O teste dedicado à 8.1 existe para esse erro
+  futuro, não para o presente.

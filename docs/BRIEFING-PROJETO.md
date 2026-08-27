@@ -275,10 +275,16 @@ sem persistir arquivo em disco). Nenhum documento tem consulta ou regra paralela
   texto dentro de `<w:t>` (e do realce) mudar** — prova mecânica de que fonte,
   margens, cabeçalho, rodapé, espaçamentos, numeração e estilos ficam intactos.
 - **Marcação seletiva, obrigatória:** o template usa `[MAIÚSCULAS ENTRE COLCHETES]` e
-  `[Nº]` aparece 5× com 5 significados (prazo de início, prazo de conclusão, prazo de
-  aceite, multa %, número da proposta). Usar `[` `]` como delimitadores emitiria
+  `[Nº]` é ambíguo por natureza — o mesmo texto significa coisas diferentes em cada
+  cláusula. Usar `[` `]` como delimitadores daria a todos o mesmo valor e emitiria
   "multa de 1042%". Só os campos que o sistema conhece viram `{tag}`; os demais
   permanecem literais e amarelos, para preenchimento manual no Word.
+- **Contagem atual dos `[Nº]` (Release 1.5.1, ADR-0411):** eram 5 (prazo de início,
+  prazo de conclusão, prazo de aceite, multa % e número da proposta). O prazo de
+  início (3.1) e a multa de rescisão (9.2) viraram **termo contratual fixo** — 10
+  (dez) dias úteis e 20%. Restam **3 no oficial** e **2 manuais no marcado** (prazo
+  de conclusão e prazo de aceite); o do Anexo II vira `{propostaNumero}`. Os guards
+  do script de marcação e `template.test.ts` travam essas contagens.
 - Campos preenchidos: nome do cliente, CPF/CNPJ, endereço, nº da proposta, valor
   total, valor por extenso, forma de pagamento, data e nome da empresa.
 - A qualificação da CONTRATADA (JVL Indústria e Comércio de Eletroeletrônicos LTDA)

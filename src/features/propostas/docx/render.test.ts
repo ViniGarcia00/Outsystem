@@ -72,12 +72,15 @@ describe("renderContratoDocx", () => {
 
   /**
    * "Nenhum placeholder restante" vale só para as tags {..}. Os [..] manuais
-   * SÃO o resultado esperado (spec D3.1): prazos, multa e parcela final são
-   * preenchidos no Word. Apagá-los seria o bug, não a correção.
+   * SÃO o resultado esperado (spec D3.1): prazo de conclusão, prazo de aceite e
+   * parcela final são preenchidos no Word. Apagá-los seria o bug, não a correção.
+   *
+   * Eram 4. A Release 1.5.1 fixou o prazo de início (3.1) e a multa de rescisão
+   * (9.2) como termo contratual, então sobraram 2.
    */
   it("preserva os campos de preenchimento manual", () => {
     const texto = textoDe(renderContratoDocx(DTO));
-    expect(conta(texto, "[Nº]")).toBe(4);
+    expect(conta(texto, "[Nº]")).toBe(2);
     expect(texto).toContain("[VALOR]");
     expect(texto).toContain("[se houver]");
   });
@@ -95,6 +98,57 @@ describe("renderContratoDocx", () => {
       renderContratoDocx({ ...DTO, formaPagamento: INSTRUCAO_FORMA_PAGAMENTO }),
     );
     expect(texto).toContain("[DESCREVA AQUI A FORMA DE PAGAMENTO");
+  });
+});
+
+/**
+ * Termos fixados na Release 1.5.1, conferidos no documento ENTREGUE.
+ *
+ * `textoDe` concatena os `<w:t>`, então estas asserções provam mais do que a
+ * presença do número: provam que os runs se juntam na frase certa. A multa
+ * ocupa três runs ("… multa de " + "20% (vinte por cento)" + " sobre o saldo…")
+ * e um "%" sobrando ou faltando na emenda apareceria aqui — não no teste do
+ * template, que olha o XML cru.
+ */
+describe("contrato entregue — termos fixados (Release 1.5.1)", () => {
+  const texto = () => textoDe(renderContratoDocx(DTO));
+
+  it("9.2 — multa de rescisão de 20% sobre o saldo do contrato", () => {
+    expect(texto()).toContain(
+      "multa de 20% (vinte por cento) sobre o saldo do contrato",
+    );
+  });
+
+  it("9.2 — não sobrou o '%' do antigo [Nº]%", () => {
+    expect(texto()).not.toContain("(vinte por cento)%");
+  });
+
+  it("8.1 — multa de inadimplência PERMANECE em 2%", () => {
+    expect(texto()).toContain("multa de 2% sobre o valor em aberto");
+  });
+
+  it("3.1 — início em até 10 (dez) dias úteis da autorização formal", () => {
+    expect(texto()).toContain(
+      "terão início em até 10 (dez) dias úteis contados da autorização " +
+        "formal do CONTRATANTE",
+    );
+  });
+
+  it("3.1 — declara que o início não depende de data previamente fixada", () => {
+    expect(texto()).toContain(
+      "O início dos serviços não depende de data previamente fixada",
+    );
+  });
+
+  it("3.1 — define autorização formal sem contradizer a cláusula 2.2", () => {
+    expect(texto()).toContain(
+      "assim entendida a confirmação do pagamento previsto na Cláusula 2.2 " +
+        "acompanhada da disponibilização do local em condições de execução",
+    );
+  });
+
+  it("3.1 — o prazo de CONCLUSÃO continua manual", () => {
+    expect(texto()).toContain("no prazo estimado de [Nº] dias úteis");
   });
 });
 

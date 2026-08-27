@@ -7,10 +7,16 @@
  * Uso único — a saída é commitada. Reexecutar só se o jurídico enviar um
  * template novo.
  *
- * REGRA CRÍTICA (spec D3.1): `[Nº]` aparece 5× com 5 significados diferentes
- * (prazo de início, prazo de conclusão, prazo de aceite, multa %, nº da
- * proposta). Só o do Anexo II — precedido por "Proposta Comercial nº " — é
- * automático. Marcar todos com delimitadores `[ ]` produziria "multa de 1042%".
+ * REGRA CRÍTICA (spec D3.1): `[Nº]` é ambíguo por natureza — o mesmo texto
+ * significa coisas diferentes em cada cláusula, e marcar todos com delimitadores
+ * `[ ]` daria a todos o mesmo valor, produzindo "multa de 1042%".
+ *
+ * Eram 5 (prazo de início, prazo de conclusão, prazo de aceite, multa % e nº da
+ * proposta). A Release 1.5.1 fixou DOIS deles como termo contratual — prazo de
+ * início = 10 (dez) dias úteis (cláusula 3.1) e multa de rescisão = 20% (vinte
+ * por cento) (cláusula 9.2) —, então restam 3 no oficial. Só o do Anexo II —
+ * precedido por "Proposta Comercial nº " — é automático; os outros 2 (prazo de
+ * conclusão e prazo de aceite) seguem manuais.
  *
  * SEGURANÇA: só o texto dentro de <w:t> é tocado. O script aborta se qualquer
  * outra parte do XML mudar, ou se as contagens divergirem do esperado.
@@ -46,8 +52,8 @@ const antes = zip.file("word/document.xml").asText();
 let xml = antes;
 
 // Pré-condições: o template é o que esperamos.
-if (conta(xml, "[Nº]") !== 5) {
-  throw new Error(`Esperava 5 "[Nº]", achei ${conta(xml, "[Nº]")}. Template mudou?`);
+if (conta(xml, "[Nº]") !== 3) {
+  throw new Error(`Esperava 3 "[Nº]", achei ${conta(xml, "[Nº]")}. Template mudou?`);
 }
 for (const [ph, , n] of SIMPLES) {
   if (conta(xml, ph) !== n) {
@@ -102,8 +108,8 @@ xml = xml.replace(
 if (xml === antesNumero) throw new Error("Não achei o [Nº] do Anexo II.");
 
 // Pós-condições.
-if (conta(xml, "[Nº]") !== 4) {
-  throw new Error(`Deviam sobrar 4 "[Nº]" manuais, sobraram ${conta(xml, "[Nº]")}.`);
+if (conta(xml, "[Nº]") !== 2) {
+  throw new Error(`Deviam sobrar 2 "[Nº]" manuais, sobraram ${conta(xml, "[Nº]")}.`);
 }
 if (conta(xml, "[VALOR]") !== 1) throw new Error("[VALOR] do Anexo II sumiu.");
 if (conta(xml, "[se houver]") !== 1) throw new Error("[se houver] sumiu.");
@@ -135,6 +141,6 @@ zip.file("word/document.xml", xml);
 writeFileSync(SAIDA, zip.generate({ type: "nodebuffer", compression: "DEFLATE" }));
 
 console.log("Template marcado:", SAIDA);
-console.log("  4× [Nº] manuais, [VALOR] e [se houver] preservados literais e realçados");
+console.log("  2× [Nº] manuais, [VALOR] e [se houver] preservados literais e realçados");
 console.log(`  realces: ${highlights(antes)} → ${highlights(xml)} (campos automáticos limpos)`);
 console.log("  formatação (fonte/margem/estilo): idêntica");

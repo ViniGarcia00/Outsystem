@@ -141,9 +141,15 @@ Regras que valem para o Contrato:
 - O sistema **apenas substitui placeholders**. Fonte, margens, cabeçalho, rodapé,
   espaçamentos, numeração e estilos vêm do template oficial e **nunca são
   alterados**.
-- Os campos que o sistema **não** conhece — prazos, multa, parcela final do
-  Termo de Aceite e observações — permanecem no documento **realçados em
-  amarelo**, sinalizando o preenchimento manual.
+- Os campos que o sistema **não** conhece — prazo de conclusão, prazo de aceite,
+  parcela final do Termo de Aceite e observações — permanecem no documento
+  **realçados em amarelo**, sinalizando o preenchimento manual.
+- **Termos comerciais fixos** (Release 1.5.1, ADR-0411): o **prazo de início** é
+  de 10 (dez) dias úteis contados da **autorização formal do CONTRATANTE**
+  (cláusula 3.1) e a **multa de rescisão** por iniciativa do CONTRATANTE é de
+  **20%** sobre o saldo do contrato (cláusula 9.2). Os dois deixaram de ser
+  preenchidos à mão. A **multa de inadimplência** da cláusula 8.1 é outra coisa e
+  **permanece em 2%**.
 - A data do contrato é a da **revisão emitida**, nunca a data corrente: reemitir
   um contrato antigo reproduz a data original.
 

@@ -1822,3 +1822,98 @@ Sprint de refinamento (escopo estrito):
   oficial não mudaram uma linha. O Dashboard perdeu o card "Custos extras
   acumulados" (apresentação apenas — `InstalacaoCusto`, categorias, cálculo e
   histórico ficam intactos) e teve os cards restantes rebalanceados.
+
+---
+
+## Release 1.5.1 — Contrato: multa de rescisão e prazo de início
+
+### ADR-0411 — Dois `[Nº]` do contrato viram termo fixo (supersede parcial do ADR-0330)
+
+- **Contexto:** o template nasceu (ADR-0330) com **5 `[Nº]`** manuais, digitados
+  no Word a cada envio. Dois deles não variavam na prática — o prazo de início e
+  a multa de rescisão eram sempre os mesmos valores comerciais. Redigitá-los a
+  cada contrato é retrabalho com risco assimétrico: o erro típico não é um número
+  errado, é o contrato sair **com o colchete em branco**, e esse documento vai
+  para assinatura.
+
+- **Decisão — multa de rescisão fixada em 20% (cláusula 9.2).** O texto passa a
+  "*além de multa de **20% (vinte por cento)** sobre o saldo do contrato*". A
+  **base de cálculo (saldo do contrato), a hipótese (rescisão por iniciativa do
+  CONTRATANTE após o início dos serviços) e a retenção da entrada não mudaram** —
+  só o percentual deixou de ser preenchível. A forma "número (por extenso)" segue
+  a convenção do próprio documento ("3 (três) meses", "12 (doze) meses").
+
+- **A cláusula 8.1 NÃO foi tocada e permanece em 2%.** São multas diferentes: a
+  8.1 é **moratória** (atraso de pagamento, incide sobre o valor em aberto,
+  acompanhada de juros de 1% a.m.); a 9.2 é **compensatória** (desistência,
+  incide sobre o saldo). Levar 20% para a 8.1 seria mudança de natureza — 2% é o
+  teto do art. 52 §1º do CDC para relação de consumo, e a maior parte da
+  clientela é pessoa física consumidora. A confusão entre as duas é o erro
+  provável de quem reabrir este assunto, por isso há **teste dedicado** que falha
+  se a 8.1 for alterada.
+
+- **Decisão — prazo de início contado da autorização formal (cláusula 3.1).** O
+  texto passa a: "*O início dos serviços não depende de data previamente fixada.
+  Os serviços terão início em até **10 (dez) dias úteis** contados da
+  **autorização formal do CONTRATANTE**, assim entendida a confirmação do
+  pagamento previsto na Cláusula 2.2 acompanhada da disponibilização do local em
+  condições de execução, e serão concluídos no prazo estimado de [Nº] dias
+  úteis.*"
+
+- **Por que "autorização formal" é DEFINIDA na própria cláusula.** A redação
+  curta ("em até 10 dias após a autorização formal") foi considerada e recusada:
+  deixaria o termo indefinido e **contradiria a cláusula 2.3**, que condiciona o
+  início à confirmação do primeiro pagamento — o CONTRATANTE poderia sustentar
+  que autorizou por e-mail e que o prazo correu sem ele ter pago. Definir o termo
+  dentro da 3.1 mantém 2.3 e 3.1 dizendo a mesma coisa **sem editar a 2.3**, e
+  preserva a condição "disponibilização do local", da qual a **cláusula 3.2**
+  (prorrogação automática por atraso na liberação do local) depende. Uma cláusula
+  de prorrogação cujo gatilho sumiu do texto que ela prorroga fica órfã.
+
+- **Dias ÚTEIS, não corridos.** Decisão do dono do produto. Mantém a unidade já
+  usada nas outras duas contagens de prazo do documento — conclusão (3.1) e
+  aceite (5.5) —; "corridos" só na 3.1 faria o contrato misturar duas unidades e
+  obrigaria a rever a 5.5 junto.
+
+- **Formatação: os dois runs perderam realce, negrito e cor — de propósito.** No
+  template, negrito + azul `3C77FF` é o estilo de **dado variável** (é como
+  `{clienteNome}` e `{valorTotal}` saem no contrato entregue, e foi assim
+  homologado na 3.1); o amarelo marca "preencha aqui". `20% (vinte por cento)` e
+  `10 (dez)` não são nem uma coisa nem outra: são **cláusula**. Por isso ficaram
+  com o `rPr` do corpo (`sz 21`), byte a byte igual aos runs vizinhos — exatamente
+  como o documento já escreve "2%", "1% ao mês" e "3 (três) meses".
+
+- **Contagens e guardas.** `[Nº]` cai de **5 → 3** no oficial e de **4 → 2** no
+  marcado (restam prazo de conclusão e prazo de aceite; o do Anexo II vira
+  `{propostaNumero}`). As pré/pós-condições de
+  `scripts/marcar-template-contrato.mjs`, `template.test.ts` e `render.test.ts`
+  foram atualizadas. **As três guardas dispararam sozinhas durante a execução** —
+  o `render.test.ts` não havia sido mapeado na auditoria e quebrou o gate, que é
+  precisamente a função dele.
+
+- **Nenhuma linha de código de aplicação mudou.** Os percentuais e prazos **nunca
+  estiveram no código**: não há campo correspondente em `ContratoTemplateDTO`,
+  `contrato.mapper.ts` não os calcula e `render.ts` não os conhece. `Proposta.
+  previsaoInstalacao` existe (ADR-0222) mas alimenta só o PDF Apresentação, e o
+  contrato não tem vínculo com `Instalacao`. A mudança é de **conteúdo de
+  documento**, o que é a razão de ela caber numa release **patch**.
+
+- **Prova estrutural da edição do oficial:** apenas os parágrafos **22 (3.1)** e
+  **46 (9.2)** do `word/document.xml` mudaram — todos os outros 71 são byte a byte
+  idênticos —, e as outras **21 entradas do `.docx`** ficaram intactas. Em
+  seguida a invariante do próprio script de marcação ("removendo texto e realce
+  de ambos, o resto é idêntico") passou, provando que fonte, margens, cabeçalho,
+  rodapé, espaçamentos, numeração e estilos não foram tocados.
+
+- **Supersede PARCIAL do ADR-0330**, restrito a duas afirmações de contagem: "*os
+  4 `[Nº]` (prazos/multa) … permanecem literais*" e "*`[Nº]` aparece 5× com 5
+  significados*". Todo o resto do ADR-0330 continua valendo integralmente — em
+  especial a proibição de usar `[` `]` como delimitadores do docxtemplater, que é
+  o que evita a "multa de 1042%", e que a redução de 5 para 3 não enfraquece.
+
+- **Gate manual obrigatório mantido:** homologação visual no Microsoft Word antes
+  de fechar a release. Nenhum teste prova fidelidade de fonte, margem ou layout.
+
+- **Consequência:** o contrato sai do sistema com dois campos a menos para
+  preencher à mão e sem o risco de ir para assinatura com a multa em branco.
+  Sobram 2 `[Nº]` manuais, ambos genuinamente variáveis por obra.

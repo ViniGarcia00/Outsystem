@@ -180,7 +180,10 @@ About é voltada ao usuário final e existirá também em produção.
 > tela **About**; o **Dashboard** foi entregue na 4.0.3.
 >
 > **Pendência de release:** homologação visual do Contrato .docx no Microsoft
-> Word — gate manual obrigatório pelo ADR-0330.
+> Word — gate manual obrigatório pelo ADR-0330. Reaberta na **Release 1.5.1**,
+> que alterou o texto de duas cláusulas do template oficial (3.1 e 9.2,
+> ADR-0411): nenhum teste prova fidelidade de fonte, margem ou layout, só a
+> inspeção no Word.
 >
 > **Nota de numeração:** o rótulo "Sprint 3.1" foi usado duas vezes — 3.1 (a) é o
 > PDF Apresentação (ADR-0301) e 3.1 (b) é a Documentação Contratual (ADR-0330).

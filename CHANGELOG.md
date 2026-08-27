@@ -4,6 +4,59 @@ Todas as mudanças relevantes deste projeto são documentadas aqui.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o
 projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [1.5.1] — 2026-08-27
+
+Release de **conteúdo contratual**. Fixa dois termos comerciais que até aqui eram
+digitados à mão no Word a cada envio. **Nenhuma linha de código de aplicação
+mudou** — não existe campo de multa ou de prazo em `ContratoTemplateDTO`, e o
+mapper e o renderer seguem intactos (ADR-0411).
+
+### Alterado
+
+- **Cláusula 9.2 — multa de rescisão fixada em 20% (vinte por cento)** sobre o
+  saldo do contrato. A base de cálculo, a hipótese de incidência (rescisão por
+  iniciativa do CONTRATANTE após o início dos serviços) e a retenção da entrada
+  **não mudaram**: só o percentual deixou de ser preenchível.
+- **Cláusula 3.1 — o início deixa de depender de data previamente fixada** e
+  passa a ser contado da **autorização formal do CONTRATANTE**, em até **10 (dez)
+  dias úteis**. A cláusula **define** o termo — confirmação do pagamento previsto
+  na Cláusula 2.2 mais a disponibilização do local em condições de execução —, o
+  que mantém a coerência com a 2.3 **sem precisar editá-la** e preserva o gatilho
+  do qual a 3.2 (prorrogação automática) depende.
+- Os dois valores saem **sem realce, negrito ou cor**: viraram cláusula, e o
+  documento escreve termo fixo como texto de corpo — é assim que já traz "2%",
+  "1% ao mês" e "3 (três) meses".
+- `scripts/marcar-template-contrato.mjs`: guardas de `[Nº]` passam de 5→3 na
+  entrada e de 4→2 na saída.
+- `VISION.md`, `docs/BRIEFING-PROJETO.md` e `PROJECT_CONTEXT.md` atualizados.
+
+### Adicionado
+
+- **14 testes** travando os termos fixados: 7 em `template.test.ts` (template
+  marcado) e 7 em `render.test.ts` (documento **entregue**, onde as emendas entre
+  runs aparecem — é lá que um `%` sobrando seria visto). Cinco das seis asserções
+  de conteúdo foram verificadas como **discriminantes** contra o template
+  anterior; as duas restantes são guardas negativas, que devem mesmo passar nos
+  dois.
+
+### Não alterado (deliberado)
+
+- **Cláusula 8.1 — multa de inadimplência permanece em 2%.** É multa moratória:
+  outra natureza, outra base (valor em aberto) e acompanhada de juros de 1% a.m.
+  2% é o teto do art. 52 §1º do CDC para relação de consumo. **Travado por teste**
+  — a confusão entre as duas multas é o erro provável de quem reabrir o assunto.
+- Formatação homologada: fonte, margens, cabeçalho, rodapé, espaçamentos,
+  numeração e estilos. Só os parágrafos **22** e **46** do `word/document.xml`
+  mudaram; os outros 71 e as outras **21 entradas** do `.docx` ficaram byte a byte
+  idênticos, e a invariante do script de marcação passou.
+- Prazo de conclusão (3.1) e prazo de aceite (5.5) seguem manuais e realçados.
+
+### Gate
+
+Lint 0 · Typecheck 0 · Build OK · Unit 264/264 · Integração 33/33 · E2E 33/33
+(limpeza com resíduo zero) · `/api/health` 200 (db up) · `/dev/diagnostics` 200.
+**Pendente:** homologação visual no Microsoft Word — gate manual do ADR-0330.
+
 ## [1.5.0] — 2026-08-26
 
 Sprint 4.2: os cadastros separados de **Vendedores** e **Técnicos** — que na
