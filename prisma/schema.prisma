@@ -544,6 +544,22 @@ model Instalacao {
   clienteId String
   cliente   Cliente @relation(fields: [clienteId], references: [id])
 
+  /// Identificação operacional da obra, dada pelo usuário (Sprint 4.3,
+  /// ADR-0413). Ex.: "Casa Alphaville", "Apartamento Moema" — o mesmo cliente
+  /// pode ter várias instalações, e é o apelido que as distingue na listagem.
+  ///
+  /// Pertence à INSTALAÇÃO, nunca ao Cliente. Nasce sugerido pelo nome de
+  /// exibição do Cliente na criação, mas é editável a qualquer momento: é
+  /// rótulo operacional, **não é snapshot** — não seguir a regra do endereço.
+  ///
+  /// NÃO é o `nomeProjeto` removido na Sprint 4.0.3 (ADR-0404). Aquele era
+  /// texto solto, sem regra e sem papel na identificação; a remoção dele
+  /// continua correta. Esta coluna é nova.
+  ///
+  /// Nullable no banco (o backfill preencheu as linhas antigas), obrigatório no
+  /// Zod: constraint dura num campo de rótulo não paga o custo.
+  apelido String?
+
   /// Vínculo OPCIONAL. Não importa itens nem sincroniza nada.
   propostaId String?
   proposta   Proposta? @relation(fields: [propostaId], references: [id], onDelete: Restrict)
