@@ -129,6 +129,10 @@ export interface PropostaPdfDTO {
   desconto: Desconto;
   formaPagamento: string | null;
   previsaoInstalacao: string | null;
+  /** Campos CONTRATUAIS do contrato Rev. 4 (ADR-0416). */
+  prazoExecucaoDiasUteis: number | null;
+  valorParcelaFinal: number | null;
+  observacoesAceite: string | null;
   /** Observações da proposta (campo do cabeçalho). */
   obsProposta: string | null;
   obsComerciais: string | null;
@@ -179,6 +183,11 @@ export interface FontePropostaPdf {
   frete: Numerico;
   formaPagamento: string | null;
   previsaoInstalacao: string | null;
+  /** Campos CONTRATUAIS do contrato Rev. 4 (ADR-0416). */
+  prazoExecucaoDiasUteis: number | null;
+  /** Decimal do Prisma — convertido no mapper, como valorDesconto e frete. */
+  valorParcelaFinal: Numerico | null;
+  observacoesAceite: string | null;
   obsProposta: string | null;
   obsComerciais: string | null;
   obsTecnicas: string | null;
@@ -334,6 +343,10 @@ export function montarPropostaPdfDTO(
     desconto,
     formaPagamento: nn(p.formaPagamento),
     previsaoInstalacao: nn(p.previsaoInstalacao),
+    prazoExecucaoDiasUteis: p.prazoExecucaoDiasUteis ?? null,
+    valorParcelaFinal:
+      p.valorParcelaFinal == null ? null : Number(p.valorParcelaFinal.toString()),
+    observacoesAceite: nn(p.observacoesAceite),
     obsProposta: nn(p.obsProposta),
     obsComerciais: nn(p.obsComerciais),
     obsTecnicas: nn(p.obsTecnicas),

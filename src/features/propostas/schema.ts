@@ -40,6 +40,19 @@ export const cabecalhoPatchSchema = z
     previsaoInstalacao: z.string().max(2000).nullable(),
     obsComerciais: z.string().max(5000).nullable(),
     obsTecnicas: z.string().max(5000).nullable(),
+    // Campos CONTRATUAIS do contrato Rev. 4 (ADR-0416). Opcionais aqui; a
+    // obrigatoriedade é da GERAÇÃO do contrato, não do cadastro da proposta.
+    prazoExecucaoDiasUteis: z
+      .number({ message: "Informe o prazo em dias úteis." })
+      .int("Use um número inteiro de dias úteis.")
+      .positive("O prazo deve ser maior que zero.")
+      .max(3650, "Máximo de 3650 dias úteis.")
+      .nullable(),
+    valorParcelaFinal: z
+      .number({ message: "Informe um valor válido." })
+      .nonnegative("O valor não pode ser negativo.")
+      .nullable(),
+    observacoesAceite: z.string().max(5000).nullable(),
   })
   .partial();
 
@@ -64,6 +77,18 @@ export const novaPropostaSchema = z.object({
   previsaoInstalacao: z.string().max(2000).nullable(),
   obsComerciais: z.string().max(5000).nullable(),
   obsTecnicas: z.string().max(5000).nullable(),
+  // Campos CONTRATUAIS do contrato Rev. 4 (ADR-0416).
+  prazoExecucaoDiasUteis: z
+    .number({ message: "Informe o prazo em dias úteis." })
+    .int("Use um número inteiro de dias úteis.")
+    .positive("O prazo deve ser maior que zero.")
+    .max(3650, "Máximo de 3650 dias úteis.")
+    .nullable(),
+  valorParcelaFinal: z
+    .number({ message: "Informe um valor válido." })
+    .nonnegative("O valor não pode ser negativo.")
+    .nullable(),
+  observacoesAceite: z.string().max(5000).nullable(),
   descontoTipo: tipoDescontoEnum.optional(),
   descontoValor: z.number().nonnegative().optional(),
   frete: z.number().nonnegative().optional(),

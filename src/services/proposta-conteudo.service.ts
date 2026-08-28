@@ -76,6 +76,10 @@ export interface WorkspaceDTO {
   previsaoInstalacao: string;
   obsComerciais: string;
   obsTecnicas: string;
+  /** Campos CONTRATUAIS do contrato Rev. 4 (ADR-0416). */
+  prazoExecucaoDiasUteis: number | null;
+  valorParcelaFinal: number | null;
+  observacoesAceite: string;
   // Desconto (modelagem separada tipo/valor; total é derivado)
   descontoTipo: TipoDesconto;
   descontoValor: number;
@@ -119,6 +123,9 @@ export async function getWorkspace(
       previsaoInstalacao: true,
       obsComerciais: true,
       obsTecnicas: true,
+      prazoExecucaoDiasUteis: true,
+      valorParcelaFinal: true,
+      observacoesAceite: true,
       tipoDesconto: true,
       valorDesconto: true,
       frete: true,
@@ -195,6 +202,10 @@ export async function getWorkspace(
     previsaoInstalacao: p.previsaoInstalacao ?? "",
     obsComerciais: p.obsComerciais ?? "",
     obsTecnicas: p.obsTecnicas ?? "",
+    prazoExecucaoDiasUteis: p.prazoExecucaoDiasUteis,
+    valorParcelaFinal:
+      p.valorParcelaFinal === null ? null : toNumber(p.valorParcelaFinal),
+    observacoesAceite: p.observacoesAceite ?? "",
     descontoTipo: p.tipoDesconto,
     descontoValor: toNumber(p.valorDesconto),
     frete: toNumber(p.frete),

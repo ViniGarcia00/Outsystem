@@ -42,6 +42,11 @@ function fonteBase(over: Partial<FontePropostaPdf> = {}): FontePropostaPdf {
     obsProposta: null,
     obsComerciais: null,
     obsTecnicas: null,
+    // Campos contratuais da Rev. 4 (ADR-0416). Nulos na base: a proposta
+    // existe sem eles, e a obrigatoriedade é da GERAÇÃO do contrato.
+    prazoExecucaoDiasUteis: null,
+    valorParcelaFinal: null,
+    observacoesAceite: null,
     cliente: {
       tipoPessoa: "PF",
       nome: "João da Silva",

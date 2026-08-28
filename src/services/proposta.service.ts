@@ -243,6 +243,10 @@ export interface NovaPropostaPayload {
   previsaoInstalacao?: string | null;
   obsComerciais?: string | null;
   obsTecnicas?: string | null;
+  /** Campos CONTRATUAIS do contrato Rev. 4 (ADR-0416). */
+  prazoExecucaoDiasUteis?: number | null;
+  valorParcelaFinal?: number | null;
+  observacoesAceite?: string | null;
   descontoTipo?: TipoDesconto;
   descontoValor?: number;
   frete?: number;
@@ -292,6 +296,9 @@ export async function criarPropostaCompleta(
         previsaoInstalacao: trimOrNull(payload.previsaoInstalacao),
         obsComerciais: trimOrNull(payload.obsComerciais),
         obsTecnicas: trimOrNull(payload.obsTecnicas),
+        prazoExecucaoDiasUteis: payload.prazoExecucaoDiasUteis ?? null,
+        valorParcelaFinal: payload.valorParcelaFinal ?? null,
+        observacoesAceite: trimOrNull(payload.observacoesAceite),
         tipoDesconto: payload.descontoTipo ?? "VALOR",
         valorDesconto: payload.descontoValor ?? 0,
         frete: payload.frete ?? 0,
@@ -485,6 +492,9 @@ export async function salvarProposta(
         previsaoInstalacao: trimOrNull(payload.previsaoInstalacao),
         obsComerciais: trimOrNull(payload.obsComerciais),
         obsTecnicas: trimOrNull(payload.obsTecnicas),
+        prazoExecucaoDiasUteis: payload.prazoExecucaoDiasUteis ?? null,
+        valorParcelaFinal: payload.valorParcelaFinal ?? null,
+        observacoesAceite: trimOrNull(payload.observacoesAceite),
         tipoDesconto: payload.descontoTipo ?? "VALOR",
         valorDesconto: payload.descontoValor ?? 0,
         frete: payload.frete ?? 0,
@@ -785,6 +795,9 @@ export async function duplicarProposta(
         previsaoInstalacao: true,
         obsComerciais: true,
         obsTecnicas: true,
+        prazoExecucaoDiasUteis: true,
+        valorParcelaFinal: true,
+        observacoesAceite: true,
         currentRevisionId: true,
         servicos: {
           orderBy: { ordem: "asc" },
@@ -818,6 +831,11 @@ export async function duplicarProposta(
         previsaoInstalacao: orig.previsaoInstalacao,
         obsComerciais: orig.obsComerciais,
         obsTecnicas: orig.obsTecnicas,
+        // Dado comercial, como formaPagamento: a duplicada nasce com as mesmas
+        // condicoes contratuais da origem (ADR-0406).
+        prazoExecucaoDiasUteis: orig.prazoExecucaoDiasUteis,
+        valorParcelaFinal: orig.valorParcelaFinal,
+        observacoesAceite: orig.observacoesAceite,
         status: "RASCUNHO",
       },
       select: { id: true, proposalNumber: true },
