@@ -18,7 +18,7 @@ const CAMINHO = path.join(
   "public",
   "templates",
   "contrato",
-  "contrato-outmat.docx",
+  "contrato-outmat.rev3.docx",
 );
 
 function documentXml(): string {

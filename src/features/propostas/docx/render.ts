@@ -5,6 +5,7 @@ import Docxtemplater from "docxtemplater";
 import PizZip from "pizzip";
 
 import type { ContratoTemplateDTO } from "./contrato.mapper";
+import { resolverVersaoTemplate, templateDe } from "./templates";
 
 /**
  * Renderiza o Contrato (.docx) preenchendo o template oficial marcado
@@ -20,16 +21,27 @@ import type { ContratoTemplateDTO } from "./contrato.mapper";
  * O template é lido do disco a cada chamada — igual aos PNGs do PDF
  * Apresentação —, então trocar o arquivo basta, sem redeploy de código.
  */
-const TEMPLATE = path.join(
+const DIR_TEMPLATES = path.join(
   process.cwd(),
   "public",
   "templates",
   "contrato",
-  "contrato-outmat.docx",
 );
 
-export function renderContratoDocx(dto: ContratoTemplateDTO): Buffer {
-  const zip = new PizZip(readFileSync(TEMPLATE));
+/**
+ * Renderiza o contrato **na versão do template com que a revisão foi
+ * congelada** (ADR-0415), não na versão vigente. É isso que impede um contrato
+ * antigo de mudar de texto jurídico quando o template é trocado.
+ *
+ * `versao` nula/desconhecida cai no padrão histórico (`rev3`) — revisões
+ * emitidas antes da Sprint 4.4 não têm carimbo.
+ */
+export function renderContratoDocx(
+  dto: ContratoTemplateDTO,
+  versao?: string | null,
+): Buffer {
+  const template = templateDe(resolverVersaoTemplate(versao));
+  const zip = new PizZip(readFileSync(path.join(DIR_TEMPLATES, template.arquivo)));
 
   const doc = new Docxtemplater(zip, {
     // Sem loops no template — o escopo vai no Anexo I (PDF), não no contrato.

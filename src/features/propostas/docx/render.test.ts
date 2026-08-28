@@ -163,7 +163,7 @@ describe("fallback da forma de pagamento", () => {
           "public",
           "templates",
           "contrato",
-          "contrato-outmat.oficial.docx",
+          "contrato-outmat.rev3.oficial.docx",
         ),
       ),
     ).file("word/document.xml");

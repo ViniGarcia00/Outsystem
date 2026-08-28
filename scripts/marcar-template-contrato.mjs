@@ -1,8 +1,15 @@
 /**
  * Marcação SELETIVA do template oficial do contrato (Sprint 3.1).
  *
- * Entrada:  public/templates/contrato/contrato-outmat.oficial.docx  (oficial, [PLACEHOLDERS])
- * Saída:    public/templates/contrato/contrato-outmat.docx         (marcado, {tags})
+ * ESCOPO: este script é a proveniência da **Rev. 3** e SÓ dela.
+ *
+ * Entrada:  public/templates/contrato/contrato-outmat.rev3.oficial.docx  ([PLACEHOLDERS])
+ * Saída:    public/templates/contrato/contrato-outmat.rev3.docx         ({tags})
+ *
+ * NÃO RODAR SOBRE A REV. 4 (Sprint 4.4, ADR-0415/0416). Aquele arquivo chegou do
+ * jurídico JÁ MARCADO, com as {tags} no lugar — não existe etapa de conversão. As
+ * pré-condições abaixo falham em todas as 10 verificações se apontadas para ela,
+ * o que é o comportamento correto: o script recusa um arquivo que não é a rev3.
  *
  * Uso único — a saída é commitada. Reexecutar só se o jurídico enviar um
  * template novo.
@@ -27,8 +34,8 @@ import path from "node:path";
 import PizZip from "pizzip";
 
 const DIR = path.join(process.cwd(), "public", "templates", "contrato");
-const ENTRADA = path.join(DIR, "contrato-outmat.oficial.docx");
-const SAIDA = path.join(DIR, "contrato-outmat.docx");
+const ENTRADA = path.join(DIR, "contrato-outmat.rev3.oficial.docx");
+const SAIDA = path.join(DIR, "contrato-outmat.rev3.docx");
 
 /** Placeholders únicos → tag. [texto exato no template, tag, ocorrências esperadas] */
 const SIMPLES = [
