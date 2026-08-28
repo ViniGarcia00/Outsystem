@@ -21,7 +21,19 @@ import { assertPapel, listUsuarioOptions } from "./usuario.service";
  * - Cada operação de escrita grava PropostaAuditoria na MESMA transação.
  */
 
-export type StatusProposta = "RASCUNHO" | "EMITIDA" | "CANCELADA";
+/**
+ * Ciclo de vida da proposta. `APROVADA` (ADR-0412) é a PROJEÇÃO de "a revisão
+ * atual está aprovada" — o fato mora em `PropostaRevisao.aprovadaEm`.
+ *
+ * A união é escrita à mão e precisa acompanhar o enum do banco: o tipo gerado
+ * pelo Prisma é atribuído a ela em `listPropostas` e em
+ * `proposta-conteudo.service.ts`, então o typecheck cobra a sincronia.
+ */
+export type StatusProposta =
+  | "RASCUNHO"
+  | "EMITIDA"
+  | "APROVADA"
+  | "CANCELADA";
 export type ModeloProposta = "COMERCIAL" | "SIMPLIFICADA";
 export type TipoDesconto = "VALOR" | "PERCENTUAL";
 export type MotivoCancelamento =

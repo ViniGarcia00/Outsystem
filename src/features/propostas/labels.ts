@@ -9,16 +9,21 @@ import type {
 export const STATUS_LABEL: Record<StatusProposta, string> = {
   RASCUNHO: "Rascunho",
   EMITIDA: "Emitida",
+  APROVADA: "Aprovada",
   CANCELADA: "Cancelada",
 };
 
-/** Cor do badge por status (padrão ADR-0159). Cancelada = vermelho (ADR-0225). */
+/**
+ * Cor do badge por status (padrão ADR-0159). Cancelada = vermelho (ADR-0225);
+ * Aprovada = verde, o único estado comercialmente positivo (ADR-0412).
+ */
 export const STATUS_BADGE_VARIANT: Record<
   StatusProposta,
-  "secondary" | "info" | "danger"
+  "secondary" | "info" | "success" | "danger"
 > = {
   RASCUNHO: "secondary",
   EMITIDA: "info",
+  APROVADA: "success",
   CANCELADA: "danger",
 };
 
@@ -29,6 +34,7 @@ export const STATUS_BADGE_VARIANT: Record<
 export const STATUS_BADGE_CLASS: Record<StatusProposta, string> = {
   RASCUNHO: "bg-zinc-200 dark:bg-zinc-700",
   EMITIDA: "",
+  APROVADA: "",
   CANCELADA: "",
 };
 

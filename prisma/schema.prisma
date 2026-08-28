@@ -38,9 +38,15 @@ enum TipoPessoa {
 }
 
 /// Status oficiais da proposta (ciclo de vida). Ver DECISIONS.md ADR-0204.
+///
+/// `APROVADA` (Sprint 4.3, ADR-0412) é a **projeção** de "a revisão ATUAL está
+/// aprovada" — o FATO mora em `PropostaRevisao.aprovadaEm`. Existe como coluna
+/// porque listagem, filtro, badge e dashboard já leem `Proposta.status`, e
+/// derivar isso por join em toda listagem seria caro.
 enum StatusProposta {
   RASCUNHO
   EMITIDA
+  APROVADA
   CANCELADA
 }
 
@@ -355,7 +361,22 @@ model PropostaRevisao {
   updatedAt DateTime  @updatedAt
   /// Momento em que ESTA revisão foi emitida (Gerar PDF). Congela a versão e
   /// alimenta o histórico/PDF por revisão. Null enquanto rascunho.
+  ///
+  /// É o gatilho do fork em `salvarProposta` (ADR-0412): revisão congelada
+  /// nunca é alterada in-place. Não usar `Proposta.status` para essa decisão.
   emittedAt DateTime?
+
+  /// Momento em que o cliente aprovou ESTE conteúdo (Sprint 4.3, ADR-0412).
+  ///
+  /// FATO HISTÓRICO por revisão, simétrico a `emittedAt`. Uma vez gravado, não
+  /// é reescrito por edição: alterar a proposta cria a Rev.N+1 (que nasce com
+  /// `aprovadaEm` nulo) e esta revisão segue registrando o que foi aprovado e
+  /// quando. A ÚNICA operação que o limpa é a ação "Desfazer aprovação", e só
+  /// sobre a revisão ATUAL — revisões anteriores são imutáveis.
+  ///
+  /// `Proposta.status = APROVADA` é a projeção disto para a revisão atual.
+  /// NÃO existe `Proposta.aprovadaAt` — a resposta certa é sempre por revisão.
+  aprovadaEm DateTime?
 
   propostaId String
   proposta   Proposta @relation("PropostaRevisoes", fields: [propostaId], references: [id], onDelete: Cascade)

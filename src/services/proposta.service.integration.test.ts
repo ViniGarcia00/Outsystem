@@ -255,3 +255,68 @@ describe("congelamento e status são equivalentes nos estados de hoje", () => {
     expect(e.currentRevision?.emittedAt != null).toBe(false);
   });
 });
+
+/**
+ * Estrutura da aprovação (T3) — só a migration, ainda sem service.
+ *
+ * O service de aprovar/desfazer chega na T4. Aqui a escrita é direta pelo
+ * Prisma de propósito: o que está sob teste é a **migration**, não a regra.
+ */
+describe("estrutura de aprovação (migration)", () => {
+  it("revisão nasce com aprovadaEm nulo", async () => {
+    const id = await novaProposta();
+    const e = await estado(id);
+
+    const rev = await prisma.propostaRevisao.findUniqueOrThrow({
+      where: { id: e.currentRevisionId! },
+      select: { aprovadaEm: true },
+    });
+    expect(rev.aprovadaEm).toBeNull();
+  });
+
+  it("o enum aceita APROVADA e a coluna aceita data", async () => {
+    const id = await novaProposta();
+    await emitirProposta(id);
+    const e = await estado(id);
+
+    const agora = new Date();
+    await prisma.propostaRevisao.update({
+      where: { id: e.currentRevisionId! },
+      data: { aprovadaEm: agora },
+    });
+    await prisma.proposta.update({
+      where: { id },
+      data: { status: "APROVADA" },
+    });
+
+    const depois = await estado(id);
+    expect(depois.status).toBe("APROVADA");
+
+    const rev = await prisma.propostaRevisao.findUniqueOrThrow({
+      where: { id: e.currentRevisionId! },
+      select: { aprovadaEm: true },
+    });
+    expect(rev.aprovadaEm).toEqual(agora);
+  });
+
+  it("aprovadaEm é limpável — é o que 'Desfazer aprovação' fará na T4", async () => {
+    const id = await novaProposta();
+    await emitirProposta(id);
+    const e = await estado(id);
+
+    await prisma.propostaRevisao.update({
+      where: { id: e.currentRevisionId! },
+      data: { aprovadaEm: new Date() },
+    });
+    await prisma.propostaRevisao.update({
+      where: { id: e.currentRevisionId! },
+      data: { aprovadaEm: null },
+    });
+
+    const rev = await prisma.propostaRevisao.findUniqueOrThrow({
+      where: { id: e.currentRevisionId! },
+      select: { aprovadaEm: true },
+    });
+    expect(rev.aprovadaEm).toBeNull();
+  });
+});
