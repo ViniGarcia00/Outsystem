@@ -387,6 +387,108 @@ test("Propostas: criação diferida, emitir e revisão automática", async ({
   await expect(page.getByRole("heading", { name: /Rev\.1/ })).toBeVisible();
 });
 
+test("Propostas: aprovar, desfazer e invalidação por edição (Sprint 4.3)", async ({
+  page,
+}) => {
+  const clienteNome = `E2E Aprovacao Cliente ${Date.now()}`;
+  await page.goto("/clientes/novo");
+  await page.getByLabel("Nome", { exact: true }).fill(clienteNome);
+  await page.getByRole("button", { name: "Salvar" }).click();
+  await expect(page).toHaveURL(/\/clientes$/);
+
+  const sku = await criarProdutoDeTeste(page, "APROVACAO");
+
+  // --- monta e cria a proposta ---
+  await page.goto("/propostas/nova");
+  await page.getByLabel("Cliente", { exact: true }).fill(clienteNome);
+  await page.getByRole("option", { name: clienteNome }).click();
+  await page
+    .getByPlaceholder("Nome da nova seção (ex.: Sala)")
+    .fill("Sala Aprovacao");
+  await page.getByRole("button", { name: "Adicionar seção" }).click();
+  await adicionarProduto(page, sku);
+  await page.getByRole("button", { name: "Criar Proposta" }).click();
+  await expect(page).toHaveURL(/\/propostas\/(?!nova$)[^/]+$/);
+  const propostaPath = new URL(page.url()).pathname;
+
+  // Em RASCUNHO não existe ação de aprovar: o cliente só aprova o que recebeu.
+  await expect(
+    page.getByRole("button", { name: "Aprovar proposta" }),
+  ).toHaveCount(0);
+
+  // --- emitir ---
+  await page
+    .getByRole("button", { name: "Gerar PDF Detalhado", exact: true })
+    .click();
+  await expect(page.getByText("Emitida", { exact: true })).toBeVisible();
+
+  // --- aprovar ---
+  const btnAprovar = page.getByRole("button", { name: "Aprovar proposta" });
+  await expect(btnAprovar).toBeVisible();
+  await btnAprovar.click();
+
+  await expect(page.getByText("Aprovada", { exact: true })).toBeVisible();
+  await expect(page.getByText(/Aprovada em .*deixa de valer/)).toBeVisible();
+
+  // Aprovar NÃO forka: continua na Rev.0.
+  await expect(page.getByRole("heading", { name: /Rev\.0/ })).toBeVisible();
+
+  // Os documentos emitidos continuam acessíveis em APROVADA — era a regressão
+  // provável ao trocar as guardas de `status === "EMITIDA"`.
+  await expect(
+    page.getByRole("button", { name: "Abrir PDF Detalhado" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Emitir Contrato" }),
+  ).toBeVisible();
+  const pdfAprovada = await page.request.get(`${propostaPath}/pdf`);
+  expect(pdfAprovada.status()).toBe(200);
+
+  // --- a listagem reflete o status e oferece o filtro ---
+  await page.goto("/propostas");
+  await expect(
+    page.getByRole("combobox", { name: "Filtrar por status" }),
+  ).toBeVisible();
+  await page.getByRole("combobox", { name: "Filtrar por status" }).click();
+  await expect(
+    page.getByRole("option", { name: "Aprovada", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("option", { name: "Aprovada", exact: true }).click();
+  await expect(page.getByText("Aprovada", { exact: true }).first()).toBeVisible();
+
+  // --- desfazer aprovação: volta a EMITIDA, mantendo o documento ---
+  await page.goto(propostaPath);
+  await page.getByRole("button", { name: "Desfazer aprovação" }).click();
+  await page.getByRole("button", { name: "Confirmar" }).click();
+  await expect(page.getByText("Emitida", { exact: true })).toBeVisible();
+  await expect(page.getByText("Aprovada", { exact: true })).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Abrir PDF Detalhado" }),
+  ).toBeVisible();
+
+  // --- aprovar de novo e invalidar por edição ---
+  await page.getByRole("button", { name: "Aprovar proposta" }).click();
+  await expect(page.getByText("Aprovada", { exact: true })).toBeVisible();
+
+  await page
+    .getByPlaceholder("Nome da nova seção (ex.: Sala)")
+    .fill("Cozinha Aprovacao");
+  await page.getByRole("button", { name: "Adicionar seção" }).click();
+  await page.getByRole("button", { name: "Salvar Alterações" }).click();
+
+  // A aprovação deixou de valer e a proposta voltou a ser editável em Rev.1.
+  await expect(page.getByText("Rascunho", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Rev\.1/ })).toBeVisible();
+  await expect(page.getByText("Aprovada", { exact: true })).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Aprovar proposta" }),
+  ).toHaveCount(0);
+  // A seção original sobreviveu na revisão nova (cópia profunda, ADR-0208).
+  await expect(
+    page.getByRole("heading", { name: "Sala Aprovacao" }),
+  ).toBeVisible();
+});
+
 test("Propostas: Contrato (.docx) e Anexo Contratual (Sprint 3.1)", async ({
   page,
 }) => {
