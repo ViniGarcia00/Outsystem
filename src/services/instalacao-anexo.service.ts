@@ -19,11 +19,9 @@ import {
 import { prisma } from "@/infrastructure/database";
 import { logger } from "@/infrastructure/logging";
 import { resolveWithin, storagePaths } from "@/infrastructure/storage";
+import { REGISTRO_NAO_ENCONTRADO } from "@/lib/messages";
 
-import {
-  REGISTRO_NAO_ENCONTRADO,
-  type AnexoDTO,
-} from "./instalacao-registro.service";
+import type { AnexoDTO } from "./instalacao-registro.service";
 
 /**
  * Anexos do registro da cronologia (Sprint 4.3, ADR-0414).

@@ -2,6 +2,9 @@ import type { CategoriaCustoInstalacao } from "@/features/instalacoes/custos";
 import type { TipoRegistroInstalacao } from "@/features/instalacoes/labels";
 import { LABEL_PAPEL } from "@/features/usuarios/opcoes";
 import { prisma } from "@/infrastructure/database";
+import { REGISTRO_NAO_ENCONTRADO } from "@/lib/messages";
+
+import { removerPastaDoRegistro } from "./instalacao-anexo.service";
 
 /**
  * Cronologia operacional da Instalação (Sprint 4.0.2).
@@ -71,7 +74,7 @@ export interface RegistroInput {
   custos: CustoInput[];
 }
 
-export const REGISTRO_NAO_ENCONTRADO = "Registro não encontrado.";
+export { REGISTRO_NAO_ENCONTRADO };
 export const USUARIO_NAO_ENCONTRADO = "Usuário não encontrado.";
 /** Papel de técnico é OBRIGATÓRIO na cronologia (ADR-0410). */
 export const SEM_PAPEL_TECNICO = `O usuário selecionado não tem o papel de ${LABEL_PAPEL.ehTecnico}.`;
@@ -329,4 +332,18 @@ export async function excluirRegistro(
   if (registro._count.custos > 0) throw new Error(REGISTRO_COM_CUSTOS);
 
   await prisma.instalacaoRegistro.deleteMany({ where: { id, instalacaoId } });
+
+  /**
+   * Anexos (Sprint 4.3, ADR-0414). As LINHAS já saíram por `ON DELETE CASCADE`
+   * junto com o registro; aqui some a pasta física.
+   *
+   * **Depois do commit, e best-effort.** Falhar aqui deixa arquivos órfãos —
+   * o lado tolerado do invariante. Apagar antes, ou dentro da transação,
+   * arriscaria o oposto: um rollback deixaria linhas apontando para arquivos
+   * que já não existem.
+   *
+   * Anexo NÃO virou um segundo bloqueio de exclusão: o bloqueio de custos
+   * acima existe por razão financeira (ADR-0401), que não se aplica a arquivo.
+   */
+  await removerPastaDoRegistro(instalacaoId, id);
 }

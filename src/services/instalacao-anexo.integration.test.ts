@@ -13,8 +13,12 @@ import {
 import { prisma } from "@/infrastructure/database";
 import { resolveWithin, storagePaths } from "@/infrastructure/storage";
 
-import { criarInstalacao } from "./instalacao.service";
-import { criarRegistro } from "./instalacao-registro.service";
+import { cancelarInstalacao, criarInstalacao } from "./instalacao.service";
+import {
+  REGISTRO_COM_CUSTOS,
+  criarRegistro,
+  excluirRegistro,
+} from "./instalacao-registro.service";
 import {
   criarAnexo,
   excluirAnexo,
@@ -258,6 +262,91 @@ describe("excluirAnexo", () => {
     await expect(
       excluirAnexo(instalacaoA, registroA, "cmxxxxxxxxxxxxxxxxxxxxxxx"),
     ).rejects.toThrow(ANEXO_NAO_ENCONTRADO);
+  });
+});
+
+/**
+ * Ciclo de exclusão (T21).
+ *
+ * O bloqueio por custos (ADR-0401) é ANTERIOR e continua valendo: ele existe
+ * por razão financeira, que não se aplica a arquivo. Anexo não vira um segundo
+ * bloqueio — quando a exclusão é permitida, as linhas caem por cascade e a
+ * pasta física some depois do commit.
+ */
+describe("exclusão do registro leva os anexos", () => {
+  it("registro SEM custos: linhas caem por cascade e a pasta some", async () => {
+    const reg = await novoRegistro(instalacaoA);
+    const a1 = await criarAnexo(instalacaoA, reg, arquivo("x1.png", "image/png"));
+    const a2 = await criarAnexo(instalacaoA, reg, arquivo("x2.png", "image/png"));
+
+    const linhas = await prisma.instalacaoRegistroAnexo.findMany({
+      where: { id: { in: [a1.id, a2.id] } },
+      select: { caminhoRelativo: true },
+    });
+    expect(linhas).toHaveLength(2);
+    const pasta = resolveWithin(
+      storagePaths.upload,
+      "instalacoes",
+      instalacaoA,
+      "registros",
+      reg,
+    );
+    expect(existsSync(pasta)).toBe(true);
+
+    await excluirRegistro(instalacaoA, reg);
+
+    expect(
+      await prisma.instalacaoRegistroAnexo.count({ where: { registroId: reg } }),
+    ).toBe(0);
+    expect(existsSync(pasta)).toBe(false);
+    for (const l of linhas) expect(existsSync(absoluto(l.caminhoRelativo))).toBe(false);
+  });
+
+  it("registro COM custos: exclusão bloqueada e os anexos permanecem", async () => {
+    const { id: reg } = await criarRegistro(instalacaoA, {
+      tipo: "MATERIAL_COMPRADO",
+      aconteceuEm: new Date("2026-08-21T09:00:00Z"),
+      tecnicoId,
+      relatorio: `${MARCA} com custo`,
+      custos: [{ categoria: "MATERIAL", descricao: "Cabo", valor: 150 }],
+    });
+    const anexo = await criarAnexo(instalacaoA, reg, arquivo("nota.pdf", "application/pdf"));
+    const linha = await prisma.instalacaoRegistroAnexo.findUniqueOrThrow({
+      where: { id: anexo.id },
+      select: { caminhoRelativo: true },
+    });
+
+    await expect(excluirRegistro(instalacaoA, reg)).rejects.toThrow(
+      REGISTRO_COM_CUSTOS,
+    );
+
+    // O bloqueio não pode ter efeito colateral nenhum sobre os anexos.
+    expect(
+      await prisma.instalacaoRegistroAnexo.count({ where: { registroId: reg } }),
+    ).toBe(1);
+    expect(existsSync(absoluto(linha.caminhoRelativo))).toBe(true);
+  });
+
+  it("cancelar a instalação NÃO remove anexos", async () => {
+    const reg = await novoRegistro(instalacaoA);
+    const anexo = await criarAnexo(instalacaoA, reg, arquivo("preserva.png", "image/png"));
+    const linha = await prisma.instalacaoRegistroAnexo.findUniqueOrThrow({
+      where: { id: anexo.id },
+      select: { caminhoRelativo: true },
+    });
+
+    await cancelarInstalacao(instalacaoA, `${MARCA} motivo`);
+
+    expect(
+      await prisma.instalacaoRegistroAnexo.findUnique({ where: { id: anexo.id } }),
+    ).not.toBeNull();
+    expect(existsSync(absoluto(linha.caminhoRelativo))).toBe(true);
+
+    // Devolve a instalação ao estado anterior para não contaminar os demais casos.
+    await prisma.instalacao.update({
+      where: { id: instalacaoA },
+      data: { status: "A_AGENDAR" },
+    });
   });
 });
 
