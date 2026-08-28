@@ -13,8 +13,10 @@ import { assertPapel, listUsuarioOptions } from "./usuario.service";
  * - Edição em memória + persistência única: `criarPropostaCompleta` (nova) e
  *   `salvarProposta` (existente). Nada é gravado durante a digitação.
  * - Ciclo: RASCUNHO --Gerar PDF--> EMITIDA --Salvar Alterações--> (fork) RASCUNHO.
- *   A revisão automática acontece dentro de `salvarProposta`: se a proposta
- *   estava EMITIDA, cria a Rev.N+1 e volta o status a RASCUNHO.
+ *   A revisão automática acontece dentro de `salvarProposta`: se a revisão atual
+ *   está CONGELADA (`emittedAt != null`), cria a Rev.N+1 e volta o status a
+ *   RASCUNHO. O gatilho é o congelamento da revisão, não o status da proposta
+ *   (ADR-0412) — revisão congelada nunca é alterada in-place.
  * - Cliente é opcional apenas enquanto o rascunho é montado; a emissão exige.
  * - Cada operação de escrita grava PropostaAuditoria na MESMA transação.
  */
@@ -365,8 +367,9 @@ export async function criarPropostaCompleta(
 
 /**
  * Salva TODAS as alterações de uma proposta existente em UMA transação
- * ("Salvar Alterações"). A revisão automática acontece **aqui**: se a proposta
- * estava EMITIDA, cria a Rev.N+1 e volta o status a RASCUNHO. Grava o cabeçalho
+ * ("Salvar Alterações"). A revisão automática acontece **aqui**: se a revisão
+ * atual está CONGELADA (`emittedAt != null`), cria a Rev.N+1 e volta o status a
+ * RASCUNHO — o gatilho é o congelamento, não o status (ADR-0412). Grava o cabeçalho
  * e SUBSTITUI o conteúdo da revisão editável pelo estado enviado. Auditoria
  * consolidada. Nada é persistido durante a digitação.
  */
@@ -380,7 +383,8 @@ export async function salvarProposta(
       select: {
         status: true,
         currentRevisionId: true,
-        currentRevision: { select: { revisionNumber: true } },
+        // `emittedAt` é o que decide o fork (ADR-0412) — ver abaixo.
+        currentRevision: { select: { revisionNumber: true, emittedAt: true } },
         // O vínculo vigente, para comparar com o recebido. Lido DENTRO desta
         // transação, junto do resto: comparação e escrita veem o mesmo estado.
         vendedorId: true,
@@ -407,8 +411,19 @@ export async function salvarProposta(
     let revisionNumber = p.currentRevision?.revisionNumber ?? 0;
     let forked = false;
 
-    // Revisão automática: só no salvamento, e apenas se estava emitida.
-    if (p.status === "EMITIDA") {
+    // Revisão automática: só no salvamento, e apenas se a revisão atual está
+    // CONGELADA.
+    //
+    // A condição é o `emittedAt` da revisão, não o status da proposta
+    // (ADR-0412). Enquanto existiam só RASCUNHO/EMITIDA/CANCELADA as duas eram
+    // equivalentes — há teste de caracterização provando isso. Com APROVADA a
+    // equivalência se rompe: uma proposta aprovada tem a revisão congelada e
+    // status diferente de EMITIDA, e olhar para o status faria o `deleteMany`
+    // abaixo sobrescrever IN-PLACE o conteúdo que o cliente aprovou.
+    //
+    // A regra, enunciada sem citar status: revisão congelada nunca é alterada
+    // in-place — sempre forka.
+    if (p.currentRevision?.emittedAt) {
       revisionNumber += 1;
       const nova = await tx.propostaRevisao.create({
         data: { propostaId, revisionNumber },
@@ -426,7 +441,7 @@ export async function salvarProposta(
           evento: "NOVA_REVISAO",
           revisionNumber,
           observacao:
-            "Revisão criada automaticamente ao salvar (proposta emitida)",
+            "Revisão criada automaticamente ao salvar (revisão anterior congelada)",
         },
       });
       await tx.propostaAuditoria.create({
@@ -434,7 +449,10 @@ export async function salvarProposta(
           propostaId,
           evento: "MUDANCA_STATUS",
           revisionNumber,
-          observacao: "EMITIDA → RASCUNHO",
+          // Derivado do status de origem, não fixo: quando APROVADA existir, o
+          // fork parte dela também, e "EMITIDA → RASCUNHO" seria mentira na
+          // trilha. Para EMITIDA o texto é idêntico ao anterior.
+          observacao: `${p.status} → RASCUNHO`,
         },
       });
     }
