@@ -2170,3 +2170,154 @@ Sprint de refinamento (escopo estrito):
 - **Consequência:** a cronologia passa a carregar evidência (foto da visita, nota
   fiscal do material) sem que nada dependa de caminho fixo no código, e sem
   afrouxar nenhuma garantia existente do agregado.
+
+---
+
+## Sprint 4.4 — Contrato Rev. 4: versionamento de template e campos contratuais
+
+### ADR-0415 — Template de contrato versionado, carimbado na revisão emitida
+
+- **Contexto — o defeito que existia.** O contrato era gerado a partir de **um
+  único arquivo**, lido do disco a cada chamada, sempre sobre a
+  `currentRevision`, e **nunca armazenado**. Não havia noção de versão em lugar
+  nenhum: nem no nome do arquivo, nem no banco, nem no código.
+
+  A consequência, verificada na auditoria: uma proposta emitida ou aprovada em
+  março, cujo contrato fosse rebaixado depois de o template ser trocado em
+  setembro, produziria **o texto jurídico novo com os dados comerciais antigos**,
+  em silêncio. Nem o usuário nem o sistema teriam como perceber.
+
+- **Decisão — arquivos versionados, catálogo em código, carimbo na revisão.**
+  - Cada versão do template é um **arquivo próprio**
+    (`contrato-outmat.rev3.docx`, `contrato-outmat.rev4.docx`).
+    **Templates antigos nunca são apagados.**
+  - Um **catálogo em código** (`docx/templates.ts`) associa versão → arquivo,
+    data de vigência e o conjunto de tags daquela versão, mais
+    `TEMPLATE_CONTRATO_VIGENTE`.
+  - `PropostaRevisao.templateContratoVersao` guarda a versão **vigente no
+    momento da emissão**, carimbada dentro de `emitirProposta`, na mesma
+    transação e no mesmo instante que `emittedAt`.
+  - O renderer resolve o arquivo **pela versão da revisão**, não pelo vigente.
+
+- **Por que na `PropostaRevisao`, e não na `Proposta`.** A versão jurídica é
+  parte do que foi **congelado**. É onde já vivem `emittedAt` (congelamento) e
+  `aprovadaEm` (aprovação, ADR-0412); a versão do texto entra ao lado dos dois,
+  pelo mesmo mecanismo e com a mesma imutabilidade. Não há regra nova: o fork
+  cria uma revisão com versão nula, que recebe a vigente quando for emitida.
+
+- **Por que catálogo em código, e não tabela.** São poucos arquivos, já
+  versionados no git, e o conjunto de tags de cada versão **é um contrato de
+  código** com o `ContratoTemplateDTO` — renomear um campo tem de quebrar o
+  typecheck, não passar por um `INSERT`. Tabela exigiria CRUD, tela e migração
+  de dados para resolver um problema que um mapa de duas entradas resolve.
+  Fica **explicitamente fora de escopo** nesta release.
+
+- **Retrocompatibilidade: `null` significa `rev3`.** As revisões já emitidas
+  ficam com a coluna nula e continuam renderizando o texto que sempre tiveram.
+  Migration puramente aditiva, sem backfill: preencher retroativamente seria
+  **afirmar** uma versão que ninguém registrou, quando a inferência correta
+  ("tudo que existe hoje é rev3") já é dada pelo fallback.
+
+- **Ordem de implementação como parte da decisão.** O versionamento entra
+  **antes** de existir uma segunda versão de template. Enquanto a Fase 1 não
+  fecha verde, `TEMPLATE_CONTRATO_VIGENTE` permanece `rev3` — assim não existe
+  nenhum instante em que trocar o arquivo altere um contrato antigo. É a mesma
+  disciplina da T2 da Sprint 4.3 (o gatilho do fork antes de `APROVADA`).
+
+#### ⚠️ DÍVIDA TÉCNICA REGISTRADA — campos comerciais de cabeçalho não são históricos
+
+A auditoria da Rev. 4 tornou explícita uma inconsistência **que já existia** e
+que esta release **não corrige**.
+
+**O que É histórico na `PropostaRevisao`:** `emittedAt`, `aprovadaEm`, o conteúdo
+comercial (seções e itens, com snapshot de produto) e, a partir de agora,
+`templateContratoVersao`.
+
+**O que NÃO é histórico** — vive na `Proposta` e é **sobrescrito** quando o fork
+acontece: `formaPagamento`, `tipoDesconto`/`valorDesconto`, `frete`,
+`previsaoInstalacao`, e os três campos novos desta Sprint
+(`prazoExecucaoDiasUteis`, `valorParcelaFinal`, `observacoesAceite`).
+
+Na prática **não gera documento errado hoje**, porque só existe rota para gerar o
+contrato da revisão **atual** — uma revisão antiga nunca volta a ser a atual. Mas
+contraria a diretriz do ADR-0206 ("todo o conteúdo comercial vive na Revisão"), e
+por isso:
+
+> **A documentação NÃO deve afirmar que "todos os dados comerciais de uma revisão
+> são imutáveis" enquanto isso não for verdade.**
+
+Corrigir exigiria mover cerca de oito colunas para `PropostaRevisao` e reescrever
+`salvarProposta`, `duplicarProposta` e os mappers de PDF e contrato — remodelagem
+que não cabe nesta release e que deve ter Sprint própria. Registrado em
+`BACKLOG.md`, `PROJECT_HISTORY.md` e `ARCHITECTURE.md`.
+
+- **Consequência:** o texto jurídico passa a ser rastreável e imutável por
+  revisão emitida; trocar o template deixa de ser uma operação capaz de reescrever
+  o passado; e o limite exato do que é histórico fica escrito, em vez de
+  presumido.
+
+### ADR-0416 — Rev. 4: variáveis contratuais próprias e guarda de geração
+
+- **Contexto:** a Rev. 4 do contrato introduz `{prazoExecucao}` (cláusula 3.1) e
+  `{valorParcelaFinal}` (Anexo II), e permite eliminar o último placeholder
+  manual, `[se houver]`, trocando-o por `{observacoes}`. O arquivo entregue pelo
+  jurídico **já chegou marcado**, com as tags no lugar — diferente da Rev. 3, que
+  vinha com `[PLACEHOLDERS]` e precisava do script de marcação.
+
+- **Decisão — três campos novos na `Proposta`**, no bloco de finalização, onde já
+  vivem `formaPagamento` e `previsaoInstalacao`:
+
+  | Campo | Tipo | Regra |
+  | --- | --- | --- |
+  | `prazoExecucaoDiasUteis` | `Int?` | inteiro, `> 0`, sem decimal |
+  | `valorParcelaFinal` | `Decimal(12,2)?` | `>= 0`; **nunca `Float`** |
+  | `observacoesAceite` | `String? @db.Text` | vazio permitido |
+
+- **`previsaoInstalacao` NÃO foi reutilizada.** Auditada: é `String?` de texto
+  livre (até 2000 caracteres), nasce com `"3 dias"`, e aparece no PDF Detalhado e
+  no PDF Apresentação como *previsão comercial de instalação*. É texto, não
+  número; é início, não conclusão; e é material de venda, não cláusula.
+  Reaproveitá-la acoplaria uma obrigação contratual a um campo de marketing.
+
+- **`valorParcelaFinal` é INFORMADO, não derivado.** A auditoria varreu o schema
+  por `parcela|pagamento|recebiment|financeir|fatura|cobranc|quitad` e encontrou
+  **uma única linha**: `formaPagamento String? @db.Text`. Não existe estrutura de
+  parcelas, valor por parcela, entrada/saldo, snapshot financeiro nem qualquer
+  registro de valor **recebido**. Derivar a parcela final exigiria interpretar
+  texto livre por regex ou heurística — **explicitamente recusado**: um documento
+  que vai para assinatura não pode depender de parser de frase.
+
+- **`observacoesAceite` é campo próprio, e não reaproveita `obsInternas`.**
+  `obsInternas` é anotação de negociação que, por decisão do ADR-0203, **nunca
+  sai do sistema** — nem na duplicação. Colocá-la num documento assinado seria
+  vazamento. `obsProposta`, `obsComerciais` e `obsTecnicas` pertencem à proposta
+  comercial, não ao Termo de Aceite. Nenhum campo existente tem a semântica
+  certa.
+
+- **Decisão — guarda de geração, restrita à Rev. 4.** Gerar um contrato rev4 sem
+  `prazoExecucaoDiasUteis` produziria "*concluídos no prazo estimado de  dias
+  úteis*"; sem `valorParcelaFinal`, "*parcela final de R$ .*". Um contrato assim
+  não pode sair do sistema. A geração é **bloqueada**, com mensagem dizendo qual
+  informação falta.
+
+  **A guarda é condicionada à versão do template.** Contratos **rev3** não a
+  sofrem: aquele texto não tem as tags novas, e uma revisão histórica não pode
+  parar de regenerar porque campos criados depois dela estão vazios.
+
+- **Edição autorizada no arquivo da Rev. 4**, e só ela: `[se houver]` →
+  `{observacoes}`, remoção do realce amarelo daquele placeholder, e o estilo
+  homologado de dado variável (negrito + `3C77FF`) nas três tags novas — as
+  demais já o têm desde a Sprint 3.1. **Nenhuma linha de texto jurídico foi
+  reescrita**, e a prova é estrutural: só `word/document.xml` muda, e dentro dele
+  só os parágrafos alvo.
+
+- **"Saldo do contrato" fica conceitual.** O termo aparece nas cláusulas 9.2 e
+  9.3 e significa *valor contratual total menos valores efetivamente pagos e
+  reconhecidos*. **O ERP não conhece pagamento algum** — `formaPagamento`
+  descreve o combinado, que são valores **previstos**, nunca **pagos**. Calcular
+  a multa exigiria um módulo Financeiro que não existe. Fica registrado como
+  requisito futuro; **nenhuma lógica aproximada foi criada**.
+
+- **Consequência:** o contrato deixa de ter qualquer placeholder preenchido à
+  mão, e os dois números que passam a ser variáveis têm origem explícita e
+  auditável — em vez de serem digitados no Word a cada envio.
