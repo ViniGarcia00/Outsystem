@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import type { RegistroDTO } from "@/services/instalacao-registro.service";
 import { formatCurrency } from "@/utils";
 
+import { AnexosEditor } from "./anexos-editor";
 import { totalDoRegistro } from "./custos";
 import { dataHoraParaExibicao } from "./datas";
 import { CATEGORIA_CUSTO_LABEL, TIPO_REGISTRO_LABEL } from "./labels";
@@ -26,11 +27,13 @@ import { CATEGORIA_CUSTO_LABEL, TIPO_REGISTRO_LABEL } from "./labels";
  * Técnico. Renomear o cadastro não reescreve um fato já registrado (ADR-0408).
  */
 export function RegistroCard({
+  instalacaoId,
   registro,
   readOnly,
   onEditar,
   onExcluir,
 }: {
+  instalacaoId: string;
   registro: RegistroDTO;
   readOnly: boolean;
   onEditar: (registro: RegistroDTO) => void;
@@ -110,6 +113,15 @@ export function RegistroCard({
             </dl>
           </>
         )}
+
+        {/* Anexos ficam AQUI, não no diálogo: o anexo precisa de um registroId
+            que só existe depois de o registro ser gravado (ADR-0414). */}
+        <AnexosEditor
+          instalacaoId={instalacaoId}
+          registroId={registro.id}
+          anexos={registro.anexos}
+          readOnly={readOnly}
+        />
       </CardContent>
     </Card>
   );

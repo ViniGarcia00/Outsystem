@@ -20,7 +20,10 @@ import { prisma } from "@/infrastructure/database";
 import { logger } from "@/infrastructure/logging";
 import { resolveWithin, storagePaths } from "@/infrastructure/storage";
 
-import { REGISTRO_NAO_ENCONTRADO } from "./instalacao-registro.service";
+import {
+  REGISTRO_NAO_ENCONTRADO,
+  type AnexoDTO,
+} from "./instalacao-registro.service";
 
 /**
  * Anexos do registro da cronologia (Sprint 4.3, ADR-0414).
@@ -49,13 +52,14 @@ import { REGISTRO_NAO_ENCONTRADO } from "./instalacao-registro.service";
  * uma cópia integral a menos, medido no spike da T15.
  */
 
-export interface AnexoDTO {
-  id: string;
-  nomeOriginal: string;
-  mimeType: string;
-  tamanho: number;
-  createdAt: Date;
-}
+/**
+ * `AnexoDTO` mora em `instalacao-registro.service.ts` e é reexportado aqui.
+ *
+ * A direção da dependência é essa porque este módulo já importa
+ * `REGISTRO_NAO_ENCONTRADO` de lá — inverter criaria import circular. O DTO é
+ * do agregado da cronologia; os anexos são conteúdo dele.
+ */
+export type { AnexoDTO };
 
 const SELECT_DTO = {
   id: true,

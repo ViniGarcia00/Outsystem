@@ -31,6 +31,15 @@ export interface CustoDTO {
   valor: number;
 }
 
+/** Metadados de um anexo, como a cronologia os exibe. */
+export interface AnexoDTO {
+  id: string;
+  nomeOriginal: string;
+  mimeType: string;
+  tamanho: number;
+  createdAt: Date;
+}
+
 export interface RegistroDTO {
   id: string;
   tipo: TipoRegistroInstalacao;
@@ -41,6 +50,11 @@ export interface RegistroDTO {
   relatorio: string;
   createdAt: Date;
   custos: CustoDTO[];
+  /**
+   * Anexos do registro (Sprint 4.3, ADR-0414). Metadados apenas — o conteúdo é
+   * servido pela rota de download, nunca embutido no DTO.
+   */
+  anexos: AnexoDTO[];
 }
 
 export interface CustoInput {
@@ -118,9 +132,16 @@ export const ORDEM_TIMELINE = [
   { id: "desc" as const },
 ];
 
-/** Custos de um registro sempre na ordem em que foram lançados. */
+/**
+ * Custos e anexos de um registro, sempre na ordem em que foram lançados.
+ *
+ * O nome ficou como estava: renomear obrigaria a tocar em instalacao.service.ts
+ * e no teste de integração da cronologia sem nenhum ganho — é o mesmo include,
+ * com uma relação a mais.
+ */
 export const INCLUDE_CUSTOS = {
   custos: { orderBy: { createdAt: "asc" as const } },
+  anexos: { orderBy: { createdAt: "asc" as const } },
 } as const;
 
 type LinhaRegistro = {
@@ -136,6 +157,13 @@ type LinhaRegistro = {
     categoria: string;
     descricao: string | null;
     valor: { toString(): string };
+  }[];
+  anexos: {
+    id: string;
+    nomeOriginal: string;
+    mimeType: string;
+    tamanho: number;
+    createdAt: Date;
   }[];
 };
 
@@ -153,6 +181,13 @@ export function mapRegistro(r: LinhaRegistro): RegistroDTO {
       categoria: c.categoria as CategoriaCustoInstalacao,
       descricao: c.descricao,
       valor: toNumber(c.valor),
+    })),
+    anexos: r.anexos.map((a) => ({
+      id: a.id,
+      nomeOriginal: a.nomeOriginal,
+      mimeType: a.mimeType,
+      tamanho: a.tamanho,
+      createdAt: a.createdAt,
     })),
   };
 }

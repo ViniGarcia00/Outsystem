@@ -107,6 +107,7 @@ export function Cronologia({
           {registros.map((registro) => (
             <RegistroCard
               key={registro.id}
+              instalacaoId={instalacaoId}
               registro={registro}
               readOnly={readOnly}
               onEditar={abrirEdicao}
