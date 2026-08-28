@@ -4,6 +4,112 @@ Todas as mudanças relevantes deste projeto são documentadas aqui.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o
 projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [1.6.0] — 2026-08-28
+
+Sprint 4.3. Três entregas independentes: a Proposta passa a registrar a
+**aprovação do cliente**, a Instalação ganha **apelido** próprio por obra, e a
+cronologia passa a aceitar **anexos**.
+
+### Adicionado
+
+- **Status `APROVADA` na Proposta**, com a ação **"Aprovar proposta"** (só a
+  partir de Emitida — o cliente aprova o que recebeu) e **"Desfazer aprovação"**
+  (volta a Emitida, preservando o documento; existe para o clique errado).
+- **`PropostaRevisao.aprovadaEm`** — a aprovação é um **fato da revisão**,
+  simétrico a `emittedAt`. `Proposta.status = APROVADA` é a projeção de "a
+  revisão atual está aprovada". **Não** existe `Proposta.aprovadaAt`.
+- **Dashboard:** terceiro indicador comercial, "Propostas Aprovadas". Estado
+  exclusivo de Emitidas — aprovar move o status, não acumula.
+- **`Instalacao.apelido`** — identificação da obra ("Casa Alphaville",
+  "Apartamento Moema"), porque o mesmo cliente tem várias. Nasce **sugerido**
+  pelo nome do cliente, é editável a qualquer momento e, depois de
+  personalizado, **trocar o cliente não o sobrescreve**; esvaziar devolve o
+  campo ao estado sugerível. Pertence à Instalação, nunca ao Cliente.
+- **Anexos na cronologia** (`InstalacaoRegistroAnexo`, 1:N por registro): até
+  **10 arquivos de 10 MB** em **JPG, PNG, WebP ou PDF**. Ficam no **card do
+  registro** — o arquivo se liga a um registro que já existe, o que dispensa
+  área de staging e elimina órfão por diálogo abandonado.
+- Rotas de **upload** (`POST`) e **download** (`GET`) dos anexos, com
+  `Content-Type` derivado da allowlist e `X-Content-Type-Options: nosniff`.
+
+### Alterado
+
+- **A aprovação é invalidada sozinha por qualquer alteração salva.** A revisão
+  nova nasce sem aprovação e a proposta volta a Rascunho; a revisão aprovada
+  segue registrando o que foi aprovado e quando. Uma proposta modificada nunca
+  continua aparecendo como Aprovada.
+- **O fork de revisão passa a depender do congelamento, não do status:**
+  `currentRevision.emittedAt != null` no lugar de `status === "EMITIDA"`.
+  Mudança neutra no comportamento anterior — e a que impede o `deleteMany` de
+  sobrescrever in-place o conteúdo aprovado.
+- **Listagem de Instalações:** Apelido passa a ser a identificação principal e
+  entra na busca (sem acento, pela fonte única de sempre). O **Número continua
+  link** — a decisão de acessibilidade do ADR-0404 fica intacta; agora são dois
+  links por linha. Cliente permanece como coluna secundária.
+- **Salvar os dados gerais da Instalação volta para `/instalacoes`**, na criação
+  e na edição. Na criação o toast traz a ação **"Abrir"**, que devolve o atalho
+  para o workspace. **A cronologia não segue essa regra**: criar, editar e
+  excluir Registro permanecem no workspace, e há E2E provando isso pela URL.
+- **Excluir um registro leva os anexos junto** (cascade no banco, pasta removida
+  pós-commit). O bloqueio por custos (ADR-0401) **continua valendo e é anterior**
+  — anexo não virou um segundo bloqueio. **Cancelar a instalação não remove
+  anexos.**
+- **Cleanup E2E varre banco e disco**, com guarda de contenção na raiz de
+  uploads e recusa explícita de operar sobre a própria raiz.
+
+### Migração
+
+Três migrations aditivas, nenhuma destrutiva, nenhum vínculo movido:
+
+- `20260828000000_proposta_aprovacao` — valor `APROVADA` no enum +
+  `proposta_revisoes.aprovadaEm`. Nenhuma revisão existente foi tocada
+  (verificado: 0 de 11 com valor).
+- `20260828010000_instalacao_apelido` — coluna + backfill pelo **nome de
+  exibição do cliente**, replicando a regra já usada pelo sistema. A
+  equivalência entre a regra TypeScript e a SQL foi **provada** sobre os mesmos
+  dados: **12 casos, 0 divergências**. O `NULLIF(x, '')` em cada termo é
+  necessário — o `||` do JavaScript trata string vazia como falsa e `COALESCE`
+  sozinho só trata `NULL`.
+- `20260828020000_instalacao_registro_anexos` — tabela nova, FK `ON DELETE
+  CASCADE`, índice por registro.
+
+### Segurança
+
+- **Anexo só é alcançável pelo agregado completo** — `instalacaoId` +
+  `registroId` + `anexoId`. Não pertencer devolve o mesmo "não encontrado" de um
+  id inexistente. Provado **discriminante nos dois sentidos**: sem
+  `instalacaoId` falham 3 testes; sem `registroId`, 4.
+- **Nome físico gerado no servidor**, com extensão vinda da **allowlist de
+  MIME** — nunca do nome enviado. O nome original é texto de exibição e **jamais
+  compõe caminho**. **SVG recusado** de propósito (é HTML executável).
+- **Caminho relativo no banco**; caminho absoluto nunca é persistido. Todo I/O
+  passa por `resolveWithin`, inclusive a remoção recursiva.
+- **O banco é a autoridade:** arquivo órfão é tolerado e logado; linha apontando
+  para arquivo inexistente é o estado a evitar — e é essa assimetria que fixa a
+  ordem das operações de criação e exclusão.
+
+### ⚠️ Pré-condição de implantação
+
+**`UPLOAD_PATH` precisa existir e ser gravável pela conta do serviço**, ou essa
+conta precisa poder criar a árvore. Os anexos gravam em disco; o `mkdir`
+recursivo cria diretórios **dentro de uma raiz existente e acessível** — não
+resolve drive inexistente nem falta de permissão. Ver `README.md` → Publicação.
+
+### Não alterado (deliberado)
+
+- **`next.config.ts` continua vazio.** O upload usa Route Handler justamente
+  para não subir o `bodySizeLimit` global de Server Actions e afetar todo o
+  sistema por um caso pontual.
+- **Custos acumulados não voltaram ao Dashboard** (removido na 1.5.0).
+- Snapshots históricos (item de proposta, endereço da instalação,
+  `responsavelNome`), guardas de papel do Usuário único e o contrato .docx:
+  **intactos**.
+
+### Gate
+
+Lint 0 · Typecheck 0 · Build OK · Unit 295/295 · Integração 90/90 · E2E 38/38 ·
+resíduo zero em banco **e** em disco.
+
 ## [1.5.1] — 2026-08-27
 
 Release de **conteúdo contratual**. Fixa dois termos comerciais que até aqui eram
