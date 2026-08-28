@@ -60,7 +60,7 @@ export const TEMPLATES_CONTRATO = {
   rev4: {
     arquivo: "contrato-outmat.rev4.docx",
     vigenteDe: "2026-08-28",
-    tags: [...TAGS_BASE, "prazoExecucao", "valorParcelaFinal"],
+    tags: [...TAGS_BASE, "prazoExecucao", "valorParcelaFinal", "observacoes"],
     exigeCamposContratuais: true,
   },
 } as const satisfies Record<string, TemplateContrato>;
