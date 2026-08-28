@@ -658,3 +658,97 @@ export async function excluirAnexo(instalacaoId, registroId, anexoId): Promise<v
 
 Ordem inegociável: **T2 antes de T3/T4** (integridade do conteúdo aprovado) e
 **T15 antes de T16** (viabilidade do upload).
+
+---
+
+# Registro do SPIKE T15 — executado em 2026-08-28
+
+O spike foi **descartável por decisão**: nenhum código dele sobreviveu. Esta
+seção é a evidência, para que a T19 não precise redescobrir o que já foi medido.
+
+## Como foi feito
+
+Um Route Handler temporário (`src/app/dev/spike-upload/route.ts`, removido ao
+final) recebendo `POST` `multipart/form-data`, e um cliente Node que gerava
+**8 MB de bytes pseudoaleatórios** (incompressíveis, para que nenhuma camada
+mascarasse o tamanho por compressão), enviava por `FormData` e conferia
+`sha256` das duas pontas.
+
+Duas estratégias de gravação foram medidas lado a lado:
+
+| modo | caminho |
+| --- | --- |
+| `buffer` | `formData()` → `file.arrayBuffer()` → `Buffer.from()` → `writeFile` |
+| `stream` | `formData()` → `file.stream()` → `Readable.fromWeb` → `pipeline` → `createWriteStream` |
+
+Destino sempre por `resolveWithin(storagePaths.upload, "spike", …)`. Nenhum
+caminho absoluto no código.
+
+## Resultados
+
+Idênticos em **dev** e em **build de produção** (`npm run build` + `npm start`),
+Node **v24.11.1**, **win32 x64**:
+
+- 8 MB recebidos, gravados e lidos de volta do disco — **`sha256` idêntico** nas
+  duas pontas, nos dois modos;
+- **não passou por Server Action**: o cabeçalho `Next-Action` está ausente, e o
+  `content-type` que chega é `multipart/form-data`;
+- **o limite de 1 MB não se aplica** — `next.config.ts` continua vazio e o
+  upload passou mesmo assim. Os docs desta versão do Next
+  (`03-api-reference/05-config/01-next-config-js/serverActions.md`) confirmam que
+  o 1 MB é do **Server Action**, sobre o body cru incluindo o overhead do
+  multipart. Route Handler usa as Web APIs padrão e não tem esse teto;
+- **nada é serializado para JSON**: o binário nunca vira string em ponto algum.
+
+## Memória
+
+Em produção, RSS de base ~150–175 MB:
+
+| modo | Δ rss típico | Δ arrayBuffers | tempo servidor |
+| --- | --- | --- | --- |
+| `buffer` | +20 a +48 MB | **+48 MB** | 35–43 ms |
+| `stream` | −24 a +22 MB | −24 MB | 36–51 ms |
+
+Em **8 uploads consecutivos** (4 rodadas × 2 modos, 64 MB no total) o RSS
+oscilou entre 134 e 197 MB **sem crescimento monotônico** — o GC recupera, não
+há vazamento. O pico transitório é de dezenas de MB para um arquivo de 8 MB, o
+que é normal para parsing de multipart e **folgado para o teto de 10 MB**.
+
+## Decisão para a T18/T19
+
+**Usar o modo `stream`.** Uma cópia integral a menos que o `buffer`
+(`arrayBuffer()` e `Buffer.from()` alocam 8 MB cada), `arrayBuffers` retidos
+consistentemente menores, e latência igual ou melhor.
+
+**Ressalva honesta, para não superestimar o ganho:** `request.formData()` já
+materializa as partes em memória antes de qualquer coisa. O modo `stream` evita
+as cópias **adicionais**, não o buffering inicial. Streaming ponta a ponta exigiria
+parsear o multipart à mão a partir de `request.body`, o que **não se justifica**
+para um teto de 10 MB — e foi deliberadamente recusado.
+
+## Achado colateral, relevante para o deploy
+
+O primeiro teste de produção deu **HTTP 500** com `ENOENT: mkdir '\?'`. A causa
+**não era o upload**: `next start` carrega `.env.production`, que aponta
+`STORAGE_PATH`/`UPLOAD_PATH` para `D:\Sistemas\Outsystem\storage` — o caminho do
+**Windows Server 2019**, inexistente na máquina de desenvolvimento. O
+`path.resolve` funcionou corretamente (inclusive colapsando as barras duplas que
+o dotenv preserva literalmente); o `mkdir` é que falhou por o drive não existir.
+
+Repetido com `UPLOAD_PATH` local, passou. Isso **confirma** a arquitetura de
+paths por env do ADR original — e deixa duas consequências registradas:
+
+1. qualquer smoke de upload contra o build precisa de um `UPLOAD_PATH` que exista
+   na máquina; e
+2. **no deploy, `UPLOAD_PATH` precisa existir ou a conta do serviço precisa poder
+   criá-lo** — o `mkdir` recursivo do service não substitui um drive ausente.
+
+## Artefatos
+
+Rota do spike, cliente do spike e a pasta `spike/` sob o storage: **todos
+removidos**. `git status` limpo, nenhuma referência restante no código.
+
+Nota de ruído descartado: o cliente do spike disparava uma assertion do libuv no
+Windows (`UV_HANDLE_CLOSING`, `src\win\async.c`) ao chamar `process.exit()` com
+sockets keep-alive do undici abertos. Trocado por saída natural, sumiu. Era
+artefato do encerramento do **cliente de teste**, não do Route Handler.
