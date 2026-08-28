@@ -1,9 +1,14 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import {
+  TEMPLATE_CONTRATO_VIGENTE,
+  resolverVersaoTemplate,
+} from "@/features/propostas/docx/templates";
 import { prisma } from "@/infrastructure/database";
 
 import {
   criarPropostaCompleta,
+  duplicarProposta,
   emitirProposta,
   cancelarProposta,
   salvarProposta,
@@ -253,6 +258,144 @@ describe("congelamento e status são equivalentes nos estados de hoje", () => {
 
     expect(e.status === "EMITIDA").toBe(false);
     expect(e.currentRevision?.emittedAt != null).toBe(false);
+  });
+});
+
+/**
+ * Versionamento do template de contrato (Sprint 4.4, T5 — ADR-0415).
+ *
+ * O defeito que isto previne: o contrato era gerado com o arquivo que
+ * estivesse no disco, então trocar o template reescrevia o texto jurídico de
+ * qualquer contrato regenerado depois. A garantia é que a versão fica presa à
+ * revisão no instante em que ela congela.
+ *
+ * Por que INTEGRAÇÃO: o carimbo acontece dentro da transação de
+ * `emitirProposta`, junto do `emittedAt`, e o que se quer provar é o estado
+ * PERSISTIDO depois do fork — nenhuma das duas coisas um mock alcança.
+ */
+describe("versão do template de contrato", () => {
+  it("revisão nunca emitida não tem versão carimbada", async () => {
+    const id = await novaProposta();
+    const e = await estado(id);
+
+    const rev = await prisma.propostaRevisao.findUniqueOrThrow({
+      where: { id: e.currentRevisionId! },
+      select: { templateContratoVersao: true, emittedAt: true },
+    });
+    expect(rev.emittedAt).toBeNull();
+    expect(rev.templateContratoVersao).toBeNull();
+  });
+
+  it("emitir carimba a versão VIGENTE, junto do emittedAt", async () => {
+    const id = await novaProposta();
+    await emitirProposta(id);
+    const e = await estado(id);
+
+    const rev = await prisma.propostaRevisao.findUniqueOrThrow({
+      where: { id: e.currentRevisionId! },
+      select: { templateContratoVersao: true, emittedAt: true },
+    });
+    expect(rev.emittedAt).toBeInstanceOf(Date);
+    expect(rev.templateContratoVersao).toBe(TEMPLATE_CONTRATO_VIGENTE);
+  });
+
+  /**
+   * O coração do ADR-0415. Depois do fork, a revisão emitida tem de continuar
+   * apontando para a MESMA versão de template — senão regenerar o contrato dela
+   * mudaria o texto jurídico.
+   */
+  it("o fork preserva a versão da revisão anterior e a nova nasce sem carimbo", async () => {
+    const id = await novaProposta();
+    await emitirProposta(id);
+    const antes = await estado(id);
+    const revEmitidaId = antes.currentRevisionId!;
+
+    const versaoAntes = (
+      await prisma.propostaRevisao.findUniqueOrThrow({
+        where: { id: revEmitidaId },
+        select: { templateContratoVersao: true },
+      })
+    ).templateContratoVersao;
+    expect(versaoAntes).toBe(TEMPLATE_CONTRATO_VIGENTE);
+
+    await salvarProposta(id, payload("Cozinha"));
+
+    // A revisão emitida: intacta.
+    const revAntiga = await prisma.propostaRevisao.findUniqueOrThrow({
+      where: { id: revEmitidaId },
+      select: { templateContratoVersao: true, emittedAt: true },
+    });
+    expect(revAntiga.templateContratoVersao).toBe(versaoAntes);
+    expect(revAntiga.emittedAt).toBeInstanceOf(Date);
+
+    // A revisão nova: sem carimbo, porque ainda não foi emitida.
+    const depois = await estado(id);
+    expect(depois.currentRevisionId).not.toBe(revEmitidaId);
+    const revNova = await prisma.propostaRevisao.findUniqueOrThrow({
+      where: { id: depois.currentRevisionId! },
+      select: { templateContratoVersao: true, emittedAt: true },
+    });
+    expect(revNova.emittedAt).toBeNull();
+    expect(revNova.templateContratoVersao).toBeNull();
+  });
+
+  it("emitir a revisão nova carimba de novo, sem tocar na anterior", async () => {
+    const id = await novaProposta();
+    await emitirProposta(id);
+    const rev0 = (await estado(id)).currentRevisionId!;
+
+    await salvarProposta(id, payload("Cozinha"));
+    await emitirProposta(id);
+    const rev1 = (await estado(id)).currentRevisionId!;
+
+    const linhas = await prisma.propostaRevisao.findMany({
+      where: { id: { in: [rev0, rev1] } },
+      select: { id: true, revisionNumber: true, templateContratoVersao: true },
+      orderBy: { revisionNumber: "asc" },
+    });
+    expect(linhas).toHaveLength(2);
+    expect(linhas[0].templateContratoVersao).toBe(TEMPLATE_CONTRATO_VIGENTE);
+    expect(linhas[1].templateContratoVersao).toBe(TEMPLATE_CONTRATO_VIGENTE);
+  });
+
+  /**
+   * As 11 revisões que já existiam quando a coluna foi criada ficaram nulas, e o
+   * renderer resolve isso como `rev3`. O teste prova a ponta do meio: uma
+   * revisão nula continua nula, e a resolução acontece na leitura.
+   */
+  it("revisão histórica sem carimbo resolve para o padrão rev3", async () => {
+    const id = await novaProposta();
+    await emitirProposta(id);
+    const e = await estado(id);
+
+    // Simula a revisão antiga, anterior à Sprint 4.4.
+    await prisma.propostaRevisao.update({
+      where: { id: e.currentRevisionId! },
+      data: { templateContratoVersao: null },
+    });
+
+    const rev = await prisma.propostaRevisao.findUniqueOrThrow({
+      where: { id: e.currentRevisionId! },
+      select: { templateContratoVersao: true },
+    });
+    expect(rev.templateContratoVersao).toBeNull();
+    expect(resolverVersaoTemplate(rev.templateContratoVersao)).toBe("rev3");
+  });
+
+  it("duplicar gera Rev.0 sem carimbo — a cópia ainda não foi emitida", async () => {
+    const id = await novaProposta();
+    await emitirProposta(id);
+
+    const nova = await duplicarProposta(id);
+    propostasCriadas.push(nova.id);
+
+    const e = await estado(nova.id);
+    const rev = await prisma.propostaRevisao.findUniqueOrThrow({
+      where: { id: e.currentRevisionId! },
+      select: { templateContratoVersao: true, emittedAt: true },
+    });
+    expect(rev.emittedAt).toBeNull();
+    expect(rev.templateContratoVersao).toBeNull();
   });
 });
 
