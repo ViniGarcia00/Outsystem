@@ -54,3 +54,6 @@ next-env.d.ts
 # storage runtime tree (paths are configurable; nothing is committed)
 /storage
 
+
+# gate visual manual do contrato (scripts/gate-contrato-rev4.ts) — artefatos descartáveis
+/tmp
