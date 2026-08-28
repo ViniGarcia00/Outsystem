@@ -2502,6 +2502,9 @@ entre pré-visualizar e emitir.
 | 16 | `9260560` | T10 — E2E: rascunho pré-visualiza e emite a MESMA Rev. 4 |
 | 17 | `96b9dfa` | T16 — script que produz os 3 contratos do gate visual |
 | 18 | `e628550` | T17 — documentação |
+| 19 | `31c6e08` | T18 — VERSION 1.7.0, CHANGELOG e gate oficial |
+
+- **Hash do commit de fechamento:** `31c6e08`
 
 A T10 saiu **fora de ordem**, depois da T15.1: o E2E existe para provar a regra de
 resolução, e escrevê-lo antes da correção seria cravar o comportamento defeituoso.
