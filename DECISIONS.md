@@ -1917,3 +1917,211 @@ Sprint de refinamento (escopo estrito):
 - **Consequência:** o contrato sai do sistema com dois campos a menos para
   preencher à mão e sem o risco de ir para assinatura com a multa em branco.
   Sobram 2 `[Nº]` manuais, ambos genuinamente variáveis por obra.
+
+---
+
+## Sprint 4.3 — Aprovação de Proposta, Apelido de Instalação e Anexos de Registro
+
+### ADR-0412 — Aprovação pertence à REVISÃO; `Proposta.status` é projeção (supersede parcial do ADR-0211)
+
+- **Contexto:** era preciso identificar propostas que o cliente já aprovou, antes
+  de existir Pedido de Venda, e a exigência do dono do produto foi explícita: a
+  aprovação representa **a revisão/conteúdo específico que o cliente aprovou**,
+  não uma aprovação eterna da proposta. Alterar a proposta depois tem de
+  invalidar a aprovação automaticamente.
+
+- **Decisão — duas camadas, e só uma delas é o fato.**
+  - **O FATO vive na revisão:** `PropostaRevisao.aprovadaEm DateTime?`. Simétrico
+    a `emittedAt`, mesma tabela, mesma semântica de carimbo por versão. É
+    histórico: a `Rev.2` foi aprovada em tal data, e isso segue verdadeiro depois
+    de existir uma `Rev.3`.
+  - **O ESTADO vive na proposta:** `StatusProposta.APROVADA` é a **projeção** de
+    "a revisão ATUAL está aprovada". Existe porque listagem, filtro, badge e
+    dashboard já leem `Proposta.status`; derivar isso por join em toda listagem
+    seria caro e divergiria do padrão do projeto.
+
+- **`Proposta.aprovadaAt` NÃO é recriada.** Ela responderia "quando foi aprovada
+  pela primeira vez" — pergunta sem consumidor —, e o ADR-0204 obrigaria a nunca
+  sobrescrevê-la, o que a tornaria enganosa depois da segunda aprovação.
+  `currentRevision.aprovadaEm` é a resposta correta e sempre atual.
+
+- **A invalidação é automática, por construção.** `salvarProposta` já cria uma
+  revisão nova quando a atual está congelada; a revisão nova nasce com
+  `aprovadaEm` nulo. Não existe "limpar a aprovação": ela continua colada à
+  revisão que o cliente aprovou, e a proposta apenas deixa de apontar para uma
+  revisão aprovada. Nenhuma máquina de estados nova, nenhum campo a zerar,
+  nenhum histórico reescrito.
+
+- **Decisão — o gatilho do fork deixa de ser o status.** `salvarProposta` passava
+  por `if (p.status === "EMITIDA")`. Passa a `if (p.currentRevision?.emittedAt)`.
+  **Sem essa troca existe perda silenciosa de dado:** uma proposta `APROVADA` não
+  cairia no `if` e o `deleteMany` de seções sobrescreveria **in-place o conteúdo
+  que o cliente aprovou**. Hoje as duas condições são equivalentes
+  (`emittedAt != null` ⟺ `status === "EMITIDA"`), então a troca é neutra e foi
+  provada por **teste de caracterização** antes de `APROVADA` existir. A regra
+  passa a ser enunciável sem citar status: **revisão congelada nunca é alterada
+  in-place**.
+
+- **Decisão — alteração de proposta aprovada volta para RASCUNHO**, não para
+  EMITIDA. Três razões: (1) a revisão nova **nunca foi emitida** (`emittedAt`
+  nulo) — marcá-la EMITIDA afirmaria que existe documento para um conteúdo que
+  ninguém gerou; (2) `emitirProposta` recusa proposta já emitida e `podeEmitir`
+  exige RASCUNHO — voltar a EMITIDA **travaria a emissão** do novo conteúdo; (3)
+  é o comportamento já homologado desde a 0.6.x, agora estendido sem virar uma
+  segunda regra.
+
+- **Qualquer `salvarProposta` bem-sucedido invalida a aprovação — sem diff campo
+  a campo.** O sistema já trata todo salvamento como versão comercial nova
+  (ADR-0214), o botão só habilita com alterações pendentes, e os campos citados
+  pelo dono do produto (produto, quantidade, preço, desconto, frete, serviços,
+  Som, Wi-Fi, seções, observações comerciais) **são exatamente** o payload de
+  `salvarProposta`. O único campo do payload que não é conteúdo apresentado ao
+  cliente é `obsInternas`; aceitar que ele invalide é o lado seguro do erro —
+  reaprovar é um clique, enquanto uma proposta alterada exibida como APROVADA é o
+  defeito que se queria evitar.
+
+- **Transições:** `RASCUNHO→{EMITIDA,CANCELADA}` ·
+  `EMITIDA→{APROVADA,RASCUNHO(fork),CANCELADA}` ·
+  `APROVADA→{EMITIDA(desfazer),RASCUNHO(fork),CANCELADA}` · `CANCELADA→{}`.
+  Aprovar exige `EMITIDA`: o cliente só aprova o que lhe foi enviado.
+
+- **"Desfazer aprovação" existe por necessidade operacional.** Sem ela, um clique
+  errado só teria saída fazendo uma alteração qualquer — o que forka uma revisão
+  e perde a emissão. Limpa `aprovadaEm` **da revisão atual**, volta a `EMITIDA` e
+  audita. Não é reescrita de histórico: revisões anteriores nunca são tocadas, e
+  a ação é correção de engano sobre o estado corrente.
+
+- **Supersede PARCIAL do ADR-0211**, restrito ao bullet "*status reduzido a
+  RASCUNHO · EMITIDA · CANCELADA (removidos APROVADA/REPROVADA e as colunas
+  `aprovadaAt`/`reprovadaAt`)*". O que mudou desde então: naquele momento
+  APROVADA era um **valor de `<select>` manual sem semântica**, e removê-la
+  estava certo. Agora é ação com guarda, fato datado na revisão e invalidação
+  automática. **O resto do ADR-0211 é reafirmado** — em especial "*status é 100%
+  dirigido pelo sistema, não há seletor manual*": continua não havendo.
+  **`REPROVADA` segue fora** — não foi pedida e não tem regra definida.
+
+- **Consequência:** identificar proposta aprovada sem depender de Pedido de
+  Venda; quando ele existir, "qual revisão o cliente aprovou e quando" é consulta
+  direta a `PropostaRevisao`, sem migração.
+
+### ADR-0413 — `Instalacao.apelido` e retorno à listagem ao salvar
+
+- **Contexto:** um mesmo cliente tem várias instalações ("Casa Alphaville",
+  "Apartamento Moema") e a listagem não tinha como distingui-las. Colocar o campo
+  no cadastro de Cliente seria errado — o apelido é da obra, não da pessoa.
+
+- **Decisão — `apelido` pertence à Instalação.** Nasce **sugerido** pelo nome de
+  exibição do Cliente na criação, é editável livremente, e **continua editável no
+  workspace** depois (é rótulo interno; renomear tem de ser possível). Não é
+  snapshot e não pertence ao Cliente.
+
+- **NÃO é o `nomeProjeto` removido na Sprint 4.0.3 (ADR-0404).** Aquele era texto
+  solto, sem regra, sem sugestão e sem papel na identificação — e sua remoção
+  estrutural continua correta. Este nasce de uma regra de sugestão, é a
+  identificação principal da instalação e entra na busca. A coluna é **nova**;
+  nenhum resquício daquela foi reaproveitado.
+
+- **Sugestão de três estados:** *nunca tocado* → escolher Cliente preenche ·
+  *tocado* → trocar de Cliente **não sobrescreve**, e uma dica não-bloqueante
+  mostra a sugestão descartada · *esvaziado* → volta a "nunca tocado" e a próxima
+  escolha re-sugere. O terceiro estado dá saída óbvia sem botão extra.
+  **A troca de Cliente só existe durante a criação** — `cabecalhoInstalacaoSchema`
+  não declara `clienteId` e o workspace mostra o Cliente somente-leitura, então o
+  caso "trocar o cliente depois" não existe no modelo e não foi inventada regra
+  para ele.
+
+- **`apelido` é nullable no banco, obrigatório no Zod.** `NOT NULL` exigiria
+  backfill de qualquer forma, e constraint dura num campo de rótulo não paga o
+  custo. A migration faz o backfill pelo nome de exibição do Cliente, com
+  fallback `"Instalação <número>"` para o cliente sem nome — sem ele a coluna de
+  identificação principal ficaria vazia.
+
+- **Listagem:** Apelido em primeiro, `font-medium`, como link. **O Número
+  permanece link** — o ADR-0404 decidiu que ele é a porta de entrada, com `<a>`
+  real (Tab, foco visível, Ctrl+clique) e rejeição explícita de `onClick` na
+  `<tr>`; remover isso seria reverter aquela decisão sem ADR. Cliente permanece
+  como coluna secundária: dois clientes podem ter "Casa".
+
+- **Decisão — salvar dados gerais volta para `/instalacoes`.** Vale para criação
+  e para edição do cabeçalho. Na criação o toast ganha ação **"Abrir"**, que
+  devolve o atalho para o workspace recém-criado.
+
+- **A cronologia NÃO segue essa regra.** Criar, editar ou excluir Registro
+  permanece no workspace. A separação é **física**, não condicional: os registros
+  vivem em `Cronologia`/`RegistroDialog`, com Server Actions próprias que só
+  revalidam `/instalacoes/[id]`. Há **E2E dedicado ao negativo** — salvar um
+  registro mantém a URL em `/instalacoes/<id>` —, porque é a regra que mais
+  facilmente se perde numa refatoração futura. **Cancelar instalação** também
+  continua no workspace: não é "salvar".
+
+- **Consequência:** a listagem passa a ser navegável por obra, e o fluxo de
+  cadastro termina onde o usuário confere o resultado.
+
+### ADR-0414 — Anexos do Registro: 1:N, banco como autoridade, agregado completo
+
+- **Contexto:** faltava anexar foto e documento a um acontecimento da cronologia.
+  A infraestrutura já existia e nunca havia sido usada para isso: `storagePaths`
+  (`UPLOAD_PATH` ou `<STORAGE_PATH>/uploads`) e `resolveWithin`, ambos da Sprint
+  0. O único precedente de upload é `logo.service.ts`.
+
+- **Decisão — `InstalacaoRegistro 1:N InstalacaoRegistroAnexo`.** 1:1 custaria uma
+  migration de remodelagem na primeira vez que alguém anexasse duas fotos, e
+  "duas fotos" é o caso normal de uma visita.
+
+- **O banco guarda metadados e caminho RELATIVO — nunca absoluto.** O caminho
+  absoluto depende do servidor e de `UPLOAD_PATH`, que mudam entre ambientes.
+  Layout: `instalacoes/<instalacaoId>/registros/<registroId>/<cuid>.<ext>`.
+  Particionar assim evita diretório com milhares de arquivos, torna a inspeção
+  manual no servidor viável e faz da exclusão de um registro uma pasta.
+
+- **Invariante que fixa a ordem de todas as operações:** **o banco é a
+  autoridade; arquivo órfão é tolerado e logável, linha apontando para arquivo
+  inexistente é o estado a evitar.** Daí: no upload, grava-se o arquivo e
+  **depois** a linha (falha do banco → `unlink` best-effort + log + rethrow); na
+  exclusão, apaga-se a linha e **depois** o arquivo (falha do `unlink` → log, sem
+  lançar).
+
+- **Segurança em camadas independentes:**
+  - **Nome físico gerado no servidor** (`cuid` + extensão vinda da allowlist de
+    MIME, **nunca** do nome enviado). O `nomeOriginal` é guardado como texto e
+    devolvido no `Content-Disposition`; **jamais participa da construção de um
+    caminho** — é isso, e não a sanitização, que é a garantia real.
+  - **`resolveWithin`** em toda leitura e escrita.
+  - **Resolução pelo agregado completo** — `anexoId` + `registroId` +
+    `instalacaoId` —, com "não encontrado" idêntico ao de um id inexistente. É a
+    mesma classe de invariante que originou o ADR-0409 e vai para a **suíte de
+    integração, com pares cruzados provados discriminantes**.
+  - Allowlist fechada: `image/jpeg`, `image/png`, `image/webp`,
+    `application/pdf`. **SVG fora** de propósito (é HTML executável). Limites: 10
+    MB por arquivo, 10 anexos por registro.
+  - Download com `Content-Type` **derivado da allowlist**, nunca ecoando o valor
+    guardado, mais `X-Content-Type-Options: nosniff`.
+
+- **Upload por Route Handler, não Server Action.** O limite padrão de corpo de
+  Server Action é 1 MB e foto de celular não passa. **`next.config.ts` não é
+  tocado** — subir o limite global afetaria toda Server Action do sistema para
+  resolver um caso pontual. A exclusão continua Server Action (só apaga linha).
+
+- **Os anexos são gerenciados pelo CARD do registro, não pelo diálogo.** O
+  diálogo cria registro e custos numa transação única, mas um anexo precisa de um
+  `registroId` que ainda não existe durante a criação. Anexar pelo card elimina
+  área de staging, elimina arquivo órfão por diálogo abandonado, e faz registro
+  novo e existente terem a mesma regra.
+
+- **Exclusão de registro: anexo não vira um segundo bloqueio.** O bloqueio de
+  `REGISTRO_COM_CUSTOS` continua valendo como está — ele existe por razão
+  **financeira** (ADR-0401), que não se aplica a arquivo. Permitida a exclusão, as
+  linhas saem por `onDelete: Cascade` e a pasta é removida **pós-commit**,
+  best-effort. **Cancelar Instalação não remove anexos.**
+
+- **Cleanup E2E passa a varrer disco além do banco**, na ordem de dependência do
+  ADR-0403. `e2e/support/limpeza.ts` **não pode importar** `storagePaths` (vive
+  fora de `src/`, por decisão daquele ADR), então re-deriva a raiz de uploads a
+  partir do ambiente — **duplicação aceita e documentada**, com guarda
+  obrigatória: o alvo é resolvido e provado **contido na raiz** antes de qualquer
+  remoção, e a rotina aborta se a guarda falhar. Nunca remoção recursiva sobre
+  caminho não validado.
+
+- **Consequência:** a cronologia passa a carregar evidência (foto da visita, nota
+  fiscal do material) sem que nada dependa de caminho fixo no código, e sem
+  afrouxar nenhuma garantia existente do agregado.
