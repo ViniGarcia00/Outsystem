@@ -36,7 +36,12 @@ export async function GET(
 
   let buffer: Buffer;
   try {
-    buffer = renderContratoDocx(montarContratoTemplateDTO(dto));
+    // A versão vem da REVISÃO, não do vigente (ADR-0415): um contrato emitido
+    // na rev3 continua saindo na rev3 depois de a rev4 entrar em vigor.
+    buffer = renderContratoDocx(
+      montarContratoTemplateDTO(dto),
+      dto.templateContratoVersao,
+    );
   } catch (erro) {
     // Template ausente/corrompido ou tag por resolver. O detalhe vai para o log
     // do servidor; o usuário recebe uma mensagem sem entranhas do sistema.

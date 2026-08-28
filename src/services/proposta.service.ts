@@ -1,3 +1,4 @@
+import { TEMPLATE_CONTRATO_VIGENTE } from "@/features/propostas/docx/templates";
 import { calcularResumoFinanceiro } from "@/features/propostas/totais";
 import { prisma } from "@/infrastructure/database";
 
@@ -613,7 +614,19 @@ export async function emitirProposta(id: string): Promise<void> {
     });
     await tx.propostaRevisao.update({
       where: { id: p.currentRevisionId },
-      data: { emittedAt: now },
+      data: {
+        emittedAt: now,
+        /**
+         * Carimba a versão do template de contrato VIGENTE neste instante
+         * (ADR-0415), no mesmo `update` e na mesma transação que congela a
+         * revisão. As duas coisas descrevem o mesmo fato: o que foi enviado ao
+         * cliente — o conteúdo comercial e o texto jurídico.
+         *
+         * Nunca reescrito: uma revisão emitida hoje renderiza o contrato desta
+         * versão para sempre, mesmo depois de o template ser trocado.
+         */
+        templateContratoVersao: TEMPLATE_CONTRATO_VIGENTE,
+      },
     });
     await tx.propostaAuditoria.create({
       data: {

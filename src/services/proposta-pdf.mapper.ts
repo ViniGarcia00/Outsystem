@@ -96,6 +96,12 @@ export interface PropostaPdfDTO {
   /** Nome do projeto (campo da Proposta). Usado pelo PDF Apresentação. */
   nomeProjeto: string | null;
   revisao: number | null;
+  /**
+   * Versão do template de contrato com que a revisão foi congelada
+   * (ADR-0415). Nula em revisões nunca emitidas ou anteriores à Sprint 4.4 —
+   * o renderer resolve o fallback.
+   */
+  templateContratoVersao: string | null;
   /** Data de referência: emissão da revisão → emissão da proposta → criação. */
   data: Date;
   validadeDias: number;
@@ -184,6 +190,7 @@ export interface FontePropostaPdf {
    */
   servicos?: { tipo: "SOM" | "WIFI"; descricao: string | null; valorTotal: Numerico }[];
   currentRevision: {
+    templateContratoVersao?: string | null;
     revisionNumber: number;
     emittedAt: Date | null;
     secoes: { nome: string; itens: FonteItem[] }[];
@@ -313,6 +320,7 @@ export function montarPropostaPdfDTO(
     numero: p.proposalNumber,
     nomeProjeto: nn(p.nomeProjeto),
     revisao: p.currentRevision?.revisionNumber ?? null,
+    templateContratoVersao: p.currentRevision?.templateContratoVersao ?? null,
     data: p.currentRevision?.emittedAt ?? p.emitidaAt ?? p.createdAt,
     validadeDias: p.validadeDias,
     simplificada,

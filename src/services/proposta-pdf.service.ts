@@ -66,6 +66,7 @@ export async function getPropostaPdfData(
           select: {
             revisionNumber: true,
             emittedAt: true,
+            templateContratoVersao: true,
             secoes: {
               orderBy: { ordem: "asc" },
               select: {

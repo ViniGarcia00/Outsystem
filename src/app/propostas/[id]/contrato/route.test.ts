@@ -27,6 +27,9 @@ import { GET } from "./route";
 const DTO = {
   numero: 1042,
   revisao: 2,
+  // Versão com que ESTA revisão foi congelada (ADR-0415). Deliberadamente
+  // diferente da vigente, para provar que a rota usa a da revisão.
+  templateContratoVersao: "rev3",
   cliente: { nome: "João da Silva" },
 } as unknown as PropostaPdfDTO;
 
@@ -100,7 +103,35 @@ describe("delegação (sem regra de negócio no handler)", () => {
   it("chama o renderer uma única vez, com a saída do mapper", async () => {
     await chamar();
     expect(renderContratoDocx).toHaveBeenCalledTimes(1);
-    expect(renderContratoDocx).toHaveBeenCalledWith({ clienteNome: "irrelevante" });
+    expect(renderContratoDocx).toHaveBeenCalledWith(
+      { clienteNome: "irrelevante" },
+      "rev3",
+    );
+  });
+
+  /**
+   * A rota repassa a versão da REVISÃO, não a vigente (ADR-0415). É o que
+   * impede um contrato emitido na rev3 de mudar de texto jurídico depois que a
+   * rev4 entra em vigor.
+   */
+  it("repassa a versão do template que veio da revisão", async () => {
+    vi.mocked(getPropostaPdfData).mockResolvedValue({
+      ...DTO,
+      templateContratoVersao: "rev4",
+    } as unknown as PropostaPdfDTO);
+
+    await chamar();
+    expect(renderContratoDocx).toHaveBeenCalledWith(expect.anything(), "rev4");
+  });
+
+  it("repassa null quando a revisão não tem carimbo — o renderer decide", async () => {
+    vi.mocked(getPropostaPdfData).mockResolvedValue({
+      ...DTO,
+      templateContratoVersao: null,
+    } as unknown as PropostaPdfDTO);
+
+    await chamar();
+    expect(renderContratoDocx).toHaveBeenCalledWith(expect.anything(), null);
   });
 });
 
