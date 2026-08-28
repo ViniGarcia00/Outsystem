@@ -173,6 +173,89 @@ test("Instalações: criar, conferir snapshot, mudar status e concluir", async (
   await expect(page.getByLabel("Nome do projeto")).toHaveCount(0);
 });
 
+test("Instalações: apelido — sugestão, preservação e busca (Sprint 4.3)", async ({
+  page,
+}) => {
+  const clienteA = await criarCliente(page, "Apelido Alfa");
+  const clienteB = await criarCliente(page, "Apelido Bravo");
+  const apelido = page.getByLabel("Apelido", { exact: true });
+
+  await page.goto("/instalacoes/nova");
+
+  // 1) Campo nasce vazio e a seleção do Cliente o SUGERE.
+  await expect(apelido).toHaveValue("");
+  await page.getByLabel("Cliente", { exact: true }).fill(clienteA);
+  await page.getByRole("option", { name: clienteA }).click();
+  await expect(apelido).toHaveValue(clienteA);
+
+  // 2) Enquanto não foi personalizado, trocar o Cliente re-sugere.
+  await page.getByLabel("Cliente", { exact: true }).fill(clienteB);
+  await page.getByRole("option", { name: clienteB }).click();
+  await expect(apelido).toHaveValue(clienteB);
+  await expect(page.getByText(/Apelido mantido/)).toHaveCount(0);
+
+  // 3) Personalizado: trocar o Cliente NÃO sobrescreve, e a sugestão
+  //    descartada é mostrada em vez de aplicada em silêncio.
+  const personalizado = "Casa Alphaville";
+  await apelido.fill(personalizado);
+  await page.getByLabel("Cliente", { exact: true }).fill(clienteA);
+  await page.getByRole("option", { name: clienteA }).click();
+  await expect(apelido).toHaveValue(personalizado);
+  await expect(page.getByText(/Apelido mantido/)).toBeVisible();
+  await expect(page.getByText(clienteA, { exact: false }).first()).toBeVisible();
+
+  // 4) Esvaziar devolve o campo ao estado "não personalizado": a próxima
+  //    seleção volta a sugerir. É o terceiro estado do ADR-0413.
+  await apelido.fill("");
+  await page.getByLabel("Cliente", { exact: true }).fill(clienteB);
+  await page.getByRole("option", { name: clienteB }).click();
+  await expect(apelido).toHaveValue(clienteB);
+
+  // Salva com um apelido próprio, com acento — para provar a busca depois.
+  const apelidoFinal = "Cobertura Jardim Paulistão";
+  await apelido.fill(apelidoFinal);
+  await page.getByRole("button", { name: "Salvar" }).click();
+  await expect(page).toHaveURL(/\/instalacoes\/(?!nova$)[^/]+$/);
+  const instalacaoPath = new URL(page.url()).pathname;
+
+  // 5) A listagem mostra o apelido como identificação principal, e ele é link.
+  await page.goto("/instalacoes");
+  await expect(
+    page.getByRole("columnheader", { name: "Apelido" }),
+  ).toBeVisible();
+  const linkApelido = page.getByRole("link", {
+    name: `Abrir instalação ${apelidoFinal}`,
+  });
+  await expect(linkApelido).toBeVisible();
+
+  // 6) Busca encontra pelo apelido...
+  await page.getByRole("searchbox", { name: "Buscar" }).fill("Cobertura");
+  await expect(linkApelido).toBeVisible();
+
+  // 7) ...e continua insensível a acento (fonte única @/utils/busca, ADR-0402).
+  await page.getByRole("searchbox", { name: "Buscar" }).fill("paulistao");
+  await expect(linkApelido).toBeVisible();
+  await page.getByRole("searchbox", { name: "Buscar" }).fill("PAULISTÃO");
+  await expect(linkApelido).toBeVisible();
+
+  // 8) O apelido é editável no workspace — é rótulo, não snapshot.
+  await linkApelido.click();
+  await expect(page).toHaveURL(instalacaoPath);
+  await expect(apelido).toHaveValue(apelidoFinal);
+  await apelido.fill("Cobertura Jardim Paulistão — Fase 2");
+  await page.getByRole("button", { name: "Salvar Alterações" }).click();
+  await expect(page.getByText("Instalação atualizada.")).toBeVisible();
+
+  // Navegação explícita: para onde o botão leva depois de salvar é assunto da
+  // T14 (ADR-0413), e este cenário não deve afirmar nada sobre isso.
+  await page.goto("/instalacoes");
+  await expect(
+    page.getByRole("link", {
+      name: "Abrir instalação Cobertura Jardim Paulistão — Fase 2",
+    }),
+  ).toBeVisible();
+});
+
 test("Instalações: o número da listagem é um link que abre o workspace", async ({
   page,
 }) => {
