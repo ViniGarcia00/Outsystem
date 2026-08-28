@@ -2204,3 +2204,64 @@ Exercitado de verdade na suíte completa: "pastas de anexos removidas: 2",
   `status !== "RASCUNHO"` parecia inofensivo e teria exposto documentos de
   proposta cancelada. Enumerar os estados desejados é mais longo de escrever e
   mais difícil de errar.
+
+### Commits
+
+| # | Hash | Task |
+| --- | --- | --- |
+| 1 | `7735cf0` | T1 — ADR-0412..0414 e abertura da Sprint |
+| 2 | `1978f92` | T2 — fork depende da revisão congelada (regra crítica) |
+| 3 | `d9917a0` | T3 — migration: enum `APROVADA` + `aprovadaEm` |
+| 4 | `d5ecef8` | T4+T5 — service aprovar/desfazer + teste de segurança |
+| 5 | `e5a6845` | T6 — ações de aprovar e desfazer no workspace |
+| 6 | `bebdf26` | T7 — Dashboard: contador de aprovadas |
+| 7 | `aebf255` | T8 — E2E de aprovação |
+| 8 | `d9f3390` | T9 — migration: `Instalacao.apelido` + backfill |
+| 9 | `f4ca35c` | T10+T11 — apelido no schema, service e formulários |
+| 10 | `e13a187` | T12 — apelido como identificação principal na listagem |
+| 11 | `29e7be1` | T13 — E2E de apelido |
+| 12 | `6f48e40` | T14 — salvar dados gerais volta para a listagem |
+| 13 | `c5265dc` | T15 — evidência do SPIKE de upload (spike descartado) |
+| 14 | `eb7a992` | T16 — migration: `InstalacaoRegistroAnexo` |
+| 15 | `920dead` | T17 — módulo puro de validação e caminho |
+| 16 | `5f1edf7` | T17 (correção) — diretiva eslint desnecessária |
+| 17 | `bb492e7` | T18 — service de anexos com resolução por agregado |
+| 18 | `5f14bfa` | T19 — rotas de upload e download |
+| 19 | `c6287ee` | T20 — anexos no card do registro |
+| 20 | `3fbf188` | T21 — exclusão de registro leva os anexos |
+| 21 | `2a5df58` | T22 — cleanup E2E de banco e disco |
+| 22 | `a4882b1` | T23 — E2E de anexos |
+| 23 | `6c5a001` | T24 — documentação final |
+| 24 | `c0eb1a6` | T25 — VERSION 1.6.0 e gate oficial |
+
+- **Hash do commit de fechamento:** `c0eb1a6`
+
+Vinte e quatro commits para 25 tasks: T4+T5 e T10+T11 saíram juntas (as razões
+estão nos desvios de cada fase), e a T17 precisou de um commit extra para o
+warning de lint. O registro deste hash é feito em **commit documental separado**,
+seguindo o padrão do projeto (Sprint 4.2, `4b7ebd1`; Release 1.5.1, `9848643`).
+
+### Gate oficial da 1.6.0
+
+| Item | Resultado |
+| --- | --- |
+| Lint | 0 erros, 0 warnings |
+| Typecheck | 0 |
+| Build | OK |
+| Unit | **295/295** (23 arquivos) |
+| Integração | **90/90** (6 arquivos) |
+| Smoke/E2E | **38/38** |
+| `/api/health` | 200 · `{"status":"ok","version":"1.6.0","database":"up"}` |
+| `/dev/diagnostics` | 200 |
+| PostgreSQL | 18.1 (x86_64-windows) |
+| Prisma | 7.8.0 |
+| `migrate status` | *Database schema is up to date* · 24 migrations · 0 pendentes |
+| `migrate diff` | **No difference detected** (sem drift) |
+| `db:validate` | 14 ok, 0 falhas |
+| Resíduo banco | **zero** |
+| Resíduo filesystem | **zero** (só `logo.jpg` preexistente) |
+| Documentação · CHANGELOG · VERSION · package.json | atualizados |
+
+`package-lock.json` **não** foi tocado — o repositório nunca o sincronizou com a
+versão (segue em `1.0.0` desde o início), e a instrução foi manter o
+comportamento estabelecido.
