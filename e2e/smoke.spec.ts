@@ -530,7 +530,57 @@ test("Propostas: Contrato (.docx) e Anexo Contratual (Sprint 3.1)", async ({
   expect(anexo.headers()["content-type"]).toContain("application/pdf");
   expect((await anexo.body()).byteLength).toBeGreaterThan(1000);
 
-  // Contrato: endpoint /contrato novo, devolve .docx como anexo para download.
+  /**
+   * Contrato Rev. 4 (Sprint 4.4). Um RASCUNHO resolve para a versão VIGENTE —
+   * não para o fallback histórico —, então a guarda vale já na pré-visualização.
+   *
+   * O bloqueio É a prova de que o rascunho é rev4: um rascunho que resolvesse
+   * para rev3 devolveria 200 aqui, porque aquele template não tem os campos.
+   */
+  const semNada = await page.request.get(`${propostaPath}/contrato`);
+  expect(semNada.status()).toBe(400);
+  expect(await semNada.text()).toContain("prazo de execução");
+
+  /**
+   * O workspace é REMONTADO após salvar (`key={updatedAt}` em
+   * `app/propostas/[id]/page.tsx`), e a remontagem chega em um round-trip de
+   * servidor. Digitar logo depois do toast corre contra ela: o estado novo é
+   * descartado e o botão volta a "sem alterações". Por isso cada etapa termina
+   * em `reload()` — que além de determinístico PROVA a persistência, já que os
+   * campos voltam preenchidos a partir do banco.
+   */
+  const salvar = page.getByRole("button", { name: "Salvar Alterações" });
+  const prazo = page.getByLabel("Prazo de execução (dias úteis)");
+  const parcela = page.getByLabel("Parcela final");
+  const observacoes = page.getByLabel("Observações do Termo de Aceite");
+
+  // Preenche só o prazo — a guarda passa a apontar o campo seguinte.
+  await prazo.fill("30");
+  await parcela.click(); // dispara o blur do prazo
+  await expect(salvar).toBeEnabled();
+  await salvar.click();
+  await expect(page.getByText("Alterações salvas.")).toBeVisible();
+
+  await page.reload();
+  await expect(prazo).toHaveValue("30");
+
+  const semParcela = await page.request.get(`${propostaPath}/contrato`);
+  expect(semParcela.status()).toBe(400);
+  expect(await semParcela.text()).toContain("parcela final");
+
+  // Com os dois, o contrato sai.
+  await parcela.fill("300000"); // R$ 3.000,00
+  await observacoes.fill("Sem pendências.");
+  await expect(salvar).toBeEnabled();
+  await salvar.click();
+  await expect(page.getByText("Alterações salvas.")).toBeVisible();
+
+  await page.reload();
+  // Regex por causa do separador: `Intl` pt-BR usa espaço NÃO-quebrável depois
+  // do "R$", e o ICU do navegador não precisa ser o mesmo do Node.
+  await expect(parcela).toHaveValue(/^R\$\s3\.000,00$/);
+  await expect(observacoes).toHaveValue("Sem pendências.");
+
   const contrato = await page.request.get(`${propostaPath}/contrato`);
   expect(contrato.status()).toBe(200);
   expect(contrato.headers()["content-type"]).toContain(
@@ -538,11 +588,21 @@ test("Propostas: Contrato (.docx) e Anexo Contratual (Sprint 3.1)", async ({
   );
   expect(contrato.headers()["content-disposition"]).toContain("attachment;");
   expect(contrato.headers()["content-disposition"]).toContain(".docx");
-  expect((await contrato.body()).byteLength).toBeGreaterThan(1000);
+  const bytesRascunho = (await contrato.body()).byteLength;
+  expect(bytesRascunho).toBeGreaterThan(1000);
 
   // "Emitir Contrato" a partir de RASCUNHO emite a proposta (padrão dos demais).
   await page.getByRole("button", { name: "Emitir Contrato", exact: true }).click();
   await expect(page.getByText("Emitida", { exact: true })).toBeVisible();
+
+  /**
+   * A regra que a T15.1 corrigiu: o texto jurídico NÃO muda entre a
+   * pré-visualização e a emissão. O rascunho já era rev4; a emissão apenas
+   * carimba a mesma versão na revisão.
+   */
+  const emitido = await page.request.get(`${propostaPath}/contrato`);
+  expect(emitido.status()).toBe(200);
+  expect((await emitido.body()).byteLength).toBe(bytesRascunho);
 });
 
 test("Propostas: modelo Simplificada (produtos sem seções)", async ({
