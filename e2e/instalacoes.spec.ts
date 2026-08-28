@@ -356,6 +356,138 @@ test("Instalações: salvar dados gerais volta à tabela; salvar registro NÃO (
   await expect(page).toHaveURL(instalacaoPath);
 });
 
+/**
+ * Anexos do registro (Sprint 4.3, T23 — ADR-0414).
+ *
+ * O `input[type=file]` é escondido de propósito (o gatilho é o botão), e
+ * `setInputFiles` opera nele mesmo assim — é a forma de exercitar o upload real
+ * pela mesma rota que o navegador usa.
+ *
+ * O conteúdo é um PNG 1×1 válido: um buffer aleatório passaria pela allowlist,
+ * que confia no MIME declarado, mas não seria um arquivo de verdade em disco.
+ */
+const PNG_1x1_E2E = Buffer.from(
+  "89504e470d0a1a0a0000000d494844520000000100000001080600000001" +
+    "1f15c4890000000a49444154789c6360000002000100ffff03000006000557bfabd4" +
+    "0000000049454e44ae426082",
+  "hex",
+);
+
+test("Instalações: anexos do registro — upload, download e exclusão (Sprint 4.3)", async ({
+  page,
+}) => {
+  const clienteNome = await criarCliente(page, "Anexo Cliente");
+  const tecnico = await criarTecnico(page, "Anexo");
+  const instalacaoPath = await criarInstalacao(page, clienteNome, tecnico);
+
+  await criarRegistro(page, {
+    tipo: "Visita ao cliente",
+    aconteceuEm: "2026-08-20T10:00",
+    responsavel: tecnico,
+    relatorio: "Visita com registro fotográfico.",
+  });
+
+  const card = page.getByTestId("registro-card");
+  await expect(card.getByText("Nenhum anexo.")).toBeVisible();
+
+  const input = page.locator('input[type="file"]');
+
+  // --- upload ---
+  await input.setInputFiles({
+    name: "foto da sala.png",
+    mimeType: "image/png",
+    buffer: PNG_1x1_E2E,
+  });
+
+  const anexo = page.getByTestId("anexo-item");
+  await expect(anexo).toHaveCount(1);
+  await expect(anexo).toContainText("foto da sala.png");
+  // O tamanho vem do módulo puro; o PNG 1×1 tem menos de 1 KB.
+  await expect(anexo).toContainText("KB");
+
+  // --- download: mesma rota que o link aponta ---
+  const href = await anexo.getByRole("link").getAttribute("href");
+  expect(href).toMatch(
+    /^\/instalacoes\/[^/]+\/registros\/[^/]+\/anexos\/[^/]+$/,
+  );
+  const baixado = await page.request.get(href!);
+  expect(baixado.status()).toBe(200);
+  expect(baixado.headers()["content-type"]).toBe("image/png");
+  expect(baixado.headers()["x-content-type-options"]).toBe("nosniff");
+  expect(Buffer.from(await baixado.body())).toEqual(PNG_1x1_E2E);
+
+  // --- tipo fora da allowlist é recusado pelo SERVIDOR ---
+  await input.setInputFiles({
+    name: "script.html",
+    mimeType: "text/html",
+    buffer: Buffer.from("<script>alert(1)</script>"),
+  });
+  await expect(page.getByText(/Formato não aceito/)).toBeVisible();
+  await expect(page.getByTestId("anexo-item")).toHaveCount(1);
+
+  // --- excluir o anexo ---
+  await page
+    .getByRole("button", { name: "Excluir anexo foto da sala.png" })
+    .click();
+  await page.getByRole("button", { name: "Confirmar" }).click();
+  await expect(page.getByTestId("anexo-item")).toHaveCount(0);
+  await expect(card.getByText("Nenhum anexo.")).toBeVisible();
+  // A rota deixa de servir o arquivo removido.
+  expect((await page.request.get(href!)).status()).toBe(404);
+
+  // --- excluir o REGISTRO leva os anexos junto ---
+  await input.setInputFiles({
+    name: "outra.png",
+    mimeType: "image/png",
+    buffer: PNG_1x1_E2E,
+  });
+  await expect(page.getByTestId("anexo-item")).toHaveCount(1);
+  const href2 = await page
+    .getByTestId("anexo-item")
+    .getByRole("link")
+    .getAttribute("href");
+
+  await page.getByRole("button", { name: "Excluir", exact: true }).click();
+  await page.getByRole("button", { name: "Confirmar" }).click();
+  await expect(page.getByTestId("registro-card")).toHaveCount(0);
+  expect((await page.request.get(href2!)).status()).toBe(404);
+
+  // A URL não mudou em nenhum momento: anexo é operação da cronologia.
+  await expect(page).toHaveURL(instalacaoPath);
+});
+
+test("Instalações: registro com custos continua bloqueado, e o anexo sobrevive (Sprint 4.3)", async ({
+  page,
+}) => {
+  const clienteNome = await criarCliente(page, "Anexo Custo Cliente");
+  const tecnico = await criarTecnico(page, "AnexoCusto");
+  await criarInstalacao(page, clienteNome, tecnico);
+
+  await criarRegistro(page, {
+    tipo: "Material comprado",
+    aconteceuEm: "2026-08-21T09:00",
+    responsavel: tecnico,
+    relatorio: "Compra de cabo.",
+    custos: [{ categoria: "Material", valor: "15000" }],
+  });
+
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "nota.png",
+    mimeType: "image/png",
+    buffer: PNG_1x1_E2E,
+  });
+  await expect(page.getByTestId("anexo-item")).toHaveCount(1);
+
+  // O bloqueio de custos (ADR-0401) é anterior aos anexos e continua valendo.
+  await page.getByRole("button", { name: "Excluir", exact: true }).click();
+  await page.getByRole("button", { name: "Confirmar" }).click();
+  await expect(page.getByText(/possui custos lançados/)).toBeVisible();
+
+  // E não teve efeito colateral nenhum: registro e anexo seguem lá.
+  await expect(page.getByTestId("registro-card")).toHaveCount(1);
+  await expect(page.getByTestId("anexo-item")).toHaveCount(1);
+});
+
 test("Instalações: o número da listagem é um link que abre o workspace", async ({
   page,
 }) => {
