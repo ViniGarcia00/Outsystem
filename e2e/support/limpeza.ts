@@ -1,3 +1,7 @@
+import { existsSync } from "node:fs";
+import { rm } from "node:fs/promises";
+import path from "node:path";
+
 import { Client } from "pg";
 
 /**
@@ -33,6 +37,8 @@ const MARCADOR_USUARIO = "E2E %";
 
 export interface ContagemResiduos {
   clientes: number;
+  /** Anexos de registro (Sprint 4.3). Contados antes dos registros. */
+  anexos: number;
   produtos: number;
   propostas: number;
   instalacoes: number;
@@ -91,6 +97,79 @@ export function validarAmbiente(databaseUrl = process.env.DATABASE_URL): string 
   return databaseUrl;
 }
 
+/**
+ * Raiz de uploads, RE-DERIVADA do ambiente (Sprint 4.3, ADR-0414).
+ *
+ * ⚠️ **Duplicação deliberada de `src/infrastructure/storage/paths.ts`.** Este
+ * módulo não pode importar de `src/` (ADR-0403), então a mesma regra —
+ * `UPLOAD_PATH`, ou `<STORAGE_PATH>/uploads`, com `./storage` como padrão —
+ * aparece escrita duas vezes. É o preço de manter a ferramenta de teste fora da
+ * aplicação; o que compensa o risco é a guarda de contenção abaixo.
+ */
+function raizDeUploads(): string {
+  const upload = process.env.UPLOAD_PATH?.trim();
+  if (upload) return path.resolve(upload);
+  const storage = process.env.STORAGE_PATH?.trim() || "./storage";
+  return path.resolve(storage, "uploads");
+}
+
+/**
+ * Resolve um alvo e **prova** que ele está contido na raiz, antes de qualquer
+ * remoção. Lança em vez de devolver caminho suspeito.
+ *
+ * Recusa também o caminho igual à própria raiz: um `rm -r` na raiz apagaria o
+ * logo da empresa e tudo o mais que vive lá.
+ */
+function alvoDentroDaRaiz(raiz: string, ...segmentos: string[]): string {
+  const normalizada = path.resolve(raiz);
+  const alvo = path.resolve(normalizada, ...segmentos);
+
+  if (alvo === normalizada) {
+    throw new Error(
+      "[limpeza E2E] Recusado: alvo é a própria raiz de uploads. " +
+        "A rotina remove pastas de instalações, nunca a raiz.",
+    );
+  }
+  if (!alvo.startsWith(normalizada + path.sep)) {
+    throw new Error(
+      `[limpeza E2E] Recusado: alvo "${alvo}" está fora da raiz "${normalizada}".`,
+    );
+  }
+  return alvo;
+}
+
+/**
+ * Remove as pastas de anexos das instalações E2E.
+ *
+ * Roda **depois** do commit do banco, pela mesma razão do service: falhar aqui
+ * deixa arquivo órfão (tolerado); falhar antes deixaria linha sem arquivo.
+ *
+ * Nunca é um `rm -r` sobre caminho não validado — cada alvo passa por
+ * `alvoDentroDaRaiz`, e um id adulterado faz a rotina abortar.
+ */
+async function apagarPastas(ids: string[]): Promise<{
+  removidas: number;
+  restantes: string[];
+}> {
+  const raiz = raizDeUploads();
+  let removidas = 0;
+
+  for (const id of ids) {
+    const alvo = alvoDentroDaRaiz(raiz, "instalacoes", id);
+    if (existsSync(alvo)) {
+      await rm(alvo, { recursive: true, force: true });
+      removidas++;
+    }
+  }
+
+  // A verificação é a recontagem, agora também em disco.
+  const restantes = ids
+    .map((id) => alvoDentroDaRaiz(raiz, "instalacoes", id))
+    .filter((alvo) => existsSync(alvo));
+
+  return { removidas, restantes };
+}
+
 /** Propostas e instalações são "de teste" por pertencerem a um cliente de teste. */
 const CLIENTES_E2E = `SELECT id FROM clientes WHERE nome LIKE $1`;
 const PROPOSTAS_E2E = `SELECT id FROM propostas WHERE "clienteId" IN (${CLIENTES_E2E})`;
@@ -110,12 +189,18 @@ async function contar(client: Client): Promise<ContagemResiduos> {
             SELECT id FROM instalacao_registros
              WHERE "instalacaoId" IN (${INSTALACOES_E2E})
           )) AS custos,
+       (SELECT count(*) FROM instalacao_registro_anexos
+          WHERE "registroId" IN (
+            SELECT id FROM instalacao_registros
+             WHERE "instalacaoId" IN (${INSTALACOES_E2E})
+          )) AS anexos,
        (SELECT count(*) FROM usuarios WHERE nome LIKE $3) AS usuarios`,
     [MARCADOR_CLIENTE, MARCADOR_PRODUTO, MARCADOR_USUARIO],
   );
   const r = rows[0];
   return {
     clientes: Number(r.clientes),
+    anexos: Number(r.anexos),
     produtos: Number(r.produtos),
     propostas: Number(r.propostas),
     instalacoes: Number(r.instalacoes),
@@ -144,6 +229,13 @@ async function apagar(client: Client): Promise<void> {
   const p = [MARCADOR_PRODUTO];
 
   // ── Instalações (e tudo que pende delas) ────────────────────────────────
+  // Anexos ANTES dos registros: a FK tem CASCADE, mas a ordem explícita é a
+  // regra do ADR-0403 — não confiar em cascade onde a ordem pode ser afirmada.
+  await client.query(
+    `DELETE FROM instalacao_registro_anexos WHERE "registroId" IN (
+       SELECT id FROM instalacao_registros WHERE "instalacaoId" IN (${INSTALACOES_E2E}))`,
+    c,
+  );
   await client.query(
     `DELETE FROM instalacao_custos WHERE "registroId" IN (
        SELECT id FROM instalacao_registros WHERE "instalacaoId" IN (${INSTALACOES_E2E}))`,
@@ -239,6 +331,14 @@ export async function limparResiduosE2E(): Promise<ResultadoLimpeza> {
   try {
     const antes = await contar(client);
 
+    // Os ids das instalações E2E precisam ser lidos ANTES do DELETE — depois
+    // dele não há como saber quais pastas remover.
+    const { rows: alvos } = await client.query<{ id: string }>(
+      `SELECT id FROM instalacoes WHERE "clienteId" IN (${CLIENTES_E2E})`,
+      [MARCADOR_CLIENTE],
+    );
+    const idsInstalacoes = alvos.map((r) => r.id);
+
     await client.query("BEGIN");
     try {
       await apagar(client);
@@ -246,6 +346,19 @@ export async function limparResiduosE2E(): Promise<ResultadoLimpeza> {
     } catch (erro) {
       await client.query("ROLLBACK");
       throw erro;
+    }
+
+    // Só depois do COMMIT: falhar aqui deixa arquivo órfão, que é o lado
+    // tolerado; o contrário deixaria linha apontando para arquivo removido.
+    const { removidas, restantes } = await apagarPastas(idsInstalacoes);
+    if (restantes.length > 0) {
+      throw new Error(
+        "[limpeza E2E] Pastas de anexos remanescentes após a limpeza: " +
+          restantes.join(", "),
+      );
+    }
+    if (removidas > 0) {
+      console.log(`[limpeza E2E] pastas de anexos removidas: ${removidas}`);
     }
 
     const depois = await contar(client);
