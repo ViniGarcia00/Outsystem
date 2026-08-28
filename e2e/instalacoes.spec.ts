@@ -160,7 +160,13 @@ test("Instalações: criar, conferir snapshot, mudar status e concluir", async (
     page.getByRole("columnheader", { name: "Projeto" }),
   ).toHaveCount(0);
   await page.getByRole("searchbox", { name: "Buscar" }).fill(clienteNome);
-  await expect(page.getByText(clienteNome, { exact: true })).toBeVisible();
+  // `getByRole("cell")` em vez de `getByText`: desde a Sprint 4.3 o apelido é
+  // sugerido a partir do cliente, então o mesmo texto aparece na coluna Apelido
+  // (dentro de um link) e na coluna Cliente. O locator antigo virou ambíguo — é
+  // consequência da feature, não regressão. A célula é o alvo certo aqui.
+  await expect(
+    page.getByRole("cell", { name: clienteNome, exact: true }),
+  ).toBeVisible();
 
   // O workspace continua sem o campo removido.
   await page.goto(instalacaoPath);

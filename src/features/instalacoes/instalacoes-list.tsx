@@ -58,6 +58,11 @@ import {
  */
 const searchAccessor = (i: InstalacaoListItem) =>
   [
+    // Identificação principal desde a Sprint 4.3 (ADR-0413) — e o primeiro
+    // termo que o usuário tenta. Sem acento também: a normalização vem do
+    // `useCrudList`, que consome a fonte única `@/utils/busca`. Nenhuma
+    // normalização nova foi criada aqui.
+    i.apelido,
     String(i.numero),
     i.clienteNome,
     i.enderecoResumo,
@@ -123,6 +128,23 @@ export function InstalacoesList({
     );
 
     return [
+      {
+        id: "apelido",
+        // Identificação PRINCIPAL da instalação (Sprint 4.3, ADR-0413): é por
+        // ela que o usuário reconhece a obra — "Casa Alphaville" diz mais que
+        // "1046". Também é link: obrigar a mirar no número para abrir tornaria
+        // a coluna principal a única não clicável da linha.
+        header: () => sortHeader("apelido", "Apelido"),
+        cell: ({ row }) => (
+          <Link
+            href={`/instalacoes/${row.original.id}`}
+            aria-label={`Abrir instalação ${row.original.apelido}`}
+            className="rounded-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+          >
+            {row.original.apelido}
+          </Link>
+        ),
+      },
       {
         id: "numero",
         // O número é a porta de entrada do workspace (Sprint 4.0.3, ADR-0404).
@@ -248,7 +270,7 @@ export function InstalacoesList({
         description="Acompanhamento operacional das instalações."
         searchValue={list.search}
         onSearchChange={list.setSearch}
-        searchPlaceholder="Buscar por número, cliente, endereço, responsável..."
+        searchPlaceholder="Buscar por apelido, número, cliente, endereço..."
         onNew={() => router.push("/instalacoes/nova")}
         newLabel="Nova instalação"
         columns={columns}
