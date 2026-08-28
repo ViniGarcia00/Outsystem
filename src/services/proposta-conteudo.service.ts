@@ -84,6 +84,8 @@ export interface WorkspaceDTO {
   // Datas
   emitidaAt: Date | null; // 1ª emissão da proposta (referência)
   revisaoEmitidaAt: Date | null; // emissão da revisão exibida
+  /** Aprovação da revisão exibida (ADR-0412). O fato mora na revisão. */
+  revisaoAprovadaEm: Date | null;
   updatedAt: Date;
   secoes: SecaoDTO[];
   /** Serviços complementares (Sprint 2.9.1) — paralelos ao Conteúdo. */
@@ -142,6 +144,7 @@ export async function getWorkspace(
         select: {
           revisionNumber: true,
           emittedAt: true,
+          aprovadaEm: true,
           secoes: {
             orderBy: { ordem: "asc" },
             select: {
@@ -197,6 +200,7 @@ export async function getWorkspace(
     frete: toNumber(p.frete),
     emitidaAt: p.emitidaAt,
     revisaoEmitidaAt: p.currentRevision?.emittedAt ?? null,
+    revisaoAprovadaEm: p.currentRevision?.aprovadaEm ?? null,
     updatedAt: p.updatedAt,
     secoes: (p.currentRevision?.secoes ?? []).map((s) => ({
       id: s.id,

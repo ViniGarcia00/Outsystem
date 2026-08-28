@@ -1,12 +1,23 @@
 "use client";
 
-import { AlertTriangle, Ban, FileDown, Save } from "lucide-react";
+import {
+  AlertTriangle,
+  Ban,
+  CheckCircle2,
+  FileDown,
+  Save,
+  Undo2,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
 import { AppPage, PageHeader } from "@/components/app";
-import { confirmDiscardChanges, FormDirtyGuard } from "@/components/shared";
+import {
+  ConfirmDialog,
+  confirmDiscardChanges,
+  FormDirtyGuard,
+} from "@/components/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,7 +25,9 @@ import type { WorkspaceDTO } from "@/services/proposta-conteudo.service";
 import { formatDate } from "@/utils";
 
 import {
+  aprovarPropostaAction,
   cancelarPropostaAction,
+  desfazerAprovacaoAction,
   emitirPropostaAction,
   salvarPropostaAction,
 } from "./actions";
@@ -75,6 +88,8 @@ export function PropostaWorkspace({
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [aprovando, setAprovando] = useState(false);
+  const [desfazerOpen, setDesfazerOpen] = useState(false);
 
   const marcarSujo = useCallback(() => setDirty(true), []);
   const { secoes, actions } = useConteudoMemoria(data.secoes, marcarSujo);
@@ -255,10 +270,48 @@ export function PropostaWorkspace({
     router.push("/propostas");
   };
 
+  // Aprovação (ADR-0412). Não forka e não toca no conteúdo: só registra que o
+  // cliente aprovou ESTA revisão. A invalidação vem depois, sozinha, quando a
+  // proposta for salva — não há nada a limpar aqui.
+  const aprovar = async () => {
+    setAprovando(true);
+    const result = await aprovarPropostaAction(data.id);
+    if (result.success) {
+      toast.success(`Proposta ${data.proposalNumber} aprovada.`);
+      router.refresh();
+    } else {
+      toast.error(result.error);
+    }
+    setAprovando(false);
+  };
+
+  // Correção de engano — volta a EMITIDA, mantendo a emissão. Confirma antes:
+  // é raro e desfaz um registro comercial.
+  const confirmDesfazer = async () => {
+    setAprovando(true);
+    const result = await desfazerAprovacaoAction(data.id);
+    if (result.success) {
+      toast.success("Aprovação desfeita.");
+      setDesfazerOpen(false);
+      router.refresh();
+    } else {
+      toast.error(result.error);
+    }
+    setAprovando(false);
+  };
+
   const semCliente = !header.clienteId;
   const temItens = secoes.some((s) => s.itens.length > 0);
   const podeEmitir =
     data.status === "RASCUNHO" && !dirty && !semCliente && temItens;
+
+  /**
+   * Os documentos já emitidos ficam abertos para consulta. Disjunção explícita,
+   * NÃO `status !== "RASCUNHO"`: essa forma incluiria CANCELADA e passaria a
+   * oferecer documento de proposta cancelada, que hoje não aparece.
+   */
+  const documentosEmitidos =
+    data.status === "EMITIDA" || data.status === "APROVADA";
 
   // Resumo Financeiro (Sprint 2.9.4): Automação + Serviços Complementares →
   // Total → Desconto (sobre o Total) → Frete → Total Geral. Derivado pela fonte
@@ -323,6 +376,10 @@ export function PropostaWorkspace({
           {dirty ? (
             <span className="text-amber-700 dark:text-amber-400">
               Há alterações não salvas. Clique em “Salvar Alterações”.
+            </span>
+          ) : data.status === "APROVADA" ? (
+            <span className="text-green-700 dark:text-green-400">
+              {`Aprovada em ${data.revisaoAprovadaEm ? formatDate(data.revisaoAprovadaEm, { hour: "2-digit", minute: "2-digit" }) : "—"}. Ao salvar qualquer alteração, o sistema cria uma nova revisão e a aprovação deixa de valer.`}
             </span>
           ) : data.status === "EMITIDA" ? (
             `Emitida em ${data.revisaoEmitidaAt ? formatDate(data.revisaoEmitidaAt) : "—"}. Ao salvar qualquer alteração, o sistema cria automaticamente uma nova revisão.`
@@ -404,6 +461,34 @@ export function PropostaWorkspace({
             Salvar Alterações
           </Button>
         )}
+        {/* Aprovar exige EMITIDA: o cliente só aprova o que lhe foi enviado.
+            Bloqueado com alterações pendentes — aprovar um conteúdo prestes a
+            mudar confunde, e salvar em seguida invalidaria na hora. */}
+        {data.status === "EMITIDA" && (
+          <Button
+            onClick={aprovar}
+            disabled={dirty || aprovando || saving}
+            title={
+              dirty
+                ? "Salve as alterações antes de aprovar."
+                : "Registra que o cliente aprovou o conteúdo desta revisão."
+            }
+          >
+            <CheckCircle2 className="h-4 w-4" />
+            Aprovar proposta
+          </Button>
+        )}
+        {data.status === "APROVADA" && (
+          <Button
+            variant="outline"
+            onClick={() => setDesfazerOpen(true)}
+            disabled={aprovando || saving}
+            title="Volta a proposta para Emitida, mantendo o documento."
+          >
+            <Undo2 className="h-4 w-4" />
+            Desfazer aprovação
+          </Button>
+        )}
         {data.status === "RASCUNHO" && (
           <Button
             variant="outline"
@@ -421,7 +506,7 @@ export function PropostaWorkspace({
             Gerar PDF Detalhado
           </Button>
         )}
-        {data.status === "EMITIDA" && (
+        {documentosEmitidos && (
           <Button variant="outline" onClick={abrirPdf}>
             <FileDown className="h-4 w-4" />
             Abrir PDF Detalhado
@@ -458,7 +543,7 @@ export function PropostaWorkspace({
             Gerar PDF Apresentação
           </Button>
         )}
-        {data.status === "EMITIDA" && !simplificada && (
+        {documentosEmitidos && !simplificada && (
           <Button variant="outline" onClick={abrirApresentacao}>
             <FileDown className="h-4 w-4" />
             Abrir PDF Apresentação
@@ -481,7 +566,7 @@ export function PropostaWorkspace({
             Emitir Contrato
           </Button>
         )}
-        {data.status === "EMITIDA" && (
+        {documentosEmitidos && (
           <Button variant="outline" onClick={abrirContrato}>
             <FileDown className="h-4 w-4" />
             Emitir Contrato
@@ -504,7 +589,7 @@ export function PropostaWorkspace({
             Emitir Anexo Contratual
           </Button>
         )}
-        {data.status === "EMITIDA" && (
+        {documentosEmitidos && (
           <Button variant="outline" onClick={abrirAnexoContratual}>
             <FileDown className="h-4 w-4" />
             Emitir Anexo Contratual
@@ -527,6 +612,14 @@ export function PropostaWorkspace({
         propostaLabel={`Proposta ${data.proposalNumber}`}
         submitting={saving}
         onConfirm={confirmCancelar}
+      />
+
+      <ConfirmDialog
+        open={desfazerOpen}
+        onOpenChange={setDesfazerOpen}
+        title="Desfazer aprovação"
+        description="A proposta volta para Emitida e o registro da aprovação desta revisão é removido. O documento emitido é preservado."
+        onConfirm={confirmDesfazer}
       />
     </AppPage>
   );

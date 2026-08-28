@@ -45,7 +45,18 @@ import {
 } from "./labels";
 import type { CancelarFormValues } from "./schema";
 
-const STATUS_ORDER: StatusProposta[] = ["RASCUNHO", "EMITIDA", "CANCELADA"];
+/**
+ * Ordem do filtro de status. **Array literal — o typecheck NÃO cobre isto.**
+ * `Record<StatusProposta, …>` em `labels.ts` quebra quando o enum cresce; esta
+ * lista, não. Ao acrescentar um status, ele precisa ser adicionado aqui à mão,
+ * senão some do filtro sem erro nenhum (ADR-0412).
+ */
+const STATUS_ORDER: StatusProposta[] = [
+  "RASCUNHO",
+  "EMITIDA",
+  "APROVADA",
+  "CANCELADA",
+];
 
 const searchAccessor = (p: PropostaListItem) =>
   [

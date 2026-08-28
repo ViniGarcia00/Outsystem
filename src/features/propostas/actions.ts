@@ -11,8 +11,10 @@ import {
   type ProdutoSuggestion,
 } from "@/services/produto.service";
 import {
+  aprovarProposta,
   cancelarProposta,
   criarPropostaCompleta,
+  desfazerAprovacao,
   duplicarProposta,
   emitirProposta,
   listPropostas,
@@ -93,6 +95,40 @@ export async function emitirPropostaAction(id: string): Promise<ActionResult> {
   } catch (error) {
     return fail(
       error instanceof Error ? error.message : "Falha ao gerar o PDF.",
+    );
+  }
+}
+
+/** "Aprovar proposta": registra a aprovação do conteúdo da revisão atual. */
+export async function aprovarPropostaAction(
+  id: string,
+): Promise<ActionResult> {
+  try {
+    await aprovarProposta(id);
+    revalidatePath("/propostas");
+    revalidatePath(`/propostas/${id}`);
+    return ok(undefined);
+  } catch (error) {
+    return fail(
+      error instanceof Error ? error.message : "Falha ao aprovar a proposta.",
+    );
+  }
+}
+
+/** "Desfazer aprovação": correção de engano; volta a proposta a EMITIDA. */
+export async function desfazerAprovacaoAction(
+  id: string,
+): Promise<ActionResult> {
+  try {
+    await desfazerAprovacao(id);
+    revalidatePath("/propostas");
+    revalidatePath(`/propostas/${id}`);
+    return ok(undefined);
+  } catch (error) {
+    return fail(
+      error instanceof Error
+        ? error.message
+        : "Falha ao desfazer a aprovação.",
     );
   }
 }
