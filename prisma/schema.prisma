@@ -287,6 +287,36 @@ model Proposta {
   obsComerciais      String? @db.Text
   obsTecnicas        String? @db.Text
 
+  // --- Campos CONTRATUAIS (Sprint 4.4, ADR-0416) -----------------------------
+  // Alimentam o contrato Rev. 4 e nada mais. Ficam aqui, no bloco de
+  // finalização, porque é onde já vivem `formaPagamento` e `previsaoInstalacao`.
+  // Ver a dívida registrada no ADR-0415: campos de cabeçalho NÃO são históricos
+  // por revisão — são sobrescritos no fork.
+
+  /// Prazo CONTRATUAL de execução, em dias úteis (cláusula 3.1 da Rev. 4).
+  ///
+  /// **Não confundir com `previsaoInstalacao`**, que é texto livre comercial
+  /// ("3 dias", "a combinar") exibido nos PDFs. Este é número, é prazo de
+  /// CONCLUSÃO e é cláusula — o template já traz "dias úteis" ao lado da tag.
+  ///
+  /// Nullable para retrocompatibilidade; obrigatório para gerar contrato Rev. 4.
+  prazoExecucaoDiasUteis Int?
+
+  /// Parcela final exigível no aceite (Anexo II da Rev. 4).
+  ///
+  /// **Informada, nunca derivada.** `formaPagamento` é texto livre e o sistema
+  /// não tem estrutura de parcelas nem registro de valor recebido — extrair
+  /// isto de uma frase por regex seria frágil num documento que vai para
+  /// assinatura (ADR-0416). Decimal, nunca Float.
+  valorParcelaFinal Decimal? @db.Decimal(12, 2)
+
+  /// Observações do Termo de Aceite (Anexo II). Substitui o último placeholder
+  /// manual do contrato, o `[se houver]`.
+  ///
+  /// **NÃO é `obsInternas`**, que é anotação de negociação e nunca sai do
+  /// sistema (ADR-0203) — colocá-la num documento assinado seria vazamento.
+  observacoesAceite String? @db.Text
+
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   /// Datas de status — carimbadas apenas na 1ª transição; nunca sobrescritas.
