@@ -378,6 +378,20 @@ model PropostaRevisao {
   /// NÃO existe `Proposta.aprovadaAt` — a resposta certa é sempre por revisão.
   aprovadaEm DateTime?
 
+  /// Versão do template de contrato vigente quando ESTA revisão foi emitida
+  /// (Sprint 4.4, ADR-0415). Carimbada em `emitirProposta`, junto de
+  /// `emittedAt`, e NUNCA reescrita — congela o texto jurídico do mesmo jeito
+  /// que `emittedAt` congela o conteúdo comercial.
+  ///
+  /// É o que impede um contrato antigo de mudar de redação quando o template é
+  /// trocado: o renderer escolhe o arquivo por ESTE valor, não pelo vigente.
+  ///
+  /// `null` = revisão nunca emitida, ou emitida antes deste campo existir; nos
+  /// dois casos o renderer assume `rev3` (`TEMPLATE_CONTRATO_PADRAO`). Não há
+  /// backfill de propósito: preencher retroativamente seria afirmar uma versão
+  /// que ninguém registrou.
+  templateContratoVersao String?
+
   propostaId String
   proposta   Proposta @relation("PropostaRevisoes", fields: [propostaId], references: [id], onDelete: Cascade)
 

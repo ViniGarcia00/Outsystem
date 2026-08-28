@@ -1,0 +1,18 @@
+-- Sprint 4.4 — versao do template de contrato por revisao emitida (ADR-0415).
+--
+-- O CONTRATO ERA GERADO SEMPRE COM O ARQUIVO QUE ESTIVESSE NO DISCO. Trocar o
+-- template reescrevia, em silencio, o texto juridico de qualquer contrato
+-- regenerado depois -- inclusive de propostas emitidas ou aprovadas ha meses.
+-- Esta coluna e o que corrige isso: a revisao passa a carregar a versao com que
+-- foi congelada, e o renderer escolhe o arquivo por ela.
+--
+-- Carimbada em `emitirProposta`, no mesmo instante e na mesma transacao que
+-- `emittedAt`. Nunca reescrita.
+--
+-- SEM BACKFILL, de proposito. As revisoes ja emitidas ficam NULL e o renderer
+-- assume `rev3` (TEMPLATE_CONTRATO_PADRAO) -- que e tudo o que existia ate aqui.
+-- Preencher retroativamente seria AFIRMAR no banco uma versao que ninguem
+-- registrou; o fallback entrega a mesma inferencia sem inventar dado.
+--
+-- Aditiva: nenhuma linha existente e alterada.
+ALTER TABLE "proposta_revisoes" ADD COLUMN "templateContratoVersao" TEXT;
