@@ -58,6 +58,8 @@ test("Dashboard: cards de Comercial e Instalações", async ({ page }) => {
   for (const card of [
     "Propostas em Rascunho",
     "Propostas Emitidas",
+    // Terceiro indicador comercial (Sprint 4.3, ADR-0412).
+    "Propostas Aprovadas",
     "A agendar",
     "Agendada",
     "Aguardando material",

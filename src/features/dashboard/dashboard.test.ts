@@ -36,16 +36,39 @@ const FONTE_VAZIA: FonteDashboard = {
 };
 
 describe("montarDashboard — contagens", () => {
-  it("conta propostas em Rascunho e Emitidas", () => {
+  it("conta propostas em Rascunho, Emitidas e Aprovadas", () => {
     const dto = montarDashboard({
       ...FONTE_VAZIA,
       propostasPorStatus: [
         { status: "RASCUNHO", total: 7 },
         { status: "EMITIDA", total: 3 },
+        { status: "APROVADA", total: 5 },
         { status: "CANCELADA", total: 99 },
       ],
     });
-    expect(dto.propostas).toEqual({ rascunho: 7, emitidas: 3 });
+    expect(dto.propostas).toEqual({ rascunho: 7, emitidas: 3, aprovadas: 5 });
+  });
+
+  /**
+   * APROVADA e EMITIDA são estados EXCLUSIVOS: aprovar move o status, não o
+   * acumula. Uma proposta aprovada não pode ser contada nos dois cards, senão o
+   * painel soma mais propostas do que existem (ADR-0412).
+   */
+  it("aprovada não é contada também como emitida", () => {
+    const dto = montarDashboard({
+      ...FONTE_VAZIA,
+      propostasPorStatus: [{ status: "APROVADA", total: 4 }],
+    });
+    expect(dto.propostas.aprovadas).toBe(4);
+    expect(dto.propostas.emitidas).toBe(0);
+  });
+
+  it("sem propostas aprovadas, o contador é zero — não ausente", () => {
+    const dto = montarDashboard({
+      ...FONTE_VAZIA,
+      propostasPorStatus: [{ status: "RASCUNHO", total: 2 }],
+    });
+    expect(dto.propostas.aprovadas).toBe(0);
   });
 
   it("conta instalações por status", () => {
@@ -167,7 +190,7 @@ describe("selecionarProximas", () => {
 describe("montarDashboard — estado vazio", () => {
   it("banco sem nada devolve tudo zerado e sem próximas", () => {
     expect(montarDashboard(FONTE_VAZIA)).toEqual({
-      propostas: { rascunho: 0, emitidas: 0 },
+      propostas: { rascunho: 0, emitidas: 0, aprovadas: 0 },
       instalacoes: {
         A_AGENDAR: 0,
         AGENDADA: 0,

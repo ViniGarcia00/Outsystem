@@ -56,9 +56,10 @@ export function DashboardView({ dados }: { dados: DashboardDTO }) {
   return (
     <div className="space-y-8">
       <Grupo titulo="Comercial">
-        {/* Dois indicadores: a fileira é de 2, não de 4. Com o grupo de Custos
-            removido (Sprint 4.2), uma fileira de 4 deixaria metade vazia. */}
-        <div className="grid gap-4 sm:grid-cols-2">
+        {/* Três indicadores, na ordem do ciclo comercial: Rascunho → Emitida →
+            Aprovada (Sprint 4.3). Eram dois desde a remoção do grupo de Custos
+            na 4.2. Custos NÃO volta aqui. */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Indicador
             rotulo="Propostas em Rascunho"
             valor={String(dados.propostas.rascunho)}
@@ -66,6 +67,10 @@ export function DashboardView({ dados }: { dados: DashboardDTO }) {
           <Indicador
             rotulo="Propostas Emitidas"
             valor={String(dados.propostas.emitidas)}
+          />
+          <Indicador
+            rotulo="Propostas Aprovadas"
+            valor={String(dados.propostas.aprovadas)}
           />
         </div>
       </Grupo>

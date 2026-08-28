@@ -51,7 +51,7 @@ export interface ProximaInstalacao {
 }
 
 export interface DashboardDTO {
-  propostas: { rascunho: number; emitidas: number };
+  propostas: { rascunho: number; emitidas: number; aprovadas: number };
   instalacoes: Record<StatusInstalacaoDashboard, number>;
   proximas: ProximaInstalacao[];
 }
@@ -116,6 +116,10 @@ export function montarDashboard(fonte: FonteDashboard): DashboardDTO {
     propostas: {
       rascunho: contar(fonte.propostasPorStatus, "RASCUNHO"),
       emitidas: contar(fonte.propostasPorStatus, "EMITIDA"),
+      // Estado EXCLUSIVO de EMITIDA — aprovar move o status, não acumula. O
+      // `groupBy` do service devolve uma linha por status, então somar os dois
+      // cards nunca conta a mesma proposta duas vezes (ADR-0412).
+      aprovadas: contar(fonte.propostasPorStatus, "APROVADA"),
     },
     instalacoes,
     proximas: selecionarProximas(fonte.candidatasProximas, fonte.inicioDeHoje),
