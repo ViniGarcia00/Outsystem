@@ -97,3 +97,15 @@ Fundir as duas tornaria toda a suíte dependente de banco. Quem roda o gate roda
   .docx no Microsoft Word** (ADR-0330): nenhum teste prova fidelidade de fonte,
   margem ou layout. Um gate manual pendente **impede** a conclusão da Sprint,
   como qualquer outro item.
+- **Quando o gate do Contrato reabre, e o que ele exige (desde a 1.7.0).** Reabre
+  sempre que o **texto jurídico** muda: nova versão de template, ou alteração no
+  arquivo de uma versão existente. Desde que o template é versionado (ADR-0415),
+  o gate não é mais um documento, e sim **um por caso de resolução vivo**:
+  1. a versão **histórica** sem carimbo — prova que contratos antigos continuam
+     saindo com o texto da época;
+  2. a versão **vigente em rascunho** — é o que o usuário pré-visualiza;
+  3. a **mesma proposta emitida** — tem de sair byte a byte igual à (2); qualquer
+     diferença significa que o texto jurídico mudou entre ver e emitir.
+  `scripts/gate-contrato-rev4.ts` produz os três pelo pipeline real de produção,
+  falha sozinho se (2) ≠ (3), e **apaga** a proposta que criou — o gate não deixa
+  resíduo no banco.

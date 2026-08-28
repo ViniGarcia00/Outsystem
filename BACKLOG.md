@@ -2,6 +2,34 @@
 
 > Vazio por design ao final da Sprint 0. Preenchido ao longo das Sprints.
 
+## Apurado na Sprint 4.4 — Contrato Rev. 4 (2026-08-28)
+
+- [ ] **Campos comerciais de cabeçalho não são históricos** (prioridade alta —
+      dívida ARQUITETURAL, registrada por decisão explícita do dono do produto)
+      **Contexto:** o conteúdo comercial (seções, itens, snapshot de produto) vive
+      na `PropostaRevisao` e sobrevive intacto a um fork. Mas **desconto, frete,
+      forma de pagamento, previsão de instalação** e os três campos contratuais
+      criados nesta Sprint (`prazoExecucaoDiasUteis`, `valorParcelaFinal`,
+      `observacoesAceite`) vivem na **`Proposta`** e são **sobrescritos** quando a
+      revisão seguinte nasce. Ou seja: a proposta guarda o **estado corrente**
+      desses campos, não o que foi enviado ao cliente na revisão N.
+      **Por que não gera documento errado hoje:** só existe rota para gerar
+      documento da **revisão atual**. O dia em que existir "regenerar o documento
+      da revisão 2", ela sairá com o desconto e o prazo de **hoje**.
+      **Por que não foi corrigido aqui:** mover esses campos para a revisão é
+      remodelagem de dados com migration de backfill, e a Sprint 4.4 foi aprovada
+      para versionar o template e ativar a Rev. 4 — misturar as duas coisas
+      tornaria impossível dizer qual mudança quebrou o quê.
+      **Regra até lá:** nenhuma documentação do projeto pode afirmar que "todos os
+      dados comerciais de uma revisão são imutáveis". Ver ADR-0415.
+
+- [ ] **Contrato só pode ser gerado da revisão atual** (prioridade baixa)
+      **Contexto:** `templateContratoVersao` já torna possível regenerar o
+      contrato de uma revisão antiga com o texto jurídico da época — a informação
+      está gravada. Falta a rota e a interface. Depende do item acima: sem os
+      campos de cabeçalho na revisão, regenerar o antigo entregaria o texto certo
+      com números errados.
+
 ## Apurado na Sprint 4.1 — Cadastro de Técnicos (2026-08-20)
 
 - [x] **Vendedor inativo desaparece do cabeçalho da Proposta** (prioridade média)

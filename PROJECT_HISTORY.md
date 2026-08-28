@@ -2265,3 +2265,196 @@ seguindo o padrão do projeto (Sprint 4.2, `4b7ebd1`; Release 1.5.1, `9848643`).
 `package-lock.json` **não** foi tocado — o repositório nunca o sincronizou com a
 versão (segue em `1.0.0` desde o início), e a instrução foi manter o
 comportamento estabelecido.
+
+---
+
+## Sprint 4.4 — Versionamento do template de contrato e Rev. 4
+
+- **Versão:** 1.6.0 → **1.7.0**
+- **Data:** 2026-08-28
+- **Branch:** `sprint-4.4` (nasceu de `5e1d743`, hash final da 1.6.0)
+- **Objetivo:** parar de tratar o contrato como **um arquivo** e passar a tratá-lo
+  como **um texto jurídico com versões**; sobre essa base, ativar a **Rev. 4**
+  enviada pelo jurídico, que transformou prazo de execução e parcela final em
+  variáveis da proposta.
+- **Plano:** `docs/superpowers/plans/2026-08-28-sprint4-4-contrato-rev4.md`
+- **ADRs:** ADR-0415 (versionamento e carimbo na revisão), ADR-0416 (campos
+  contratuais da Rev. 4 e guarda de geração)
+
+### A ordem das fases foi a decisão de projeto mais importante
+
+O versionamento entrou **antes** de existir uma segunda versão de template.
+Enquanto a Fase 1 não fechou verde, `TEMPLATE_CONTRATO_VIGENTE` permaneceu
+`rev3` — de modo que **não existiu nenhum instante** em que trocar o arquivo do
+template alterasse um contrato antigo. É a mesma disciplina da T2 da Sprint 4.3
+(trocar o gatilho do fork antes de habilitar `APROVADA`).
+
+O defeito que isso evita já estava lá antes desta Sprint: o contrato era gerado
+de um único arquivo, lido do disco a cada chamada, e **nunca armazenado**. Uma
+proposta emitida em março, cujo contrato fosse gerado de novo depois de o
+template ser trocado em setembro, sairia com o **texto jurídico novo e os dados
+comerciais antigos**, em silêncio.
+
+### FASE 1 — Versionamento (rev3 preservada, carimbo na revisão)
+
+- `contrato-outmat.docx` → `contrato-outmat.rev3.docx` (e o oficial de
+  proveniência junto), preservando a rev3 como a versão que já existia.
+- `docx/templates.ts`: catálogo versão → arquivo, vigência, tags e se a versão
+  exige os campos contratuais. **Em código, não em tabela** — o conjunto de tags
+  é um contrato de tipo com o `ContratoTemplateDTO`: renomear um campo tem de
+  quebrar o typecheck, não passar por um `INSERT`.
+- `PropostaRevisao.templateContratoVersao`, carimbada em `emitirProposta` na
+  **mesma transação e no mesmo instante** que `emittedAt`. Migration puramente
+  aditiva, **sem backfill**: preencher retroativamente seria *afirmar* uma versão
+  que ninguém registrou, quando a inferência correta já vem da regra de resolução.
+- O renderer passou a escolher o arquivo **pela versão da revisão**, nunca pela
+  vigente.
+
+### FASE 2 — Campos contratuais da Rev. 4
+
+`Proposta.prazoExecucaoDiasUteis` (Int), `valorParcelaFinal` (Decimal(12,2) —
+nunca Float) e `observacoesAceite` (Text), do schema ao bloco **Finalização** do
+workspace, passando por Zod, service, DTO e duplicação.
+
+**Parcela final "não informada" ≠ "zero".** O campo é controlado e permanece
+**vazio** quando o valor é nulo, porque o contrato precisa distinguir os dois: R$
+0,00 é um valor válido de parcela final, e a guarda só bloqueia o **ausente**.
+
+### FASE 3 — Ativação da Rev. 4
+
+Template do jurídico usado **como fonte de verdade**, sem reconstrução em outro
+DOCX. Só duas edições cirúrgicas no OOXML: `[se houver]` → `{observacoes}` e a
+padronização do estilo das tags novas (negrito + `3C77FF`), cada uma precedida de
+prova estrutural (round-trip do zip, diff parágrafo a parágrafo com alinhamento
+LCS). `TEMPLATE_CONTRATO_VIGENTE` passou a `rev4`, vigente desde **2026-08-28**.
+
+**Guarda de geração (ADR-0416):** versões que declaram `exigeCamposContratuais`
+não geram sem prazo e sem parcela final — o documento sairia com "de  dias
+úteis" e "R$ .". A guarda é **por versão, não por estado**: uma revisão histórica
+`rev3` nunca deixa de regenerar por causa de campos criados depois dela.
+
+### T15 — A descoberta: o rascunho mudava de texto jurídico ao ser emitido
+
+**O que foi encontrado.** Ao virar a vigência para `rev4` e exercitar o fluxo, um
+**RASCUNHO pré-visualizava a rev3 e, ao ser emitido, entregava a rev4**. Dois
+textos jurídicos diferentes na mesma sessão de trabalho — exatamente a surpresa
+silenciosa que esta Sprint existe para eliminar.
+
+**A causa.** O ADR-0415, escrito no início desta mesma Sprint, dizia:
+
+> `null` = revisão nunca emitida, **ou** emitida antes deste campo existir; nos
+> dois casos o renderer assume rev3.
+
+Os dois casos foram tratados como um só, **e não são**. "Nunca emitida" é um
+rascunho — algo que ainda vai acontecer. "Emitida antes da coluna existir" é
+história — algo que já aconteceu. O fallback `rev3` responde ao segundo e estava
+respondendo ao primeiro.
+
+**A regra final** (decisão do dono do produto, Opção A), num **único ponto** —
+`resolverVersaoTemplateContrato`:
+
+| `templateContratoVersao` | `emittedAt` | versão | por quê |
+| --- | --- | --- | --- |
+| carimbada | qualquer | **a carimbada** | é o que foi congelado |
+| `null` | preenchido | **`rev3`** | emitida antes de a coluna existir |
+| `null` | `null` | **a vigente** | rascunho: é o que a emissão vai gerar |
+
+**O fallback `rev3` é EXCLUSIVAMENTE histórico.** Existe para revisões já
+emitidas antes da coluna existir, e para mais nada. Um rascunho não é histórico —
+ele ainda não aconteceu.
+
+**Um único ponto de decisão, como determinado.** A resolução acontece no mapper
+do PDF e o `PropostaPdfDTO` carrega a versão **já resolvida**, tipada como
+`VersaoTemplateContrato` (nunca nula). `renderContratoDocx` e
+`validarGeracaoContrato` passaram a **exigir** versão concreta: não resolvem, não
+têm fallback, não repetem `if (emittedAt)` nem `if (versao)`. O typecheck garante
+que ninguém esqueça de passar.
+
+**Consequência desejada:** a guarda da Rev. 4 passou a valer **no rascunho**. O
+momento útil de avisar que falta o prazo é antes da emissão, não depois.
+
+**Correção do ADR-0415.** O ADR foi corrigido com a tabela dos três casos **e**
+com um bloco que registra a redação anterior e por que estava errada — o ADR não
+pode parecer que sempre disse isto.
+
+**Prova discriminante.** Revertendo a regra para `null => rev3` sempre:
+
+| Estado da regra | Resultado |
+| --- | --- |
+| regra dos três casos | **370/370 verde** |
+| revertida para `null => rev3` | **3 testes falham** (3 failed \| 367 passed) — os três do rascunho |
+| restaurada | **370/370 verde** |
+
+A alteração temporária **não** ficou na árvore.
+
+### Três pontos reportados durante a Sprint
+
+1. **Correção da contagem de testes: 306/306 → 310/310.** O número que eu havia
+   reportado estava desatualizado em quatro testes; a contagem correta foi
+   apurada e corrigida no relatório da fase.
+2. **NUL literal removido de `template-rev4.test.ts`** (`03c9bc9`). O arquivo foi
+   escrito com caracteres de controle crus, e o git passou a tratá-lo como
+   **binário** ("Bin 0 → 9465 bytes, 0 insertions") — um arquivo de teste
+   invisível ao `diff` e à revisão. Reescrito sem NUL, com verificação de que o
+   novo blob não contém nenhum.
+3. **Quatro testes preexistentes ajustados por consequência legítima**, não por
+   conveniência: a assinatura mais estrita de `renderContratoDocx` e
+   `validarGeracaoContrato` (versão obrigatória) obrigou a atualizar as chamadas
+   — 9 em `render.test.ts`, o caso do `null` em `template-rev4.test.ts` (que
+   virou teste do **resolver**, onde pertence), a guarda em
+   `contrato.mapper.test.ts` e o import na suíte de integração. Nenhuma asserção
+   foi enfraquecida.
+
+### T10 — E2E: a versão jurídica não muda entre pré-visualizar e emitir
+
+O teste percorre `RASCUNHO → contrato é Rev. 4 → usuário preenche os campos
+obrigatórios → emite → contrato continua Rev. 4`.
+
+**O discriminante é o 400.** Um rascunho que resolvesse para a `rev3` devolveria
+**200** na pré-visualização, porque aquele template não tem os campos novos. O
+bloqueio é, portanto, a prova de que o rascunho já é `rev4`. Depois da emissão, o
+contrato tem o **mesmo número de bytes** da pré-visualização.
+
+**Determinismo (desvio apurado durante a task).** As primeiras execuções falharam
+no segundo "Salvar Alterações" — ora por timeout, ora com o botão desabilitado. A
+causa não era a interface: `app/propostas/[id]/page.tsx` remonta o workspace por
+`key={data.updatedAt}` após salvar, e a remontagem chega em um **round-trip de
+servidor**. Digitar logo depois do toast corria contra ela, e o estado novo era
+descartado. Cada etapa passou a terminar em `reload()`, que além de
+determinístico **prova a persistência**: os campos voltam preenchidos do banco.
+
+### T16 — Gate visual manual: um documento por caso de resolução
+
+Desde que o template é versionado, o gate do Word deixou de ser "um documento" e
+passou a ser **um por caso de resolução vivo**. `scripts/gate-contrato-rev4.ts`
+produz os três pelo **pipeline real** de produção
+(`getPropostaPdfData` → `montarContratoTemplateDTO` → `renderContratoDocx`), sem
+atalho de renderização:
+
+| # | Documento | Caso que prova |
+| --- | --- | --- |
+| 1 | `1-historico-rev3.docx` | revisão emitida antes da Sprint 4.4, carimbo nulo → **rev3** |
+| 2 | `2-rascunho-rev4.docx` | rascunho sem carimbo → **vigente** (o que o usuário pré-visualiza) |
+| 3 | `3-emitido-rev4.docx` | a **mesma** proposta emitida, agora carimbada `rev4` |
+
+O script **falha sozinho** se (2) ≠ (3) em um byte, e **apaga** a proposta que
+criou — o gate não deixa resíduo no banco.
+
+### Dívida arquitetural registrada (decisão explícita, não corrigida aqui)
+
+Esta Sprint tornou explícita uma inconsistência **que já existia**:
+
+- **É histórico na `PropostaRevisao`:** `emittedAt`, `aprovadaEm`, o conteúdo
+  comercial (seções e itens, com snapshot de produto) e, agora,
+  `templateContratoVersao`.
+- **NÃO é histórico** — vive na `Proposta` e é **sobrescrito** no fork:
+  `formaPagamento`, desconto, `frete`, `previsaoInstalacao` e os três campos
+  novos desta Sprint.
+
+Não gera documento errado hoje, porque só existe rota para gerar documento da
+**revisão atual**. Registrada em `BACKLOG.md` e no ADR-0415, com a regra que a
+acompanha: **nenhuma documentação do projeto pode afirmar que "todos os dados
+comerciais de uma revisão são imutáveis"** enquanto isso não for verdade. A
+afirmação que existia em `ARCHITECTURE.md` ("produtos, serviços, seções, textos,
+totais, descontos, frete e impostos serão implementados exclusivamente dentro da
+Revisão") foi corrigida nesta Sprint.

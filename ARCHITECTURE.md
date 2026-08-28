@@ -65,6 +65,7 @@ src/
         presentation/        #   PDF Apresentação (13 templates, landscape 16:9)
         filename.ts          #   nome de download de TODOS os documentos
       docx/                  # geração do Contrato (docxtemplater)
+        templates.ts         #   catálogo versão → arquivo/tags + resolução
         contrato.mapper.ts   #   DTO → ContratoTemplateDTO (toda a regra)
         render.ts            #   preenche o template (sem regra)
         extenso.ts           #   valor por extenso
@@ -185,9 +186,17 @@ Proposta
  └── Revisão N
 ```
 
-Produtos, serviços, seções, textos, totais, descontos, frete e impostos serão
-implementados **exclusivamente** dentro da Revisão, evitando migrações quando
-chegarem PDF, histórico e comparação entre versões.
+Seções, itens e o snapshot de produto vivem **dentro da Revisão** — é o conteúdo
+comercial versionado, e é o que sobrevive intacto a um fork.
+
+> ⚠️ **O que NÃO é histórico hoje** (dívida registrada na Sprint 4.4, ADR-0415).
+> Desconto, frete, forma de pagamento, previsão de instalação e os campos
+> contratuais da Rev. 4 (`prazoExecucaoDiasUteis`, `valorParcelaFinal`,
+> `observacoesAceite`) vivem na **`Proposta`**, não na revisão: são
+> **sobrescritos** quando o fork acontece. Regenerar o documento de uma revisão
+> antiga hoje não expõe isso, porque só existe rota para a revisão atual — mas a
+> afirmação "todos os dados comerciais de uma revisão são imutáveis" **não é
+> verdadeira**, e esta documentação não a faz. Ver `BACKLOG.md`.
 
 ## 4.1. Camada de dados — Server Actions (Sprint 1)
 
@@ -300,12 +309,32 @@ Route Handler (runtime nodejs, force-dynamic, no-store)
   Slides 09 (Som), 10 (Wi-Fi) e 11 (Investimento Total) são **condicionais** —
   Automação = 10 páginas · +Som = 12 · +Wi-Fi = 12 · ambos = 13. Coordenadas dos
   overlays centralizadas em `coords.ts`. Bloqueado no modelo Simplificada.
-- **Contrato:** template oficial versionado (`contrato-outmat.oficial.docx`) +
-  `scripts/marcar-template-contrato.mjs`, que converte `[PLACEHOLDER]` → `{tag}`
-  de forma **seletiva** e **aborta** se o XML mudar fora de `<w:t>`/realce. Os
-  placeholders que o sistema não conhece ficam literais e realçados, para
-  preenchimento manual no Word. As chaves do `ContratoTemplateDTO` **são** as tags
-  do `.docx` — renomear um campo exige remarcar o template.
+- **Contrato:** um **arquivo por versão** do texto jurídico
+  (`contrato-outmat.rev3.docx`, `contrato-outmat.rev4.docx`), e **versões antigas
+  nunca são apagadas**. A proveniência difere entre elas: a rev3 veio de um
+  oficial com `[PLACEHOLDER]`, convertido por
+  `scripts/marcar-template-contrato.mjs` — que age **seletivamente** e **aborta**
+  se o XML mudar fora de `<w:t>`/realce; a rev4 chegou do jurídico **já marcada**,
+  sem etapa de conversão. Os placeholders que o sistema não conhece ficam
+  literais e realçados, para preenchimento manual no Word. As chaves do
+  `ContratoTemplateDTO` **são** as tags do `.docx` — renomear um campo exige
+  remarcar o template.
+- **Versionamento do contrato (ADR-0415):** `docx/templates.ts` é o catálogo
+  (versão → arquivo, vigência, tags, se exige os campos contratuais) e o **único
+  ponto** que decide qual versão uma revisão usa. `emitirProposta` carimba
+  `PropostaRevisao.templateContratoVersao` na mesma transação que `emittedAt`, e
+  o renderer usa **a versão da revisão**, nunca "a vigente" — trocar o template
+  não reescreve contrato nenhum já emitido. A ausência de carimbo tem dois
+  significados e é resolvida por `resolverVersaoTemplateContrato`: com
+  `emittedAt` é histórica (`rev3`); sem `emittedAt` é rascunho, e vale a
+  **vigente** — é o que a emissão vai gerar. O `PropostaPdfDTO` carrega a versão
+  **já resolvida**, então renderer, guarda e rota apenas consomem.
+- **Guarda de geração da Rev. 4 (ADR-0416):** as versões que declaram
+  `exigeCamposContratuais` só geram com `prazoExecucaoDiasUteis` e
+  `valorParcelaFinal` preenchidos — sem eles o documento sairia com
+  "de  dias úteis" e "R$ .". A guarda é **por versão, não por estado**: uma
+  revisão histórica `rev3` nunca deixa de regenerar por causa de campos criados
+  depois dela.
 - **Geral de Produtos (Sprint 4.0.3, ADR-0407):** consolida os produtos de
   **todas** as Seções, somando as ocorrências do mesmo produto.
   `consolidarProdutos` é **função pura** (`pdf/consolidado.ts`), agrupando por

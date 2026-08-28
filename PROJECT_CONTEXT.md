@@ -182,6 +182,21 @@ About é voltada ao usuário final e existirá também em produção.
 > passou a aceitar **anexos** (JPG/PNG/WebP/PDF, 10 MB, 10 por registro), com
 > upload por Route Handler. Ver ADR-0412..0414.
 >
+> **Estado atual (2026-08-28): Sprint 4.4 concluída na versão 1.7.0.** O
+> template do contrato passou a ser **versionado**: um arquivo por versão do
+> texto jurídico, catálogo em `docx/templates.ts` e a versão **carimbada na
+> revisão emitida** (`templateContratoVersao`), de modo que trocar o template não
+> reescreve nenhum contrato já enviado. Sobre essa base entrou a **Rev. 4**
+> (vigente desde 28/08/2026), que trouxe prazo de execução, parcela final e
+> observações do Termo de Aceite como campos da Proposta, com **guarda de
+> geração** para os dois primeiros. Ver ADR-0415 e ADR-0416.
+>
+> **Dívida registrada na 1.7.0:** desconto, frete, forma de pagamento, previsão
+> de instalação e os três campos contratuais vivem na `Proposta` e são
+> **sobrescritos** no fork — não são históricos, ao contrário do conteúdo
+> comercial (seções e itens). Hoje não produz documento errado porque só existe
+> rota para a revisão atual. Ver ADR-0415 e `BACKLOG.md`.
+>
 > **Próximos ciclos:** **Pedido de Venda** e **Ordem de Serviço**, nenhum dos
 > dois com design ou plano escritos — pelo processo do projeto, cada um exige
 > spec aprovada antes de qualquer código. O Pedido de Venda já tem de onde
@@ -195,10 +210,12 @@ About é voltada ao usuário final e existirá também em produção.
 > Ver `README.md` → Publicação e ADR-0414.
 >
 > **Pendência de release:** homologação visual do Contrato .docx no Microsoft
-> Word — gate manual obrigatório pelo ADR-0330. Reaberta na **Release 1.5.1**,
-> que alterou o texto de duas cláusulas do template oficial (3.1 e 9.2,
-> ADR-0411): nenhum teste prova fidelidade de fonte, margem ou layout, só a
-> inspeção no Word.
+> Word — gate manual obrigatório pelo ADR-0330, reaberto sempre que o texto
+> jurídico muda. Aconteceu na **1.5.1** (cláusulas 3.1 e 9.2 do template
+> oficial, ADR-0411) e de novo na **1.7.0**, com a Rev. 4 inteira. Nenhum teste
+> prova fidelidade de fonte, margem ou layout — só a inspeção no Word.
+> `scripts/gate-contrato-rev4.ts` produz os três documentos do gate pelo
+> pipeline real, sem deixar resíduo no banco.
 >
 > **Nota de numeração:** o rótulo "Sprint 3.1" foi usado duas vezes — 3.1 (a) é o
 > PDF Apresentação (ADR-0301) e 3.1 (b) é a Documentação Contratual (ADR-0330).

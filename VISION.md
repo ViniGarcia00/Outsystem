@@ -307,6 +307,21 @@ acontecimento — nunca um campo único que se sobrescreve.
   aparecendo como Aprovada.
 - **Desfazer aprovação** existe para o clique errado: volta a Emitida e preserva
   o documento. Só mexe na revisão atual — histórico não se reescreve.
+
+### Contrato: o texto jurídico da época (1.7.0)
+
+- **O contrato sai na versão com que a proposta foi emitida**, não na versão em
+  vigor hoje. Publicar um texto novo não reescreve, em silêncio, contrato nenhum
+  que já foi enviado ao cliente. Versões antigas do documento nunca são apagadas.
+- **A pré-visualização é o documento.** Um rascunho já mostra o texto que a
+  emissão vai gerar — não existe troca de versão jurídica entre ver e emitir.
+- **Rev. 4 (vigente desde 28/08/2026):** prazo de execução e parcela final
+  deixaram de ser preenchidos à mão no Word e passaram a vir da proposta, com as
+  observações do Termo de Aceite. Enquanto os dois primeiros não estiverem
+  informados, o sistema **não gera** o contrato — em vez de entregar um documento
+  com "de  dias úteis" para assinatura.
+- **Contratos antigos continuam sendo gerados** exatamente como eram, sem exigir
+  campos que não existiam quando foram emitidos.
 - Toda mudança relevante é registrada em **auditoria**, na mesma transação.
 - A duplicação **não copia** as observações internas.
 

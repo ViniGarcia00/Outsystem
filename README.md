@@ -70,10 +70,18 @@ em disco. Todos consomem o **mesmo carregador de dados**; os comerciais usam o
 | **Anexo Contratual** | `/propostas/[id]/contratual` | PDF — escopo aprovado, sem preço por item |
 | **Geral de Produtos** | `/propostas/[id]/produtos` | PDF — lista de material, produtos somados entre as Seções, sem valores; **não emite** a proposta |
 
-O Contrato é preenchido a partir do template oficial versionado em
-`public/templates/contrato/`. **O template nunca é alterado pelo sistema** — só
-os placeholders são substituídos, e os campos que o sistema não conhece
-permanecem realçados para preenchimento manual no Word.
+O Contrato é preenchido a partir dos templates oficiais em
+`public/templates/contrato/`, **um arquivo por versão do texto jurídico**
+(`contrato-outmat.rev3.docx`, `contrato-outmat.rev4.docx`). **O template nunca é
+alterado pelo sistema** — só os placeholders são substituídos, e os campos que o
+sistema não conhece permanecem realçados para preenchimento manual no Word.
+
+**O contrato sai na versão com que a proposta foi emitida**, não na versão em
+vigor hoje: a versão é carimbada na revisão no momento da emissão, então publicar
+um texto novo não reescreve contratos já enviados. Versões antigas **nunca são
+apagadas**. A partir da **Rev. 4** (vigente desde 28/08/2026), prazo de execução e
+parcela final vêm da proposta — sem os dois preenchidos, o sistema não gera o
+documento.
 
 ---
 
