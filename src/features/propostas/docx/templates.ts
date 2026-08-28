@@ -73,7 +73,7 @@ export type VersaoTemplateContrato = keyof typeof TEMPLATES_CONTRATO;
  * Trocar esta constante NÃO altera nenhum contrato já emitido: cada revisão
  * carrega a versão com que foi congelada.
  */
-export const TEMPLATE_CONTRATO_VIGENTE: VersaoTemplateContrato = "rev3";
+export const TEMPLATE_CONTRATO_VIGENTE: VersaoTemplateContrato = "rev4";
 
 /**
  * Versão assumida quando a revisão não tem carimbo.
