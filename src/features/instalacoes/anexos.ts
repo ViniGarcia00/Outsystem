@@ -131,7 +131,7 @@ export function validarArquivo(a: {
  */
 export function sanitizarNomeOriginal(nome: string): string {
   const limpo = nome
-    // eslint-disable-next-line no-control-regex -- caracteres de controle sao o alvo
+    // Faixa de controle C0 mais DEL: sao os que sujariam um header.
     .replace(/[\u0000-\u001f\u007f]/g, "")
     .trim()
     .slice(0, 255);
