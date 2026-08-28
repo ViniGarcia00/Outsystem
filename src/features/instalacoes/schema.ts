@@ -53,6 +53,15 @@ const dataOpcional = z
   .refine(ehDataDeInputValida, "Data inválida.");
 
 const camposComuns = {
+  /**
+   * Identificação operacional da obra (ADR-0413). Obrigatório: é a coluna
+   * principal da listagem, e o formulário de criação já o sugere a partir do
+   * Cliente — exigir não custa digitação ao usuário.
+   *
+   * Fica em `camposComuns` de propósito: ao contrário do endereço e do cliente,
+   * o apelido CONTINUA editável depois da criação. É rótulo, não snapshot.
+   */
+  apelido: requiredText("Apelido", 80),
   propostaId: z.string().nullable(),
   /** Vínculo com o cadastro de Técnicos (ADR-0408). Opcional, como era o texto. */
   tecnicoResponsavelId: z.string().nullable(),

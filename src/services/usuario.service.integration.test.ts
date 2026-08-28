@@ -265,6 +265,9 @@ describe("guarda de papel em Instalação (ADR-0410)", () => {
   it("vincula um usuário com papel de técnico", async () => {
     const i = await criarInstalacao({
       clienteId,
+      // Apelido passou a ser obrigatório na Sprint 4.3 (ADR-0413). O que este
+      // teste prova continua sendo a guarda de papel, não o apelido.
+      apelido: `${MARCA} Obra`,
       propostaId: null,
       tecnicoResponsavelId: tecnicoId,
       status: "A_AGENDAR",
@@ -289,6 +292,7 @@ describe("guarda de papel em Instalação (ADR-0410)", () => {
     await expect(
       criarInstalacao({
         clienteId,
+        apelido: `${MARCA} Obra Recusada`,
         propostaId: null,
         tecnicoResponsavelId: vendedorId,
         status: "A_AGENDAR",

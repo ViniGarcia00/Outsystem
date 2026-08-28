@@ -37,6 +37,8 @@ export type { StatusInstalacao };
 export interface InstalacaoListItem {
   id: string;
   numero: number;
+  /** Identificação principal da obra na listagem (ADR-0413). */
+  apelido: string;
   clienteNome: string;
   dataAgendada: Date | null;
   /** Nome do Técnico responsável no momento da leitura (não é snapshot). */
@@ -49,6 +51,8 @@ export interface InstalacaoListItem {
 export interface InstalacaoDetalhe extends EnderecoInstalacao {
   id: string;
   numero: number;
+  /** Identificação operacional, editável (ADR-0413). */
+  apelido: string;
   clienteId: string;
   clienteNome: string;
   propostaId: string | null;
@@ -76,6 +80,8 @@ export interface PropostaSuggestion {
  * derivado do Cliente persistido, dentro do service.
  */
 export interface InstalacaoInput {
+  /** Identificação operacional da obra (ADR-0413). Obrigatória. */
+  apelido: string;
   propostaId: string | null;
   tecnicoResponsavelId: string | null;
   status: StatusInstalacao;
@@ -142,6 +148,7 @@ export async function listInstalacoes(): Promise<InstalacaoListItem[]> {
       id: true,
       numero: true,
       dataAgendada: true,
+      apelido: true,
       tecnicoResponsavel: { select: { nome: true } },
       status: true,
       cidade: true,
@@ -156,6 +163,9 @@ export async function listInstalacoes(): Promise<InstalacaoListItem[]> {
   return rows.map((r) => ({
     id: r.id,
     numero: r.numero,
+    // Fallback defensivo: a coluna é nullable e o backfill preencheu tudo, mas
+    // a identificação principal da listagem nunca pode sair vazia.
+    apelido: r.apelido ?? nomeCliente(r.cliente),
     clienteNome: nomeCliente(r.cliente),
     dataAgendada: r.dataAgendada,
     responsavelNome: r.tecnicoResponsavel?.nome ?? null,
@@ -181,6 +191,7 @@ export async function getInstalacao(
   return {
     id: i.id,
     numero: i.numero,
+    apelido: i.apelido ?? nomeCliente(i.cliente),
     clienteId: i.clienteId,
     clienteNome: nomeCliente(i.cliente),
     propostaId: i.propostaId,
@@ -211,6 +222,7 @@ export async function getInstalacao(
 /** Campos de escrita comuns a criação e edição. Nunca inclui endereço. */
 function toData(input: InstalacaoInput) {
   return {
+    apelido: input.apelido.trim(),
     propostaId: input.propostaId,
     tecnicoResponsavelId: input.tecnicoResponsavelId,
     status: input.status,

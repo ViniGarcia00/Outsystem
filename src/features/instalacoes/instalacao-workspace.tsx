@@ -77,6 +77,7 @@ export function InstalacaoWorkspace({
   const form = useForm<CabecalhoInstalacaoValues>({
     resolver: zodResolver(cabecalhoInstalacaoSchema),
     defaultValues: {
+      apelido: data.apelido,
       propostaId: data.propostaId,
       tecnicoResponsavelId: data.tecnicoResponsavelId,
       status: data.status,
@@ -156,6 +157,14 @@ export function InstalacaoWorkspace({
                     aria-label="Cliente"
                   />
                 </div>
+                {/* Editável depois da criação, ao contrário do endereço: o
+                    apelido é rótulo operacional, não snapshot (ADR-0413). */}
+                <TextField
+                  name="apelido"
+                  label="Apelido"
+                  placeholder="Ex.: Casa Alphaville, Apartamento Moema"
+                  disabled={readOnly}
+                />
                 <PropostaAutocomplete
                   value={propostaIdAtual}
                   initialLabel={propostaLabel}
