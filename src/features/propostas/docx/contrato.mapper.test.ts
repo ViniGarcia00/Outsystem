@@ -283,9 +283,13 @@ describe("validarGeracaoContrato", () => {
     expect(validarGeracaoContrato(dto(), "rev3")).toBeNull();
   });
 
-  it("NÃO bloqueia revisão sem carimbo — cai no padrão rev3", () => {
-    for (const v of [null, undefined, "", "desconhecida"]) {
-      expect(validarGeracaoContrato(dto(), v)).toBeNull();
-    }
+  /**
+   * A guarda recebe a versão JÁ RESOLVIDA (ADR-0415): quem decide rev3 x rev4 é
+   * `resolverVersaoTemplateContrato`, no mapper do PDF. Aqui só se testa o
+   * efeito de cada versão — sem repetir a condição.
+   */
+  it("bloqueia por VERSÃO, não por estado da proposta", () => {
+    expect(validarGeracaoContrato(dto(), "rev3")).toBeNull();
+    expect(validarGeracaoContrato(dto(), "rev4")).toBe(CONTRATO_SEM_PRAZO);
   });
 });

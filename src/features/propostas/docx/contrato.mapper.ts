@@ -1,7 +1,7 @@
 import type { PropostaPdfDTO } from "@/services/proposta-pdf.mapper";
 
 import { valorPorExtenso } from "./extenso";
-import { resolverVersaoTemplate, templateDe } from "./templates";
+import { templateDe, type VersaoTemplateContrato } from "./templates";
 
 /**
  * Mapper do Contrato (.docx) — Sprint 3.1.
@@ -136,9 +136,9 @@ export const CONTRATO_SEM_PARCELA_FINAL =
  */
 export function validarGeracaoContrato(
   dto: PropostaPdfDTO,
-  versao: string | null | undefined,
+  versao: VersaoTemplateContrato,
 ): string | null {
-  if (!templateDe(resolverVersaoTemplate(versao)).exigeCamposContratuais) {
+  if (!templateDe(versao).exigeCamposContratuais) {
     return null;
   }
   if (dto.prazoExecucaoDiasUteis == null) return CONTRATO_SEM_PRAZO;

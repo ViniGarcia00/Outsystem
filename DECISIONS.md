@@ -2212,11 +2212,37 @@ Sprint de refinamento (escopo estrito):
   de dados para resolver um problema que um mapa de duas entradas resolve.
   Fica **explicitamente fora de escopo** nesta release.
 
-- **Retrocompatibilidade: `null` significa `rev3`.** As revisões já emitidas
-  ficam com a coluna nula e continuam renderizando o texto que sempre tiveram.
+- **Regra de resolução — a ausência de carimbo tem DOIS significados.**
+
+  | `templateContratoVersao` | `emittedAt` | versão | por quê |
+  | --- | --- | --- | --- |
+  | carimbada | qualquer | **a carimbada** | é o que foi congelado |
+  | `null` | preenchido | **`rev3`** | emitida antes de a coluna existir |
+  | `null` | `null` | **a vigente** | rascunho: é o que a emissão vai gerar |
+
+  **O fallback `rev3` existe EXCLUSIVAMENTE para revisões históricas já
+  emitidas.** Um rascunho não é histórico — ele ainda não aconteceu.
+
   Migration puramente aditiva, sem backfill: preencher retroativamente seria
-  **afirmar** uma versão que ninguém registrou, quando a inferência correta
-  ("tudo que existe hoje é rev3") já é dada pelo fallback.
+  **afirmar** uma versão que ninguém registrou, quando a inferência correta já é
+  dada pela regra acima.
+
+  A decisão vive num **único ponto**, `resolverVersaoTemplateContrato`, e o
+  `PropostaPdfDTO` carrega a versão **já resolvida**. Renderer, guarda e rota
+  apenas consomem — nenhum deles repete a condição.
+
+  > **Correção da redação original (T15.1).** Este ADR dizia "`null` = revisão
+  > nunca emitida, **ou** emitida antes deste campo existir; nos dois casos o
+  > renderer assume rev3". Os dois casos foram tratados como um só, e não são. O
+  > efeito, encontrado na T15 ao virar a vigência: um **rascunho
+  > pré-visualizava a rev3 e, ao ser emitido, entregava a rev4** — dois textos
+  > jurídicos na mesma sessão, que é exatamente a surpresa silenciosa que este
+  > ADR existe para eliminar. A regra acima substitui aquela redação.
+
+- **A guarda da Rev. 4 vale também em rascunho**, como consequência direta: se o
+  rascunho resolve para `rev4`, gerar o contrato sem `prazoExecucaoDiasUteis` ou
+  sem `valorParcelaFinal` é bloqueado ali. É o momento útil de avisar — antes da
+  emissão, não depois. Histórico `rev3` continua isento.
 
 - **Ordem de implementação como parte da decisão.** O versionamento entra
   **antes** de existir uma segunda versão de template. Enquanto a Fase 1 não

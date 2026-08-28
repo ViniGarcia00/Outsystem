@@ -90,16 +90,34 @@ export function ehVersaoConhecida(v: unknown): v is VersaoTemplateContrato {
 }
 
 /**
- * Resolve a versão a ser usada na renderização.
+ * ÚNICO ponto que decide qual template uma revisão usa (ADR-0415).
  *
- * Nulo, vazio ou desconhecido caem no padrão histórico. Uma versão que sumiu do
- * catálogo é sinal de template apagado — o que o ADR-0415 proíbe —, mas ainda
- * assim é melhor entregar o contrato mais antigo conhecido do que quebrar.
+ * A ausência de carimbo tem DOIS significados distintos, e tratá-los como um só
+ * produzia o defeito encontrado na T15: um rascunho pré-visualizava a rev3 e,
+ * ao ser emitido, entregava a rev4 — dois textos jurídicos na mesma sessão.
+ *
+ * | `templateContratoVersao` | `emittedAt` | versão      | por quê |
+ * | ------------------------ | ----------- | ----------- | ------- |
+ * | carimbada                | qualquer    | a carimbada | o que foi congelado |
+ * | `null`                   | preenchido  | **rev3**    | emitida antes da coluna existir |
+ * | `null`                   | `null`      | **vigente** | rascunho: é o que a emissão vai gerar |
+ *
+ * **O fallback `rev3` existe exclusivamente para revisões HISTÓRICAS já
+ * emitidas.** Um rascunho não é histórico — ele ainda não aconteceu.
+ *
+ * Nenhum outro arquivo repete esta condição: o DTO carrega a versão já
+ * resolvida, e renderer, mapper e rota apenas a consomem.
  */
-export function resolverVersaoTemplate(
-  versao: string | null | undefined,
-): VersaoTemplateContrato {
-  return ehVersaoConhecida(versao) ? versao : TEMPLATE_CONTRATO_PADRAO;
+export function resolverVersaoTemplateContrato(revisao: {
+  templateContratoVersao: string | null | undefined;
+  emittedAt: Date | null | undefined;
+}): VersaoTemplateContrato {
+  if (ehVersaoConhecida(revisao.templateContratoVersao)) {
+    return revisao.templateContratoVersao;
+  }
+  return revisao.emittedAt != null
+    ? TEMPLATE_CONTRATO_PADRAO
+    : TEMPLATE_CONTRATO_VIGENTE;
 }
 
 /** Metadados da versão já resolvida. */

@@ -43,13 +43,13 @@ const conta = (s: string, sub: string) => s.split(sub).length - 1;
 
 describe("renderContratoDocx", () => {
   it("gera um .docx válido (zip com word/document.xml)", () => {
-    const buffer = renderContratoDocx(DTO);
+    const buffer = renderContratoDocx(DTO, "rev3");
     expect(buffer.length).toBeGreaterThan(0);
     expect(new PizZip(buffer).file("word/document.xml")).toBeTruthy();
   });
 
   it("preenche todos os campos do DTO", () => {
-    const texto = textoDe(renderContratoDocx(DTO));
+    const texto = textoDe(renderContratoDocx(DTO, "rev3"));
     expect(texto).toContain("ACME COMÉRCIO LTDA");
     expect(texto).toContain("12.345.678/0001-90");
     expect(texto).toContain("Rua X, 123, Centro, Curitiba/PR, CEP 80000-000");
@@ -57,19 +57,19 @@ describe("renderContratoDocx", () => {
   });
 
   it("não deixa nenhuma tag {..} por resolver nem escreve 'undefined'", () => {
-    const texto = textoDe(renderContratoDocx(DTO));
+    const texto = textoDe(renderContratoDocx(DTO, "rev3"));
     expect(texto).not.toMatch(/[{}]/);
     expect(texto).not.toContain("undefined");
   });
 
   it("não duplica o R$ da cláusula 2.1", () => {
-    const texto = textoDe(renderContratoDocx(DTO));
+    const texto = textoDe(renderContratoDocx(DTO, "rev3"));
     expect(texto).toContain("valor total de R$ 12.345,67");
     expect(texto).not.toContain("R$ R$");
   });
 
   it("põe o extenso dentro dos parênteses que o template já tem", () => {
-    expect(textoDe(renderContratoDocx(DTO))).toContain(
+    expect(textoDe(renderContratoDocx(DTO, "rev3"))).toContain(
       "(doze mil trezentos e quarenta e cinco reais e sessenta e sete centavos)",
     );
   });
@@ -83,14 +83,14 @@ describe("renderContratoDocx", () => {
    * (9.2) como termo contratual, então sobraram 2.
    */
   it("preserva os campos de preenchimento manual", () => {
-    const texto = textoDe(renderContratoDocx(DTO));
+    const texto = textoDe(renderContratoDocx(DTO, "rev3"));
     expect(conta(texto, "[Nº]")).toBe(2);
     expect(texto).toContain("[VALOR]");
     expect(texto).toContain("[se houver]");
   });
 
   it("usa exclusivamente o DTO — trocar um campo muda só aquele texto", () => {
-    const outro = textoDe(renderContratoDocx({ ...DTO, clienteNome: "OUTRO CLIENTE" }));
+    const outro = textoDe(renderContratoDocx({ ...DTO, clienteNome: "OUTRO CLIENTE" }, "rev3"));
     expect(outro).toContain("OUTRO CLIENTE");
     expect(outro).not.toContain("ACME COMÉRCIO LTDA");
     // O resto do contrato não se move.
@@ -99,7 +99,7 @@ describe("renderContratoDocx", () => {
 
   it("reexibe a instrução do template quando a forma de pagamento vem vazia", () => {
     const texto = textoDe(
-      renderContratoDocx({ ...DTO, formaPagamento: INSTRUCAO_FORMA_PAGAMENTO }),
+      renderContratoDocx({ ...DTO, formaPagamento: INSTRUCAO_FORMA_PAGAMENTO }, "rev3"),
     );
     expect(texto).toContain("[DESCREVA AQUI A FORMA DE PAGAMENTO");
   });
@@ -115,7 +115,7 @@ describe("renderContratoDocx", () => {
  * template, que olha o XML cru.
  */
 describe("contrato entregue — termos fixados (Release 1.5.1)", () => {
-  const texto = () => textoDe(renderContratoDocx(DTO));
+  const texto = () => textoDe(renderContratoDocx(DTO, "rev3"));
 
   it("9.2 — multa de rescisão de 20% sobre o saldo do contrato", () => {
     expect(texto()).toContain(

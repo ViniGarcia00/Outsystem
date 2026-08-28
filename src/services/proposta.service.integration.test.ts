@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
   TEMPLATE_CONTRATO_VIGENTE,
-  resolverVersaoTemplate,
+  resolverVersaoTemplateContrato,
 } from "@/features/propostas/docx/templates";
 import { prisma } from "@/infrastructure/database";
 
@@ -507,7 +507,14 @@ describe("versão do template de contrato", () => {
       select: { templateContratoVersao: true },
     });
     expect(rev.templateContratoVersao).toBeNull();
-    expect(resolverVersaoTemplate(rev.templateContratoVersao)).toBe("rev3");
+    // Emitida sem carimbo = histórica -> rev3. Um rascunho (emittedAt nulo)
+    // resolveria para a VIGENTE, e é essa distinção que a T15.1 corrigiu.
+    expect(
+      resolverVersaoTemplateContrato({
+        templateContratoVersao: rev.templateContratoVersao,
+        emittedAt: new Date(),
+      }),
+    ).toBe("rev3");
   });
 
   it("duplicar gera Rev.0 sem carimbo — a cópia ainda não foi emitida", async () => {

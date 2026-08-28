@@ -1,4 +1,8 @@
 import {
+  resolverVersaoTemplateContrato,
+  type VersaoTemplateContrato,
+} from "@/features/propostas/docx/templates";
+import {
   calcularResumoFinanceiro,
   calcularTotais,
   totalProdutoLinha,
@@ -97,11 +101,14 @@ export interface PropostaPdfDTO {
   nomeProjeto: string | null;
   revisao: number | null;
   /**
-   * Versão do template de contrato com que a revisão foi congelada
-   * (ADR-0415). Nula em revisões nunca emitidas ou anteriores à Sprint 4.4 —
-   * o renderer resolve o fallback.
+   * Versão do template de contrato JÁ RESOLVIDA (ADR-0415) — nunca nula.
+   *
+   * A decisão acontece uma única vez, aqui no mapper, via
+   * `resolverVersaoTemplateContrato`: revisão carimbada usa a versão dela;
+   * revisão emitida sem carimbo é histórica e usa rev3; rascunho usa a vigente.
+   * Renderer, guarda e rota apenas consomem — nenhum deles repete a condição.
    */
-  templateContratoVersao: string | null;
+  templateContratoVersao: VersaoTemplateContrato;
   /** Data de referência: emissão da revisão → emissão da proposta → criação. */
   data: Date;
   validadeDias: number;
@@ -329,7 +336,10 @@ export function montarPropostaPdfDTO(
     numero: p.proposalNumber,
     nomeProjeto: nn(p.nomeProjeto),
     revisao: p.currentRevision?.revisionNumber ?? null,
-    templateContratoVersao: p.currentRevision?.templateContratoVersao ?? null,
+    templateContratoVersao: resolverVersaoTemplateContrato({
+      templateContratoVersao: p.currentRevision?.templateContratoVersao,
+      emittedAt: p.currentRevision?.emittedAt,
+    }),
     data: p.currentRevision?.emittedAt ?? p.emitidaAt ?? p.createdAt,
     validadeDias: p.validadeDias,
     simplificada,

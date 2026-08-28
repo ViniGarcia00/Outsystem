@@ -8,7 +8,7 @@ import {
   TEMPLATE_CONTRATO_PADRAO,
   TEMPLATE_CONTRATO_VIGENTE,
   ehVersaoConhecida,
-  resolverVersaoTemplate,
+  resolverVersaoTemplateContrato,
   templateDe,
   type VersaoTemplateContrato,
 } from "./templates";
@@ -85,15 +85,87 @@ describe("versão vigente e padrão", () => {
   });
 });
 
-describe("resolverVersaoTemplate", () => {
-  it("devolve a versão quando ela é conhecida", () => {
-    expect(resolverVersaoTemplate("rev3")).toBe("rev3");
-    expect(resolverVersaoTemplate("rev4")).toBe("rev4");
+/**
+ * A regra corrigida na T15.1 (ADR-0415). A ausência de carimbo tem DOIS
+ * significados, e trata-los como um so fazia um rascunho pre-visualizar a rev3
+ * e emitir a rev4 -- dois textos juridicos na mesma sessao.
+ */
+describe("resolverVersaoTemplateContrato", () => {
+  const EMITIDA = new Date("2026-07-20T12:00:00Z");
+
+  it("1. carimbada rev3 + emitida -> rev3", () => {
+    expect(
+      resolverVersaoTemplateContrato({
+        templateContratoVersao: "rev3",
+        emittedAt: EMITIDA,
+      }),
+    ).toBe("rev3");
   });
 
-  it("cai no padrão histórico para nulo, vazio ou desconhecido", () => {
-    for (const v of [null, undefined, "", "rev99", "REV4", " rev4 "]) {
-      expect(resolverVersaoTemplate(v)).toBe(TEMPLATE_CONTRATO_PADRAO);
+  it("2. carimbada rev4 + emitida -> rev4", () => {
+    expect(
+      resolverVersaoTemplateContrato({
+        templateContratoVersao: "rev4",
+        emittedAt: EMITIDA,
+      }),
+    ).toBe("rev4");
+  });
+
+  it("3. SEM carimbo + emitida -> rev3 (historica, anterior a coluna)", () => {
+    expect(
+      resolverVersaoTemplateContrato({
+        templateContratoVersao: null,
+        emittedAt: EMITIDA,
+      }),
+    ).toBe("rev3");
+  });
+
+  it("4. SEM carimbo + NAO emitida -> a VIGENTE (rascunho)", () => {
+    expect(
+      resolverVersaoTemplateContrato({
+        templateContratoVersao: null,
+        emittedAt: null,
+      }),
+    ).toBe(TEMPLATE_CONTRATO_VIGENTE);
+  });
+
+  it("o carimbo manda mesmo em revisao nao emitida", () => {
+    expect(
+      resolverVersaoTemplateContrato({
+        templateContratoVersao: "rev3",
+        emittedAt: null,
+      }),
+    ).toBe("rev3");
+  });
+
+  it("versao desconhecida cai na mesma regra do nulo", () => {
+    for (const v of ["", "rev99", "REV4", " rev4 ", undefined]) {
+      expect(
+        resolverVersaoTemplateContrato({ templateContratoVersao: v, emittedAt: EMITIDA }),
+      ).toBe(TEMPLATE_CONTRATO_PADRAO);
+      expect(
+        resolverVersaoTemplateContrato({ templateContratoVersao: v, emittedAt: null }),
+      ).toBe(TEMPLATE_CONTRATO_VIGENTE);
+    }
+  });
+
+  /**
+   * O ponto da correcao: rascunho e revisao historica NAO podem resolver igual.
+   * Se um dia os dois voltarem a coincidir, este teste falha.
+   */
+  it("rascunho e historica resolvem DIFERENTE enquanto a vigente nao for rev3", () => {
+    const rascunho = resolverVersaoTemplateContrato({
+      templateContratoVersao: null,
+      emittedAt: null,
+    });
+    const historica = resolverVersaoTemplateContrato({
+      templateContratoVersao: null,
+      emittedAt: EMITIDA,
+    });
+    expect(historica).toBe("rev3");
+    expect(rascunho).toBe(TEMPLATE_CONTRATO_VIGENTE);
+    if (TEMPLATE_CONTRATO_VIGENTE !== "rev3") {
+      expect(rascunho).not.toBe(historica);
     }
   });
 });

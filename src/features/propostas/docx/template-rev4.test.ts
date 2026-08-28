@@ -250,9 +250,14 @@ describe("as duas versões produzem contratos diferentes", () => {
     expect(rev3).toContain("[VALOR]");
   });
 
-  it("versão nula renderiza a rev3 — o fallback histórico", () => {
-    const nulo = textoDe(renderContratoDocx(DTO, null));
-    const rev3 = textoDe(renderContratoDocx(DTO, "rev3"));
-    expect(nulo).toBe(rev3);
+  /**
+   * O renderer NÃO resolve mais versão — ele recebe uma concreta e escolhe o
+   * arquivo. A decisão rev3 x rev4 (carimbo, histórico, rascunho) é testada em
+   * `templates.test.ts`, no `resolverVersaoTemplateContrato`.
+   */
+  it("cada versão abre o arquivo declarado no catálogo", () => {
+    expect(textoDe(renderContratoDocx(DTO, "rev3"))).not.toBe(
+      textoDe(renderContratoDocx(DTO, "rev4")),
+    );
   });
 });

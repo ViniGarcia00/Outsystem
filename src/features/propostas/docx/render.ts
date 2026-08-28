@@ -5,7 +5,7 @@ import Docxtemplater from "docxtemplater";
 import PizZip from "pizzip";
 
 import type { ContratoTemplateDTO } from "./contrato.mapper";
-import { resolverVersaoTemplate, templateDe } from "./templates";
+import { templateDe, type VersaoTemplateContrato } from "./templates";
 
 /**
  * Renderiza o Contrato (.docx) preenchendo o template oficial marcado
@@ -38,9 +38,9 @@ const DIR_TEMPLATES = path.join(
  */
 export function renderContratoDocx(
   dto: ContratoTemplateDTO,
-  versao?: string | null,
+  versao: VersaoTemplateContrato,
 ): Buffer {
-  const template = templateDe(resolverVersaoTemplate(versao));
+  const template = templateDe(versao);
   const zip = new PizZip(readFileSync(path.join(DIR_TEMPLATES, template.arquivo)));
 
   const doc = new Docxtemplater(zip, {
