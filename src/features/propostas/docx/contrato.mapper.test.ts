@@ -4,8 +4,11 @@ import type { PropostaPdfDTO } from "@/services/proposta-pdf.mapper";
 
 import { calcularResumoFinanceiro } from "../totais";
 import {
+  CONTRATO_SEM_PARCELA_FINAL,
+  CONTRATO_SEM_PRAZO,
   INSTRUCAO_FORMA_PAGAMENTO,
   montarContratoTemplateDTO,
+  validarGeracaoContrato,
 } from "./contrato.mapper";
 
 /**
@@ -181,5 +184,108 @@ describe("fonte oficial do valor (contrato == anexo)", () => {
     );
     // 12500 - 1250 = 11250.
     expect(montarContratoTemplateDTO(dto({ resumo })).valorTotal).toBe("11.250,00");
+  });
+});
+
+/**
+ * Variáveis do contrato Rev. 4 (Sprint 4.4, ADR-0416).
+ *
+ * As três têm em comum o mesmo tipo de erro possível: devolver a unidade ou o
+ * símbolo que o template JÁ escreve, e imprimir duas vezes.
+ */
+describe("variáveis da Rev. 4", () => {
+  it("prazoExecucao é SÓ o número — o template já escreve 'dias úteis'", () => {
+    const r = montarContratoTemplateDTO(dto({ prazoExecucaoDiasUteis: 30 }));
+    expect(r.prazoExecucao).toBe("30");
+    expect(r.prazoExecucao).not.toContain("dia");
+  });
+
+  it("valorParcelaFinal é formatado em pt-BR e SEM 'R$'", () => {
+    const r = montarContratoTemplateDTO(dto({ valorParcelaFinal: 12345.67 }));
+    expect(r.valorParcelaFinal).toBe("12.345,67");
+    expect(r.valorParcelaFinal).not.toContain("R$");
+  });
+
+  it("valorParcelaFinal usa a MESMA formatação do valor total", () => {
+    const r = montarContratoTemplateDTO(
+      dto({ valorParcelaFinal: 12345.67, resumo: { totalGeral: 12345.67 } }),
+    );
+    expect(r.valorParcelaFinal).toBe(r.valorTotal);
+  });
+
+  it("observacoes é string VAZIA quando não há — nunca 'null'", () => {
+    for (const v of [null, undefined, "   "]) {
+      const r = montarContratoTemplateDTO(dto({ observacoesAceite: v }));
+      expect(r.observacoes).toBe("");
+    }
+  });
+
+  it("observacoes preserva o texto informado, aparado", () => {
+    const r = montarContratoTemplateDTO(
+      dto({ observacoesAceite: "  Entrega parcial acordada.  " }),
+    );
+    expect(r.observacoes).toBe("Entrega parcial acordada.");
+  });
+
+  it("campos ausentes não viram 'undefined' no documento", () => {
+    const r = montarContratoTemplateDTO(dto());
+    for (const v of [r.prazoExecucao, r.valorParcelaFinal, r.observacoes]) {
+      expect(v).toBe("");
+      expect(v).not.toContain("undefined");
+    }
+  });
+});
+
+/**
+ * Guarda de geração (ADR-0416).
+ *
+ * Sem os dois campos o contrato Rev. 4 sairia com "de  dias úteis" e "R$ ." —
+ * um documento assim não pode ir para assinatura. A guarda é CONDICIONADA à
+ * versão: a rev3 não tem essas tags e não pode parar de regenerar por causa de
+ * campos criados depois dela.
+ */
+describe("validarGeracaoContrato", () => {
+  const completo = { prazoExecucaoDiasUteis: 30, valorParcelaFinal: 1000 };
+
+  it("libera a rev4 quando os dois campos estão preenchidos", () => {
+    expect(validarGeracaoContrato(dto(completo), "rev4")).toBeNull();
+  });
+
+  it("bloqueia a rev4 sem prazo, nomeando o campo", () => {
+    const erro = validarGeracaoContrato(
+      dto({ ...completo, prazoExecucaoDiasUteis: null }),
+      "rev4",
+    );
+    expect(erro).toBe(CONTRATO_SEM_PRAZO);
+    expect(erro).toContain("prazo de execução");
+  });
+
+  it("bloqueia a rev4 sem parcela final, nomeando o campo", () => {
+    const erro = validarGeracaoContrato(
+      dto({ ...completo, valorParcelaFinal: null }),
+      "rev4",
+    );
+    expect(erro).toBe(CONTRATO_SEM_PARCELA_FINAL);
+    expect(erro).toContain("parcela final");
+  });
+
+  it("parcela final ZERO é valor válido — só o ausente bloqueia", () => {
+    expect(
+      validarGeracaoContrato(dto({ ...completo, valorParcelaFinal: 0 }), "rev4"),
+    ).toBeNull();
+  });
+
+  /**
+   * O ponto mais importante: uma revisão histórica não pode parar de regenerar
+   * o contrato porque campos criados depois dela estão vazios.
+   */
+  it("NÃO bloqueia a rev3, mesmo sem nenhum dos dois", () => {
+    expect(validarGeracaoContrato(dto(), "rev3")).toBeNull();
+  });
+
+  it("NÃO bloqueia revisão sem carimbo — cai no padrão rev3", () => {
+    for (const v of [null, undefined, "", "desconhecida"]) {
+      expect(validarGeracaoContrato(dto(), v)).toBeNull();
+    }
   });
 });

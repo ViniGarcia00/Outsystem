@@ -1,6 +1,7 @@
 import type { PropostaPdfDTO } from "@/services/proposta-pdf.mapper";
 
 import { valorPorExtenso } from "./extenso";
+import { resolverVersaoTemplate, templateDe } from "./templates";
 
 /**
  * Mapper do Contrato (.docx) — Sprint 3.1.
@@ -35,6 +36,20 @@ export interface ContratoTemplateDTO {
   /** Data SEM cidade — o fecho do template já traz "São Caetano do Sul, ". */
   data: string;
   empresaNome: string;
+
+  // --- Rev. 4 (ADR-0416) ---------------------------------------------------
+  // Ignoradas ao renderizar a rev3, que não tem estas tags — o docxtemplater
+  // simplesmente não as encontra no documento.
+
+  /**
+   * SÓ o número de dias úteis. A cláusula 3.1 já escreve "dias úteis" ao lado
+   * da tag: devolver "30 dias úteis" imprimiria a unidade duas vezes.
+   */
+  prazoExecucao: string;
+  /** Valor SEM "R$" — o Anexo II já traz o símbolo, como a cláusula 2.1. */
+  valorParcelaFinal: string;
+  /** Observações do Anexo II. String VAZIA quando não há — nunca "null". */
+  observacoes: string;
 }
 
 /**
@@ -86,5 +101,47 @@ export function montarContratoTemplateDTO(dto: PropostaPdfDTO): ContratoTemplate
     formaPagamento: formaPagamento || INSTRUCAO_FORMA_PAGAMENTO,
     data: dataFormatter.format(dto.data),
     empresaNome: texto(dto.empresa.nome),
+
+    // Rev. 4. Ausentes viram string vazia; para a rev4 isso não chega a
+    // acontecer, porque a guarda abaixo barra a geração antes.
+    prazoExecucao:
+      dto.prazoExecucaoDiasUteis == null ? "" : String(dto.prazoExecucaoDiasUteis),
+    valorParcelaFinal:
+      dto.valorParcelaFinal == null
+        ? ""
+        : valorFormatter.format(dto.valorParcelaFinal),
+    observacoes: texto(dto.observacoesAceite),
   };
+}
+
+/** Falta de informação que impede gerar o contrato, com o campo nomeado. */
+export const CONTRATO_SEM_PRAZO =
+  "Informe o prazo de execução (dias úteis) no bloco Finalização antes de gerar o contrato.";
+export const CONTRATO_SEM_PARCELA_FINAL =
+  "Informe a parcela final no bloco Finalização antes de gerar o contrato.";
+
+/**
+ * Guarda de geração do contrato (ADR-0416).
+ *
+ * Sem `prazoExecucaoDiasUteis` a cláusula 3.1 sairia "*concluídos no prazo
+ * estimado de  dias úteis*"; sem `valorParcelaFinal`, o Anexo II sairia
+ * "*parcela final de R$ .*". Um documento assim não pode sair do sistema —
+ * então a geração é **bloqueada**, e a mensagem diz qual campo falta.
+ *
+ * **Condicionada à VERSÃO do template.** Contratos `rev3` não sofrem a guarda:
+ * aquele texto não tem as tags novas, e uma revisão histórica não pode parar de
+ * regenerar porque campos criados depois dela estão vazios.
+ *
+ * Devolve a mensagem, ou `null` quando pode gerar.
+ */
+export function validarGeracaoContrato(
+  dto: PropostaPdfDTO,
+  versao: string | null | undefined,
+): string | null {
+  if (!templateDe(resolverVersaoTemplate(versao)).exigeCamposContratuais) {
+    return null;
+  }
+  if (dto.prazoExecucaoDiasUteis == null) return CONTRATO_SEM_PRAZO;
+  if (dto.valorParcelaFinal == null) return CONTRATO_SEM_PARCELA_FINAL;
+  return null;
 }

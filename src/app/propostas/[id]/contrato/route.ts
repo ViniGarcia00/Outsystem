@@ -1,4 +1,7 @@
-import { montarContratoTemplateDTO } from "@/features/propostas/docx/contrato.mapper";
+import {
+  montarContratoTemplateDTO,
+  validarGeracaoContrato,
+} from "@/features/propostas/docx/contrato.mapper";
 import { renderContratoDocx } from "@/features/propostas/docx/render";
 import {
   contentDisposition,
@@ -32,6 +35,14 @@ export async function GET(
   const dto = await getPropostaPdfData(id);
   if (!dto) {
     return new Response("Proposta não encontrada.", { status: 404 });
+  }
+
+  // Guarda de geração (ADR-0416): o contrato Rev. 4 exige prazo de execução e
+  // parcela final. Sem eles o documento sairia com "de  dias úteis" e "R$ .".
+  // Contratos rev3 não sofrem a guarda — ver validarGeracaoContrato.
+  const faltando = validarGeracaoContrato(dto, dto.templateContratoVersao);
+  if (faltando) {
+    return new Response(faltando, { status: 400 });
   }
 
   let buffer: Buffer;

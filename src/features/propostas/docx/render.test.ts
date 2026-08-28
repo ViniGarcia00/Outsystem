@@ -24,6 +24,10 @@ const DTO: ContratoTemplateDTO = {
   formaPagamento: "50% de entrada\n50% na conclusão",
   data: "17 de julho de 2026",
   empresaNome: "Outmat",
+  // Rev. 4 (ADR-0416). A rev3 ignora estas três — não tem as tags.
+  prazoExecucao: "30",
+  valorParcelaFinal: "3.000,00",
+  observacoes: "",
 };
 
 /** Texto corrido do .docx, concatenando os <w:t>. */

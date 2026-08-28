@@ -13,12 +13,18 @@ vi.mock("@/services/proposta-pdf.service", () => ({
 }));
 vi.mock("@/features/propostas/docx/contrato.mapper", () => ({
   montarContratoTemplateDTO: vi.fn(() => ({ clienteNome: "irrelevante" })),
+  // Guarda de geração (ADR-0416). Por padrão libera; os testes da guarda a
+  // fazem devolver mensagem.
+  validarGeracaoContrato: vi.fn(() => null),
 }));
 vi.mock("@/features/propostas/docx/render", () => ({
   renderContratoDocx: vi.fn(() => Buffer.from("DOCX-FALSO")),
 }));
 
-import { montarContratoTemplateDTO } from "@/features/propostas/docx/contrato.mapper";
+import {
+  montarContratoTemplateDTO,
+  validarGeracaoContrato,
+} from "@/features/propostas/docx/contrato.mapper";
 import { renderContratoDocx } from "@/features/propostas/docx/render";
 import { getPropostaPdfData } from "@/services/proposta-pdf.service";
 
@@ -45,6 +51,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(getPropostaPdfData).mockResolvedValue(DTO);
   vi.mocked(renderContratoDocx).mockReturnValue(Buffer.from("DOCX-FALSO"));
+  vi.mocked(validarGeracaoContrato).mockReturnValue(null);
 });
 
 describe("GET /propostas/[id]/contrato", () => {
@@ -132,6 +139,33 @@ describe("delegação (sem regra de negócio no handler)", () => {
 
     await chamar();
     expect(renderContratoDocx).toHaveBeenCalledWith(expect.anything(), null);
+  });
+});
+
+/**
+ * Guarda de geração (ADR-0416). A rota não decide o que falta — ela pergunta ao
+ * mapper e, se algo faltar, responde 400 com a mensagem, **sem renderizar**.
+ */
+describe("guarda de geração", () => {
+  it("responde 400 com a mensagem quando falta informação", async () => {
+    vi.mocked(validarGeracaoContrato).mockReturnValue(
+      "Informe o prazo de execução (dias úteis) no bloco Finalização antes de gerar o contrato.",
+    );
+
+    const res = await chamar();
+    expect(res.status).toBe(400);
+    expect(await res.text()).toContain("prazo de execução");
+  });
+
+  it("NÃO renderiza quando a guarda barra — nenhum .docx incompleto é gerado", async () => {
+    vi.mocked(validarGeracaoContrato).mockReturnValue("falta alguma coisa");
+    await chamar();
+    expect(renderContratoDocx).not.toHaveBeenCalled();
+  });
+
+  it("consulta a guarda com o DTO e a versão da revisão", async () => {
+    await chamar();
+    expect(validarGeracaoContrato).toHaveBeenCalledWith(DTO, "rev3");
   });
 });
 
