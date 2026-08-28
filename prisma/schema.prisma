@@ -651,10 +651,48 @@ model InstalacaoRegistro {
   updatedAt DateTime @updatedAt
 
   custos InstalacaoCusto[]
+  anexos InstalacaoRegistroAnexo[]
 
   @@index([instalacaoId, aconteceuEm])
   @@index([tecnicoId])
   @@map("instalacao_registros")
+}
+
+/// Arquivo anexado a um acontecimento da cronologia (Sprint 4.3, ADR-0414).
+///
+/// **O banco é a autoridade.** Arquivo órfão em disco é tolerado e logável;
+/// linha apontando para arquivo inexistente é o estado a evitar. É essa
+/// assimetria que fixa a ordem das operações: no upload grava-se o arquivo e
+/// DEPOIS a linha; na exclusão apaga-se a linha e DEPOIS o arquivo.
+///
+/// 1:N desde o início: 1:1 custaria uma remodelagem na primeira vez que alguém
+/// anexasse duas fotos, e "duas fotos" é o caso normal de uma visita.
+model InstalacaoRegistroAnexo {
+  id String @id @default(cuid())
+
+  registroId String
+  registro   InstalacaoRegistro @relation(fields: [registroId], references: [id], onDelete: Cascade)
+
+  /// Nome que o usuário enviou. Exibição e `Content-Disposition` apenas —
+  /// **NUNCA** participa da construção de um caminho físico.
+  nomeOriginal String
+  /// Chave física gerada no SERVIDOR: `<cuid>.<ext>`, com a extensão vinda da
+  /// allowlist de MIME, nunca do nome enviado pelo navegador.
+  nomeArmazenado String
+  /// Caminho RELATIVO a `storagePaths.upload`, com separadores POSIX. Caminho
+  /// absoluto nunca é persistido: depende do servidor e de `UPLOAD_PATH`, que
+  /// mudam entre ambientes.
+  caminhoRelativo String
+  /// MIME da allowlist. O download deriva o `Content-Type` da allowlist, nunca
+  /// ecoando este valor diretamente.
+  mimeType String
+  /// Tamanho em bytes.
+  tamanho Int
+
+  createdAt DateTime @default(now())
+
+  @@index([registroId])
+  @@map("instalacao_registro_anexos")
 }
 
 /// Custo extra pertencente a um acontecimento (Sprint 4.0.2).
