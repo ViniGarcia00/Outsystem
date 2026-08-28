@@ -213,6 +213,20 @@ Ambiente oficial: **PostgreSQL nativo** no servidor. Caminhos de arquivo são
    - `DATABASE_URL` com host/usuário/senha reais do servidor.
    - Caminhos absolutos (ex.: `STORAGE_PATH="D:\\OutmatPropostas\\storage"`).
    - `NODE_ENV="production"`.
+4. 🔴 **Garantir que `UPLOAD_PATH` existe e é gravável** pela conta que roda a
+   aplicação — ou que essa conta pode criar a árvore.
+
+   A partir da versão 1.6.0 os **anexos da cronologia** gravam arquivos ali. O
+   service faz `mkdir` recursivo, mas isso cria diretórios **dentro de uma raiz
+   existente e acessível**: não cria um drive que não existe, nem contorna falta
+   de permissão. Com `UPLOAD_PATH` apontando para um caminho inalcançável, o
+   upload falha com `ENOENT` — comprovado durante a Sprint 4.3, com o
+   `.env.production` apontando para um drive ausente na máquina de
+   desenvolvimento.
+
+   Vale para `UPLOAD_PATH` e, quando informados, também para `PDF_PATH`,
+   `BACKUP_PATH` e `LOG_PATH`. Quando não informados, todos derivam de
+   `STORAGE_PATH`, que então precisa satisfazer a mesma condição.
 
 ## Deploy
 

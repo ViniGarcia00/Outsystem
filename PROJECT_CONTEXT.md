@@ -174,10 +174,25 @@ About é voltada ao usuário final e existirá também em produção.
 > Instalações e, em Propostas, a correção da duplicação dos serviços mais o
 > quinto documento (PDF Geral de Produtos). Ver ADR-0402..0407.
 >
+> **Estado atual (2026-08-28): Sprint 4.3 concluída na versão 1.6.0.** Três
+> entregas independentes: a Proposta ganhou o status **APROVADA**, com o fato
+> registrado na **revisão** (`aprovadaEm`) e invalidação automática ao alterar; a
+> Instalação ganhou **apelido**, identificação própria por obra e agora principal
+> na listagem, com retorno à tabela ao salvar os dados gerais; e a cronologia
+> passou a aceitar **anexos** (JPG/PNG/WebP/PDF, 10 MB, 10 por registro), com
+> upload por Route Handler. Ver ADR-0412..0414.
+>
 > **Próximos ciclos:** **Pedido de Venda** e **Ordem de Serviço**, nenhum dos
 > dois com design ou plano escritos — pelo processo do projeto, cada um exige
-> spec aprovada antes de qualquer código. Do roadmap original segue aberta a
-> tela **About**; o **Dashboard** foi entregue na 4.0.3.
+> spec aprovada antes de qualquer código. O Pedido de Venda já tem de onde
+> partir: `PropostaRevisao.aprovadaEm` responde "qual conteúdo o cliente aprovou
+> e quando", sem migração. Do roadmap original segue aberta a tela **About**; o
+> **Dashboard** foi entregue na 4.0.3.
+>
+> **Pré-condição de implantação (desde a 1.6.0):** `UPLOAD_PATH` precisa existir
+> e ser gravável pela conta do serviço — os anexos gravam em disco, e o `mkdir`
+> recursivo da aplicação não resolve drive inexistente nem falta de permissão.
+> Ver `README.md` → Publicação e ADR-0414.
 >
 > **Pendência de release:** homologação visual do Contrato .docx no Microsoft
 > Word — gate manual obrigatório pelo ADR-0330. Reaberta na **Release 1.5.1**,

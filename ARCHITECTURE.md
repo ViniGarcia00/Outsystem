@@ -421,7 +421,17 @@ ADR-0402 e o item de busca escalável no `BACKLOG.md`.
 - **Caminhos configuráveis:** `infrastructure/storage/paths.ts` resolve
   `STORAGE_PATH`, `PDF_PATH`, `UPLOAD_PATH`, `BACKUP_PATH`, `LOG_PATH` sempre com
   `path.resolve`/`path.join`. **Nenhum caminho fixo**, nenhum separador
-  hardcoded. **Nenhuma pasta é criada** nesta fase (só resolução).
+  hardcoded. O módulo de paths continua sendo **só resolução** — não faz IO.
+- **Quem escreve, cria a subárvore.** Desde a Sprint 4.3 os anexos da cronologia
+  gravam em disco (`instalacao-anexo.service.ts`) e fazem `mkdir` recursivo da
+  pasta do registro. Toda leitura e escrita passa por
+  `resolveWithin(storagePaths.upload, …)`, que prova a contenção na raiz antes de
+  tocar no filesystem.
+- 🔴 **Pré-condição de produção:** `mkdir` recursivo cria diretórios **dentro de
+  uma raiz existente e acessível**. Ele **não** resolve drive inexistente nem
+  falta de permissão da conta do serviço. `UPLOAD_PATH` precisa existir no
+  servidor, ou a conta que roda a aplicação precisa poder criar a árvore. Ver
+  README → Publicação e o gate de release (ADR-0414).
 - Compatível com deploy offline: as fontes são de sistema (Segoe UI), sem CDN.
 
 ## 6. Convenções

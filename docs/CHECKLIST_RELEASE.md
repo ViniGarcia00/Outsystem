@@ -82,6 +82,16 @@ Fundir as duas tornaria toda a suíte dependente de banco. Quem roda o gate roda
   migration (que aborta a transação inteira) somada à comparação documentada.
   Testes de integração cobrem os invariantes do estado **pós**-migração, que é o
   que uma suíte pode legitimamente afirmar.
+- **Resíduo de FILESYSTEM entra no item 6 a partir da 1.6.0 (ADR-0414).** Desde
+  que a cronologia grava anexos em disco, o `globalTeardown` varre as duas
+  pontas e **falha** se sobrar pasta de instalação de teste sob a raiz de
+  uploads. Conferir a linha `pastas de anexos removidas: N` e o resíduo zero na
+  saída do `npm run test:e2e`, não só as contagens do banco.
+- **Pré-condição de implantação (não é item de gate, é de deploy).** `UPLOAD_PATH`
+  precisa existir e ser gravável pela conta do serviço, ou essa conta precisa
+  poder criar a árvore. O `mkdir` recursivo da aplicação cria diretórios dentro
+  de uma raiz existente — **não** resolve drive inexistente nem falta de
+  permissão. Detalhe em `README.md` → Publicação e no ADR-0414.
 - **Gates manuais.** Alguns critérios não são automatizáveis e precisam de
   inspeção humana registrada. O caso vigente é a **homologação visual do Contrato
   .docx no Microsoft Word** (ADR-0330): nenhum teste prova fidelidade de fonte,

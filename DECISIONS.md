@@ -2000,6 +2000,13 @@ Sprint de refinamento (escopo estrito):
   dirigido pelo sistema, não há seletor manual*": continua não havendo.
   **`REPROVADA` segue fora** — não foi pedida e não tem regra definida.
 
+- **Os documentos já emitidos seguem acessíveis em `APROVADA`** — a condição na
+  interface é `status === "EMITIDA" || status === "APROVADA"`, **explícita**.
+  A forma curta `status !== "RASCUNHO"` foi considerada e **recusada**: ela
+  incluiria `CANCELADA` e passaria a oferecer PDF, contrato e anexo de proposta
+  cancelada, comportamento que hoje não existe e que ninguém pediu. Decidido
+  durante a execução (T6), ao notar que o plano prescrevia a forma curta.
+
 - **Consequência:** identificar proposta aprovada sem depender de Pedido de
   Venda; quando ele existir, "qual revisão o cliente aprovou e quando" é consulta
   direta a `PropostaRevisao`, sem migração.
@@ -2035,6 +2042,16 @@ Sprint de refinamento (escopo estrito):
   custo. A migration faz o backfill pelo nome de exibição do Cliente, com
   fallback `"Instalação <número>"` para o cliente sem nome — sem ele a coluna de
   identificação principal ficaria vazia.
+
+- **O backfill replica a regra existente, e a equivalência foi PROVADA, não
+  presumida.** A regra do sistema é
+  `(tipoPessoa === "PJ" ? empresa || nome : nome || empresa) || "—"`. A tradução
+  ingênua para SQL erraria: o `||` do JavaScript trata **string vazia** como
+  falsa, e `COALESCE` sozinho só trata `NULL`. Cada termo precisa de
+  `NULLIF(x, '')` — sem isso, `empresa = ''` viraria apelido vazio no banco e
+  "nome" na tela, divergindo exatamente no caso de borda. As duas regras foram
+  executadas sobre os mesmos dados: **12 casos, 0 divergências** (3 clientes
+  reais, 9 sintéticos de borda, incluindo o `empresa = ''`).
 
 - **Listagem:** Apelido em primeiro, `font-medium`, como link. **O Número
   permanece link** — o ADR-0404 decidiu que ele é a porta de entrada, com `<a>`
@@ -2082,10 +2099,16 @@ Sprint de refinamento (escopo estrito):
   lançar).
 
 - **Segurança em camadas independentes:**
-  - **Nome físico gerado no servidor** (`cuid` + extensão vinda da allowlist de
-    MIME, **nunca** do nome enviado). O `nomeOriginal` é guardado como texto e
-    devolvido no `Content-Disposition`; **jamais participa da construção de um
-    caminho** — é isso, e não a sanitização, que é a garantia real.
+  - **Nome físico gerado no servidor**, com extensão vinda da allowlist de MIME,
+    **nunca** do nome enviado. O `nomeOriginal` é guardado como texto e devolvido
+    no `Content-Disposition`; **jamais participa da construção de um caminho** —
+    é isso, e não a sanitização, que é a garantia real.
+
+    *Corrigido na execução:* a redação inicial dizia `cuid`. O implementado é
+    `randomBytes(16).toString("hex")`, e **não é o id da linha**. Dois motivos:
+    o nome do arquivo em disco não precisa expor a chave do banco, e a chave
+    física fica independente do gerador de id do Prisma. A garantia — nome vindo
+    do servidor, extensão da allowlist — é a mesma.
   - **`resolveWithin`** em toda leitura e escrita.
   - **Resolução pelo agregado completo** — `anexoId` + `registroId` +
     `instalacaoId` —, com "não encontrado" idêntico ao de um id inexistente. É a
@@ -2101,6 +2124,28 @@ Sprint de refinamento (escopo estrito):
   Server Action é 1 MB e foto de celular não passa. **`next.config.ts` não é
   tocado** — subir o limite global afetaria toda Server Action do sistema para
   resolver um caso pontual. A exclusão continua Server Action (só apaga linha).
+
+- **Gravação por `file.stream()`, decidida por medição (spike da T15).** O spike
+  comparou `formData()` → `arrayBuffer()` → `Buffer.from()` → `writeFile` contra
+  `formData()` → `file.stream()` → `pipeline` → `createWriteStream`, com 8 MB
+  reais. A segunda retém consistentemente menos (`arrayBuffers` −24 MB contra
+  +48 MB) e é igual ou mais rápida — uma cópia integral a menos.
+
+  **Ressalva registrada para não superestimar:** `request.formData()` já
+  materializa as partes em memória. O streaming adotado evita as cópias
+  **adicionais**; **não é streaming multipart ponta a ponta**. Fazê-lo exigiria
+  parsear o multipart à mão a partir de `request.body`, o que foi
+  **deliberadamente recusado** para os limites atuais (10 MB por arquivo, 10
+  anexos por registro). Se algum dia o teto subir muito, é aqui que se volta.
+
+- **Pré-condição operacional de deploy.** O `mkdir` recursivo do service cria a
+  árvore **dentro de uma raiz existente e acessível** — ele não cria um drive
+  inexistente nem contorna falta de permissão. Em produção, `UPLOAD_PATH`
+  precisa existir, ou a conta do serviço precisa poder criá-lo. Descoberto no
+  spike da T15, quando `.env.production` (apontando para o caminho do Windows
+  Server) falhou com `ENOENT` na máquina de desenvolvimento — o que **confirmou**
+  a arquitetura de paths por env, em vez de contradizê-la. Registrado no
+  `README.md` (publicação) e no gate de release.
 
 - **Os anexos são gerenciados pelo CARD do registro, não pelo diálogo.** O
   diálogo cria registro e custos numa transação única, mas um anexo precisa de um

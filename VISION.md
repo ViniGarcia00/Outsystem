@@ -241,6 +241,14 @@ Pedido de Venda e de Ordem de Serviço — a instalação é cadastrada manualme
   Adiada · Concluída · Cancelada. **Concluir é mudar o status.**
 - **Instalação nunca é excluída quando tem histórico** — é cancelada, e continua
   visível na listagem.
+- **Apelido (1.6.0):** cada instalação tem um apelido próprio — "Casa
+  Alphaville", "Apartamento Moema" —, porque o mesmo cliente tem várias obras. É
+  a **identificação principal na listagem** e entra na busca. Nasce sugerido pelo
+  nome do cliente, é editável a qualquer momento e, **depois de personalizado,
+  trocar o cliente não o sobrescreve**. Pertence à Instalação, nunca ao Cliente.
+- **Salvar os dados gerais volta para a listagem** (criação e edição). Na criação
+  o aviso traz a ação "Abrir", para quem quer seguir direto ao workspace.
+  Operações da **cronologia permanecem no workspace** — são outro fluxo.
 
 ### Cronologia
 
@@ -255,6 +263,11 @@ acontecimento — nunca um campo único que se sobrescreve.
   trazer o histórico de instalações que já estavam em andamento.
 - Um acontecimento **não pode estar no futuro** — ainda não aconteceu.
 - A cronologia é ordenada pelo **acontecimento**, não pelo cadastro.
+- **Anexos (1.6.0):** cada registro aceita até **10 arquivos**, de até **10 MB**
+  cada, em **JPG, PNG, WebP ou PDF** — foto da visita, nota fiscal do material.
+  Ficam no **card do registro**, não no formulário: o arquivo se liga a um
+  registro que já existe. Excluir o registro leva os anexos junto; **cancelar a
+  instalação não remove nada**.
 
 ### Custos extras
 
@@ -277,11 +290,23 @@ acontecimento — nunca um campo único que se sobrescreve.
 
 ## Ciclo de vida da proposta
 
-- Status: **Rascunho → Emitida → Cancelada**, com transições controladas e datas
-  de status imutáveis.
+- Status: **Rascunho → Emitida → Aprovada → Cancelada**, com transições
+  controladas e datas de status imutáveis.
 - **Proposta nunca é excluída** — é **cancelada**, com motivo obrigatório.
-- Emitir **congela a revisão**. Alterar uma proposta emitida cria
+- Emitir **congela a revisão**. Alterar uma proposta com a revisão congelada cria
   automaticamente a **revisão seguinte** e volta o status para Rascunho.
+
+### Aprovação (1.6.0)
+
+- **Aprovar registra que o cliente aceitou AQUELE conteúdo**, não a proposta em
+  geral. O fato fica na **revisão** (`aprovadaEm`), do mesmo jeito que a emissão.
+- Só se aprova o que foi **emitido** — o cliente aprova o que recebeu.
+- **Qualquer alteração salva invalida a aprovação, sozinha.** A revisão nova
+  nasce sem aprovação e a proposta volta a Rascunho; a revisão aprovada continua
+  registrando o que foi aprovado e quando. Uma proposta modificada nunca segue
+  aparecendo como Aprovada.
+- **Desfazer aprovação** existe para o clique errado: volta a Emitida e preserva
+  o documento. Só mexe na revisão atual — histórico não se reescreve.
 - Toda mudança relevante é registrada em **auditoria**, na mesma transação.
 - A duplicação **não copia** as observações internas.
 

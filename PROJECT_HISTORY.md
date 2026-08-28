@@ -1894,3 +1894,313 @@ guards que travam as contagens e os testes que provam o resultado só fazem
 sentido juntos, e um commit intermediário deixaria a suíte vermelha. O registro
 deste hash é feito em **commit documental separado**, seguindo o padrão do
 projeto (Sprint 4.2, `4b7ebd1`).
+
+---
+
+## Sprint 4.3 — Aprovação de Proposta, Apelido de Instalação e Anexos de Registro
+
+- **Versão:** 1.5.1 → **1.6.0**
+- **Data:** 2026-08-27 a 2026-08-28
+- **Branch:** `sprint-4.3` (nasceu de `9848643`, hash final da 1.5.1)
+- **Objetivo:** identificar propostas aprovadas pelo cliente sem depender de
+  Pedido de Venda; dar às instalações uma identificação própria por obra; e
+  permitir anexar arquivos aos acontecimentos da cronologia.
+- **Plano:** `docs/superpowers/plans/2026-08-27-sprint4-3-aprovacao-apelido-anexos.md`
+- **ADRs:** ADR-0412 (aprovação, supersede parcial do ADR-0211), ADR-0413
+  (apelido + redirects), ADR-0414 (anexos)
+
+### FASE A — Propostas: status APROVADA
+
+A aprovação é um **fato da REVISÃO** (`PropostaRevisao.aprovadaEm`, simétrico a
+`emittedAt`); `Proposta.status = APROVADA` é a **projeção** de "a revisão atual
+está aprovada". `Proposta.aprovadaAt` **não** foi criada.
+
+A invalidação é automática **por construção**: `salvarProposta` forka quando a
+revisão está congelada, e a revisão nova nasce com `aprovadaEm` nulo. Não existe
+"limpar a aprovação" em lugar nenhum do código.
+
+#### Prova discriminante da regra de fork
+
+A regra crítica da Sprint foi trocar o gatilho de `status === "EMITIDA"` para
+`currentRevision.emittedAt != null`, **antes** de habilitar `APROVADA`. Sem a
+troca, uma proposta aprovada não entraria no `if` e o `deleteMany` de seções
+sobrescreveria **in-place o conteúdo que o cliente aprovou** — perda silenciosa
+de dado.
+
+| Estado do gatilho | Resultado |
+| --- | --- |
+| `currentRevision.emittedAt != null` | **61/61 verde** |
+| revertido para `status === "EMITIDA"` | **exatamente os 2 testes do bloco SEGURANÇA falham** — "expected false to be true" no `forked`, e a trilha sem "APROVADA → RASCUNHO" |
+| restaurado | **61/61 verde** |
+
+O teste compara o conteúdo da `Rev.N` **campo a campo** (seções, ordem, e por
+item código, descrição, unidade, `valorProduto`, `valorServico`, `quantidade`),
+não apenas a existência da revisão, e tem asserção de sanidade para nunca passar
+sobre captura vazia.
+
+#### Desvios da Fase A
+
+1. **Expansão da união e de `labels.ts` antecipada do T4 para o T3.** O plano
+   dizia que a migration não afetaria o typecheck, por `StatusProposta` ser união
+   escrita à mão. **Errado:** o tipo GERADO pelo Prisma alarga com
+   `prisma generate` e é atribuído a essa união em três pontos (`listPropostas`,
+   `salvarProposta` e `proposta-conteudo.service.ts`) — três erros TS2322. Como o
+   processo proíbe deixar a árvore deliberadamente sem typecheck, a união e as
+   três entradas de `labels.ts` vieram para o T3.
+2. **Documentos usam `status === "EMITIDA" || status === "APROVADA"`**, não
+   `status !== "RASCUNHO"` como o plano prescrevia. A forma curta incluiria
+   `CANCELADA` e passaria a oferecer PDF, contrato e anexo de proposta cancelada
+   — comportamento que não existia e que ninguém pediu. Corrigido no T6 e
+   registrado no ADR-0412.
+3. **T4 e T5 no mesmo commit.** O teste de segurança do T5 foi escrito dentro da
+   fase vermelha do T4 (15 testes falhando por função inexistente) e vive no
+   mesmo arquivo; separar seria artificial.
+4. **`aprovadaEm` só onde há consumidor real.** O plano previa expô-lo também em
+   `PropostaListItem`, mas nada renderiza a data na listagem — o badge basta. Ele
+   entra apenas no DTO do workspace, que a exibe.
+5. **Trilha de auditoria dinâmica.** A observação de `MUDANCA_STATUS` no fork
+   passou do literal "EMITIDA → RASCUNHO" para a forma derivada
+   `${p.status} → RASCUNHO`. Para `EMITIDA` o texto é idêntico; quando o fork
+   parte de `APROVADA`, a trilha não mente. Verificado por teste.
+
+### FASE B — Apelido de Instalação
+
+#### Achado: o Zod exigia, o typecheck passava, o service descartava
+
+Com `apelido` já obrigatório no schema Zod, `tsc --noEmit` passava **limpo** e o
+campo era **descartado em silêncio** pelo service: `parsed.data` chega como
+objeto **não-literal**, e o *excess property checking* do TypeScript não se
+aplica a esse caso. Nenhuma das duas defesas estáticas pegou.
+
+Quem pegou foi o teste de integração novo — "expected null to be 'Casa
+Alphaville'". É exatamente a classe de lacuna que originou o **ADR-0409**, e o
+caso mais direto até hoje de por que a suíte de Integração existe separada.
+
+*Nota que torna o achado instrutivo:* onde a chamada É um literal fresco — dois
+pontos em `usuario.service.integration.test.ts` — o typecheck **pegou**
+normalmente. A diferença entre os dois casos é a forma da chamada, não a regra.
+
+#### Prova de equivalência do backfill
+
+O backfill precisava replicar a regra de exibição já usada pelo sistema, não
+criar uma segunda. A regra é
+`(tipoPessoa === "PJ" ? empresa || nome : nome || empresa) || "—"`.
+
+A tradução ingênua erraria: **o operador `||` do JavaScript trata string VAZIA
+como falsa, e `COALESCE` sozinho só trata `NULL`**. Cada termo precisou de
+`NULLIF(x, '')` — sem isso, `empresa = ''` viraria apelido vazio no banco e
+"nome" na tela.
+
+As duas regras foram executadas sobre os mesmos dados e comparadas:
+
+```
+12 casos | 0 divergências
+  3 clientes REAIS do banco (PF com acento, PF simples, PJ com nome nulo)
+  9 sintéticos de borda, incluindo PJ com empresa = '' — o caso que quebraria
+    um COALESCE ingênuo
+```
+
+Instalações após o backfill: **1 de 1 com o valor correto, 0 nulas ou vazias**.
+
+O fallback final difere de propósito: a tela mostra o travessão para cliente sem
+nome nenhum, mas um travessão como apelido seria inútil na coluna de
+identificação principal; nesse caso único usa-se o número. **Não existe nenhuma
+linha assim** (0 clientes sem nome e sem empresa) — é guarda, não comportamento.
+
+#### Desvios da Fase B
+
+1. **T10 e T11 no mesmo commit.** Com o service exigindo `apelido` e o formulário
+   ainda sem o campo, commitar o T10 sozinho deixaria a criação de instalação
+   quebrada e o E2E vermelho entre dois commits.
+2. **Testes preexistentes ajustados, todos por consequência legítima:**
+   `usuario.service.integration.test.ts` (2 chamadas de `criarInstalacao` sem o
+   campo novo — aqui o typecheck pegou) e um E2E cujo
+   `getByText(clienteNome, { exact: true })` virou **ambíguo** porque o apelido
+   sugerido **é** o nome do cliente, fazendo o mesmo texto aparecer na coluna
+   Apelido e na coluna Cliente; passou a `getByRole("cell")`.
+3. **T13 não antecipou o redirect.** A primeira versão do cenário de apelido
+   afirmava que salvar levava à listagem — comportamento que só chegaria no T14.
+   Trocado por navegação explícita: um cenário de apelido não trava
+   comportamento de outra task.
+
+### FASE C — Redirects
+
+Comportamento final:
+
+```
+criar Instalação        → /instalacoes        (toast com ação "Abrir")
+salvar dados gerais     → /instalacoes
+criar/editar Registro   → permanece em /instalacoes/[id]
+cancelar Instalação     → permanece em /instalacoes/[id]
+```
+
+A separação da cronologia é **física, não condicional**: os registros vivem em
+`Cronologia`/`RegistroDialog`, com Server Actions próprias que só revalidam
+`/instalacoes/[id]`. Não há condicional a preservar — e é justamente por isso que
+a regra é fácil de perder numa refatoração futura.
+
+**O teste negativo prova pela URL FINAL, nunca pelo toast** — o toast diz que a
+ação respondeu, não para onde a aplicação foi. As asserções de permanência são
+duplas (`toHaveURL(instalacaoPath)` **e** `not.toHaveURL` da listagem), porque a
+primeira sozinha passaria se a URL virasse um terceiro lugar.
+
+Seis testes preexistentes com fluxo de criação inline foram ajustados, e o helper
+`criarInstalacao` passou a preencher um apelido único por chamada — sem isso, os
+dois cenários que criam duas obras para o **mesmo** cliente gerariam dois links
+homônimos e o strict mode do Playwright recusaria o locator.
+
+### FASE D — Anexos
+
+#### SPIKE T15 — resultado
+
+```
+arquivo ............ ~8 MB pseudoaleatório, incompressível
+transporte ......... multipart/form-data
+Next-Action ........ AUSENTE (não passou por Server Action)
+sha256 ............. IDÊNTICO origem/destino, nos dois modos
+Route Handler ...... APROVADO
+next.config.ts ..... intacto, sem aumento de bodySizeLimit
+runtime ............ Node v24.11.1 · win32 x64 · dev E build de produção
+memória ............ 8 uploads (64 MB): RSS oscilou 134–197 MB, SEM crescimento
+                     monotônico — GC recupera, não há vazamento
+```
+
+**Decisão adotada:** `file.stream()` → `pipeline(...)` → `createWriteStream(...)`.
+Medição: `arrayBuffers` retidos −24 MB contra +48 MB do caminho
+`arrayBuffer()` + `Buffer.from()`, com latência igual ou melhor.
+
+**Ressalva registrada:** `request.formData()` materializa o multipart em memória.
+O streaming adotado evita as cópias **adicionais**, mas **não é streaming
+multipart ponta a ponta**. Aceito para os limites atuais (10 MB por arquivo, 10
+anexos por registro). **Parser multipart manual não foi implementado nesta
+Sprint** — e é o ponto de retorno se o teto subir muito.
+
+**Achado colateral, relevante para o deploy.** O primeiro teste em build deu 500
+com `ENOENT: mkdir` num caminho truncado. A causa **não era o upload**:
+`next start` carrega `.env.production`, que aponta `UPLOAD_PATH` para
+`D:\Sistemas\Outsystem\storage` — caminho do Windows Server, inexistente na
+máquina de desenvolvimento. O `path.resolve` funcionou (inclusive colapsando as
+barras duplas que o dotenv preserva literalmente); o `mkdir` falhou por o drive
+não existir. Repetido com `UPLOAD_PATH` local, passou.
+
+Isso **confirmou** a arquitetura de paths por env e gerou a pré-condição
+operacional registrada em `README.md` → Publicação, `ARCHITECTURE.md` §5,
+`docs/CHECKLIST_RELEASE.md` e ADR-0414:
+
+> `mkdir` recursivo cria diretórios **dentro de uma raiz existente e acessível**;
+> não resolve drive inexistente nem falta de permissão da conta do serviço.
+
+Ruído descartado: assertion do libuv no Windows (`UV_HANDLE_CLOSING`,
+`src\win\async.c`) vinha do `process.exit()` do **cliente de teste** com sockets
+keep-alive do undici abertos. Saída natural eliminou. Artefato do harness, não do
+Route Handler.
+
+**Spike totalmente descartável:** rota temporária, cliente e pasta `spike/`
+removidos; `git status` limpo, nenhuma referência restante no código. A evidência
+ficou no plano (commit `c5265dc`).
+
+#### Estado final dos anexos
+
+```
+InstalacaoRegistro 1:N InstalacaoRegistroAnexo
+gerenciamento .... card do Registro (nunca no diálogo)
+formatos ......... JPEG · PNG · WebP · PDF        (SVG RECUSADO)
+limites .......... 10 MB por arquivo · 10 anexos por registro
+```
+
+**Segurança:**
+
+- nome físico gerado no servidor (`randomBytes(16)`), **não** o id da linha;
+- extensão derivada da **allowlist de MIME**, nunca do nome enviado — teste
+  envia `relatorio.jpg.exe` com MIME de PDF e confere que o arquivo sai `.pdf`;
+- `nomeOriginal` **nunca** compõe caminho: é texto de exibição e
+  `Content-Disposition`;
+- **caminho RELATIVO** persistido no banco (POSIX, sem drive, sem barra inicial);
+- `resolveWithin` em **todo** I/O, inclusive no `rm` recursivo;
+- resolução sempre pelo **agregado completo** — `instalacaoId` + `registroId` +
+  `anexoId` —, em função única, para ser impossível "esquecer" um id;
+- `Content-Type` do download **derivado da allowlist**, nunca ecoando o valor
+  guardado, mais `X-Content-Type-Options: nosniff`;
+- **banco é a autoridade**: arquivo órfão é tolerado e logado; linha apontando
+  para arquivo inexistente é o estado a evitar — e é essa assimetria que fixa a
+  ordem das operações.
+
+#### Prova discriminante do agregado (pares cruzados)
+
+| Condição | Resultado |
+| --- | --- |
+| `{ id: anexoId, registro: { id: registroId, instalacaoId } }` | **90/90 verde** |
+| sem `instalacaoId` | **3 testes falham** (ler, excluir e listar pela instalação errada) |
+| sem `registroId` | **4 testes falham** (ler e excluir pelo registro errado, listar só os do registro, e o anexo deixa de sobreviver à exclusão cruzada) |
+
+Há também um teste afirmando que **os três ids certos ENCONTRAM** o anexo — sem
+ele, um `where` que nunca casa passaria em todos os cenários negativos.
+
+#### Exclusão
+
+- **anexo:** banco primeiro, filesystem best-effort depois;
+- **registro:** FK `CASCADE` no banco + pasta removida **pós-commit**,
+  best-effort — apagar antes ou dentro da transação arriscaria o oposto, porque
+  um rollback deixaria linhas apontando para arquivos removidos;
+- **regra de custos preservada** (ADR-0401): registro com custo continua
+  bloqueado, e o bloqueio **não tem efeito colateral** sobre os anexos;
+- **cancelar instalação não remove anexos.**
+
+#### Cleanup E2E — banco e disco
+
+`anexos` entrou na contagem e no `DELETE`, **antes** dos registros. As pastas
+caem depois do COMMIT, com os ids lidos **antes** do `DELETE` (depois não haveria
+como saber quais remover).
+
+Quatro guardas antes de qualquer remoção — resolver a raiz, resolver o alvo,
+**provar a contenção**, abortar se falhar — mais uma quinta que não estava no
+enunciado e faltava: **o alvo não pode ser a própria raiz**, senão uma remoção
+recursiva ali apagaria o logo da empresa e tudo o mais sob `storage/uploads`.
+
+`limpeza.ts` re-deriva `UPLOAD_PATH` por conta própria, **duplicação deliberada**
+de `paths.ts`: o ADR-0403 proíbe importar de `src/`. O que compensa o risco é a
+guarda de contenção.
+
+Exercitado de verdade na suíte completa: "pastas de anexos removidas: 2",
+"anexos=1" no banco, resíduo **zero** nas duas pontas.
+
+#### Desvios da Fase D
+
+1. **Import circular desfeito.** A T21 precisa de `registro → anexo` (para
+   `removerPastaDoRegistro`) e já existia `anexo → registro` por
+   `REGISTRO_NAO_ENCONTRADO`. A constante foi para `src/lib/messages.ts`, onde o
+   projeto já guarda mensagens de domínio compartilhadas desde a 4.2. Sobrou
+   apenas o import de TIPO `AnexoDTO`, que o TypeScript apaga: **sem ciclo em
+   runtime**.
+2. **`INCLUDE_CUSTOS` manteve o nome** ao ganhar a relação `anexos`. Renomear
+   obrigaria a tocar `instalacao.service.ts` e o teste de integração da
+   cronologia sem ganho — é o mesmo include, com uma relação a mais.
+3. **Um warning de lint entrou e saiu.** O T17 foi commitado com
+   "Unused eslint-disable directive"; escrita com escapes unicode, a classe de
+   caracteres não dispara `no-control-regex`, então a diretiva nunca teve efeito.
+   Corrigido em commit próprio (`5f1edf7`) — lint voltou a 0 erros e 0 warnings.
+
+### Lições aprendidas
+
+- **Uma garantia estática que não falha não é uma garantia.** O `apelido` era
+  exigido pelo Zod, o `tsc` passava e o campo sumia. O *excess property checking*
+  só age sobre literais frescos; um `parsed.data` atravessa. Quando a checagem
+  estática depende da FORMA da chamada, ela não cobre o caso geral — e é aí que
+  a suíte de Integração paga por si mesma.
+- **Antes de editar um binário versionado, prove o round-trip.** Reescrever o
+  `.docx` podia, sozinho, alterar entradas não relacionadas. Verificar isso
+  primeiro (22 entradas, 0 divergentes) transformou todas as provas seguintes em
+  afirmações sobre a edição, não sobre a ferramenta. Vale igual para o zip de um
+  template e para o layout de arquivos de anexo.
+- **Traduzir uma regra entre linguagens exige prova, não leitura.** O `||` do JS
+  e o `COALESCE` do SQL parecem equivalentes e divergem em string vazia. Rodar as
+  duas sobre os mesmos dados custou minutos e fechou a questão; ler o código
+  teria deixado o caso de borda passar.
+- **Mapear onde um número aparece não é o mesmo que mapear quem o afirma.** Na
+  1.5.1 o contador de placeholders estava em dois lugares que o grep achou e num
+  terceiro que só a execução revelou. Rodar as suítes cedo custa menos que
+  auditar exaustivamente — e foi a mitigação adotada aqui, com resultado.
+- **A forma curta de uma condição costuma incluir mais do que se quer.**
+  `status !== "RASCUNHO"` parecia inofensivo e teria exposto documentos de
+  proposta cancelada. Enumerar os estados desejados é mais longo de escrever e
+  mais difícil de errar.
