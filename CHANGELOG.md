@@ -4,6 +4,89 @@ Todas as mudanças relevantes deste projeto são documentadas aqui.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o
 projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [1.7.0] — 2026-08-28
+
+Sprint 4.4. O contrato deixa de ser **um arquivo** e passa a ser **um texto
+jurídico com versões**. Sobre essa base entra a **Rev. 4**, que transforma prazo
+de execução e parcela final em campos da proposta.
+
+### Adicionado
+
+- **Template de contrato versionado.** Um arquivo por versão
+  (`contrato-outmat.rev3.docx`, `contrato-outmat.rev4.docx`), catálogo em
+  `src/features/propostas/docx/templates.ts` (versão → arquivo, vigência, tags) e
+  **`PropostaRevisao.templateContratoVersao`**, carimbada em `emitirProposta` na
+  mesma transação e no mesmo instante que `emittedAt`. **Versões antigas nunca
+  são apagadas.**
+- **Contrato Rev. 4**, vigente desde **2026-08-28**: cláusulas 5.3.1, 5.5.1, 5.6,
+  5.7, 5.7.1, 9.3 e 9.4, e três variáveis novas (`{prazoExecucao}`,
+  `{valorParcelaFinal}`, `{observacoes}`) no lugar de preenchimento manual no
+  Word. Template usado **como fonte de verdade**, sem reconstrução em outro DOCX.
+- **Três campos na Proposta**, no bloco **Finalização** → card **Contrato**:
+  **Prazo de execução (dias úteis)**, **Parcela final** e **Observações do Termo
+  de Aceite**. `valorParcelaFinal` é `Decimal(12,2)` — nunca Float — e fica
+  **vazio** quando não informado: R$ 0,00 é parcela válida, e o sistema precisa
+  distinguir "zero" de "não informado".
+- **Guarda de geração do contrato:** versões que exigem os campos contratuais não
+  geram sem **prazo de execução** e sem **parcela final** — o documento sairia com
+  "de  dias úteis" e "R$ ." e iria para assinatura assim. A guarda vale **também
+  no rascunho**, que é o momento útil de avisar.
+- **`scripts/gate-contrato-rev4.ts`** — produz os três documentos do gate visual
+  pelo pipeline real de produção, falha se o rascunho e o emitido divergirem em um
+  byte, e apaga a proposta que criou.
+
+### Alterado
+
+- **O contrato sai na versão com que a proposta foi emitida**, nunca "na versão
+  vigente". Publicar um texto jurídico novo não reescreve, em silêncio, nenhum
+  contrato já enviado ao cliente — que era o comportamento anterior.
+- **A pré-visualização é o documento.** Um rascunho renderiza a versão **vigente**
+  — a que a emissão vai gerar —, não o fallback histórico. Sem isso, um rascunho
+  pré-visualizava a Rev. 3 e, ao ser emitido, entregava a Rev. 4: dois textos
+  jurídicos na mesma sessão de trabalho.
+- **A resolução da versão vive num único ponto**
+  (`resolverVersaoTemplateContrato`) e o `PropostaPdfDTO` carrega a versão **já
+  resolvida**. `renderContratoDocx` e `validarGeracaoContrato` passaram a exigir
+  versão concreta — não resolvem, não têm fallback e não repetem a condição.
+- **Contratos históricos continuam sendo gerados como eram**, sem exigir campos
+  que não existiam quando foram emitidos: a guarda é **por versão, não por
+  estado**.
+- **Estilo das tags novas** padronizado com as demais do template (negrito,
+  `3C77FF`), por edição cirúrgica no OOXML com prova estrutural — nenhuma outra
+  parte do documento foi tocada.
+
+### Corrigido
+
+- **ADR-0415 dizia que `null` significava uma coisa só.** A ausência de carimbo
+  tem **dois** significados — revisão histórica emitida antes da coluna existir, e
+  rascunho ainda não emitido — e tratá-los como um produzia o defeito acima. O ADR
+  foi corrigido com a tabela dos três casos e com o registro da redação anterior.
+- **`ARCHITECTURE.md` afirmava que descontos, frete e textos eram versionados na
+  Revisão.** Não são: vivem na `Proposta` e são sobrescritos no fork. A afirmação
+  foi substituída pela verdade e a dívida registrada (ver abaixo).
+
+### Migração
+
+Duas migrations **aditivas**, nenhuma destrutiva, nenhum dado movido:
+
+- `20260828030000_proposta_revisao_template_contrato` —
+  `proposta_revisoes.templateContratoVersao`, **sem backfill**. Preencher
+  retroativamente seria *afirmar* uma versão que ninguém registrou; a inferência
+  correta vem da regra de resolução, que lê `emittedAt`.
+- `20260828040000_proposta_campos_contratuais_rev4` — `propostas`:
+  `prazoExecucaoDiasUteis` (Int), `valorParcelaFinal` (Decimal 12,2) e
+  `observacoesAceite` (Text), todos anuláveis.
+
+### Dívida registrada
+
+Desconto, frete, forma de pagamento, previsão de instalação e os três campos
+contratuais vivem na **`Proposta`** e são **sobrescritos** quando o fork acontece
+— **não são históricos**, ao contrário do conteúdo comercial (seções e itens).
+Hoje não produz documento errado, porque só existe rota para gerar documento da
+revisão atual. Registrada no ADR-0415 e no `BACKLOG.md`, com a regra que a
+acompanha: nenhuma documentação do projeto afirma que "todos os dados comerciais
+de uma revisão são imutáveis" enquanto isso não for verdade.
+
 ## [1.6.0] — 2026-08-28
 
 Sprint 4.3. Três entregas independentes: a Proposta passa a registrar a

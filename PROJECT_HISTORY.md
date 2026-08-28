@@ -2458,3 +2458,84 @@ comerciais de uma revisão são imutáveis"** enquanto isso não for verdade. A
 afirmação que existia em `ARCHITECTURE.md` ("produtos, serviços, seções, textos,
 totais, descontos, frete e impostos serão implementados exclusivamente dentro da
 Revisão") foi corrigida nesta Sprint.
+
+### Gate visual manual — APROVADO
+
+Gate obrigatório do ADR-0330, executado no **Microsoft Word** pelo dono do
+produto em **2026-08-28**, sobre os três documentos da T16. Nenhum teste
+automatizado prova fidelidade de fonte, margem ou layout — só a inspeção humana.
+
+**Rev. 3 histórica** (`1-historico-rev3.docx`, proposta 1016, carimbo nulo):
+layout preservado, texto e aparência corretos, **nenhuma regressão visual**. É a
+prova de que versionar o template não mexeu no contrato que já existia.
+
+**Rev. 4** (`2-rascunho-rev4.docx` e `3-emitido-rev4.docx`): fontes, margens,
+cabeçalho, rodapé e paginação corretos; sem página extra indevida; numeração das
+cláusulas correta; cláusulas novas visualmente corretas; cláusula 3.1 com o prazo
+correto; Anexo II correto; parcela final correta; observações corretas; tags
+novas no mesmo padrão visual das demais; **nenhum realce amarelo residual**;
+assinaturas e testemunhas corretas; nenhum texto deslocado ou sobreposto.
+
+**Rascunho Rev. 4 e Emitido Rev. 4 visualmente equivalentes** — confirmando na
+inspeção humana o que o script já provava por hash: o texto jurídico não muda
+entre pré-visualizar e emitir.
+
+### Commits da Sprint 4.4
+
+| # | Hash | Task |
+| --- | --- | --- |
+| 1 | `a1003c7` | T1 — ADR-0415/0416 e abertura da Sprint |
+| 2 | `d4abfeb` | T2 — rev3 versionada e catálogo de templates |
+| 3 | `de00f23` | T3 — migration: `PropostaRevisao.templateContratoVersao` |
+| 4 | `f71f6c6` | T4 — renderer escolhe o template pela versão da revisão |
+| 5 | `4406d86` | T5 — integração: versionamento do template |
+| 6 | `d79cd0d` | T6 — migration: campos contratuais da Proposta |
+| 7 | `7980f22` | T7 — campos contratuais no schema, service e DTOs |
+| 8 | `49e027b` | T8 — integração: campos contratuais e fork |
+| 9 | `90a5eb2` | T9 — campos contratuais no bloco Finalização |
+| 10 | `01b6c2f` | T11 — rev4 com `{observacoes}` e estilo das tags novas |
+| 11 | `d0b9e6c` | T12 — mapper dos três campos + guarda de geração |
+| 12 | `c655005` | T13 — tags por versão, integridade de runs e render |
+| 13 | `03c9bc9` | T13 (correção) — NUL literal removido de `template-rev4.test.ts` |
+| 14 | `fc2a40b` | T14 — Rev. 4 passa a ser a versão vigente |
+| 15 | `8259aa4` | **T15.1** — rascunho resolve para a vigente, não para o fallback |
+| 16 | `9260560` | T10 — E2E: rascunho pré-visualiza e emite a MESMA Rev. 4 |
+| 17 | `96b9dfa` | T16 — script que produz os 3 contratos do gate visual |
+| 18 | `e628550` | T17 — documentação |
+
+A T10 saiu **fora de ordem**, depois da T15.1: o E2E existe para provar a regra de
+resolução, e escrevê-lo antes da correção seria cravar o comportamento defeituoso.
+
+### Gate oficial da 1.7.0
+
+| # | Item | Resultado |
+| --- | --- | --- |
+| 1 | Lint | **0 erros, 0 warnings** |
+| 2 | Typecheck | **0** |
+| 3 | Build | **OK** |
+| 4 | Unit | **370/370** (25 arquivos) |
+| 5 | Integração | **103/103** (6 arquivos) |
+| 6 | Smoke/E2E | **38/38** · resíduo de banco e de disco **zero** |
+| 7 | `/api/health` | **200** · `{"status":"ok","version":"1.7.0","database":"up"}` |
+| 8 | `/dev/diagnostics` | **200** · status geral *Saudável* · 0,74 s |
+| 9 | PostgreSQL | **18.1** (x86_64-windows, msvc-19.44.35219, 64-bit) |
+| 10 | Prisma | **7.8.0** · conectado · 1ª consulta 31 ms · consulta simples 2 ms |
+| 11 | Documentação | README, PROJECT_CONTEXT, ARCHITECTURE, VISION, BACKLOG, DECISIONS, CHECKLIST_RELEASE |
+| 12 | CHANGELOG | seção **[1.7.0]** |
+| 13 | VERSION | **1.7.0** (e `package.json` **1.7.0**) |
+| 14 | Commit | commit oficial da Sprint + hash registrado abaixo |
+
+Verificações além do gate:
+
+| Verificação | Resultado |
+| --- | --- |
+| `migrate status` | *Database schema is up to date* · **26 migrations** · 0 pendentes |
+| `migrate diff` (banco × schema) | **No difference detected** — sem drift |
+| `db:validate` | **14 ok, 0 falhas** |
+| Resíduo de banco | **zero** — inclusive a proposta criada pelo script do gate |
+| Resíduo de filesystem | **zero** — só o `logo.jpg` preexistente |
+| Gate visual manual (Word) | **APROVADO** — ver acima |
+
+`package-lock.json` **não** foi tocado: o repositório nunca o sincronizou com a
+versão (segue em `1.0.0` desde o início), e o comportamento estabelecido foi
+mantido.
