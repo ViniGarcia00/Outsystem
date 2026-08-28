@@ -587,7 +587,10 @@ export async function emitirProposta(id: string): Promise<void> {
     if (p.status === "CANCELADA") {
       throw new Error("Proposta cancelada não pode ser emitida.");
     }
-    if (p.status === "EMITIDA") {
+    // APROVADA entra aqui porque a revisão atual dela JÁ está congelada — o
+    // documento existe. Reemitir sobre conteúdo congelado não faz sentido
+    // (ADR-0412).
+    if (p.status === "EMITIDA" || p.status === "APROVADA") {
       throw new Error("Proposta já está emitida.");
     }
     if (!p.clienteId) {
@@ -618,6 +621,110 @@ export async function emitirProposta(id: string): Promise<void> {
         evento: "EMISSAO",
         revisionNumber: p.currentRevision?.revisionNumber ?? null,
         observacao: `Revisão ${p.currentRevision?.revisionNumber ?? 0} emitida`,
+      },
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Aprovação (Sprint 4.3, ADR-0412)
+//
+// A aprovação é um FATO da REVISÃO — `PropostaRevisao.aprovadaEm` —, e
+// `Proposta.status = APROVADA` é a PROJEÇÃO de "a revisão atual está aprovada".
+// Não existe `Proposta.aprovadaAt`.
+//
+// A invalidação é automática e não mora aqui: `salvarProposta` forka quando a
+// revisão está congelada, e a revisão nova nasce com `aprovadaEm` nulo. Não há
+// nada a "limpar" quando a proposta é alterada — o fato continua colado à
+// revisão que o cliente aprovou.
+// ---------------------------------------------------------------------------
+
+/** Mensagens oficiais das guardas de aprovação. */
+export const APROVAR_EXIGE_EMITIDA =
+  "Somente uma proposta emitida pode ser aprovada.";
+export const PROPOSTA_CANCELADA_APROVAR =
+  "Proposta cancelada não pode ser aprovada.";
+export const DESFAZER_EXIGE_APROVADA =
+  "Somente uma proposta aprovada pode ter a aprovação desfeita.";
+
+/**
+ * Registra que o cliente aprovou o conteúdo da revisão ATUAL.
+ *
+ * Só a partir de `EMITIDA`: o cliente aprova o que lhe foi enviado, e o que foi
+ * enviado é uma revisão congelada. Não forka, não move `currentRevisionId` e
+ * não toca em `emittedAt` — aprovar não desfaz a emissão.
+ */
+export async function aprovarProposta(id: string): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    const p = await tx.proposta.findUniqueOrThrow({
+      where: { id },
+      select: {
+        status: true,
+        currentRevisionId: true,
+        currentRevision: { select: { revisionNumber: true, emittedAt: true } },
+      },
+    });
+
+    if (p.status === "CANCELADA") throw new Error(PROPOSTA_CANCELADA_APROVAR);
+    if (p.status !== "EMITIDA") throw new Error(APROVAR_EXIGE_EMITIDA);
+    // Defesa em profundidade: `EMITIDA` sem revisão congelada é estado
+    // impossível hoje, mas aprovar conteúdo não congelado é justamente o erro
+    // que a Sprint existe para impedir — a checagem não custa nada.
+    if (!p.currentRevisionId || !p.currentRevision?.emittedAt) {
+      throw new Error(APROVAR_EXIGE_EMITIDA);
+    }
+
+    await tx.propostaRevisao.update({
+      where: { id: p.currentRevisionId },
+      data: { aprovadaEm: new Date() },
+    });
+    await tx.proposta.update({ where: { id }, data: { status: "APROVADA" } });
+    await tx.propostaAuditoria.create({
+      data: {
+        propostaId: id,
+        evento: "MUDANCA_STATUS",
+        revisionNumber: p.currentRevision.revisionNumber,
+        observacao: "EMITIDA → APROVADA",
+      },
+    });
+  });
+}
+
+/**
+ * Desfaz a aprovação da revisão ATUAL — correção de engano, não reescrita de
+ * histórico.
+ *
+ * Existe porque, sem ela, um clique errado em "Aprovar" só teria saída fazendo
+ * uma alteração qualquer, o que forkaria uma revisão e perderia a emissão.
+ * **Só a revisão atual é tocada**; revisões anteriores permanecem imutáveis.
+ */
+export async function desfazerAprovacao(id: string): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    const p = await tx.proposta.findUniqueOrThrow({
+      where: { id },
+      select: {
+        status: true,
+        currentRevisionId: true,
+        currentRevision: { select: { revisionNumber: true } },
+      },
+    });
+
+    if (p.status !== "APROVADA") throw new Error(DESFAZER_EXIGE_APROVADA);
+    if (!p.currentRevisionId) throw new Error("Revisão atual não encontrada.");
+
+    await tx.propostaRevisao.update({
+      where: { id: p.currentRevisionId },
+      data: { aprovadaEm: null },
+    });
+    // Volta a EMITIDA, não a RASCUNHO: a revisão continua congelada e o
+    // documento continua existindo — o que se desfez foi só a aprovação.
+    await tx.proposta.update({ where: { id }, data: { status: "EMITIDA" } });
+    await tx.propostaAuditoria.create({
+      data: {
+        propostaId: id,
+        evento: "MUDANCA_STATUS",
+        revisionNumber: p.currentRevision?.revisionNumber ?? null,
+        observacao: "APROVADA → EMITIDA",
       },
     });
   });
