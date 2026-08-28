@@ -234,7 +234,13 @@ test("Usuários: excluir é bloqueado depois de usado em instalação", async ({
   await page.getByLabel("Responsável atual").click();
   await page.getByRole("option", { name: tecnico, exact: true }).click();
   await page.getByRole("button", { name: "Salvar" }).click();
-  await expect(page).toHaveURL(/\/instalacoes\/(?!nova$)[^/]+$/);
+  // Sprint 4.3 (ADR-0413): criar volta para a listagem. O que este teste
+  // precisa é que a instalação EXISTA e vincule o técnico — não abrir o
+  // workspace. A presença da linha é a prova suficiente.
+  await expect(page).toHaveURL(/\/instalacoes$/);
+  await expect(
+    page.getByRole("link", { name: `Abrir instalação ${cliente}` }),
+  ).toBeVisible();
 
   // A exclusão precisa ser recusada, com a mensagem que orienta a inativar.
   await page.goto("/usuarios");

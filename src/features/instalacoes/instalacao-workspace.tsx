@@ -100,14 +100,26 @@ export function InstalacaoWorkspace({
     const result = await atualizarInstalacaoAction(data.id, values);
 
     if (result.success) {
+      // Limpa o "dirty" ANTES de navegar: sem isso o guard de saída avisaria
+      // sobre alterações que já foram gravadas.
       form.reset(values);
-      setStatus(values.status);
       toast.success("Instalação atualizada.");
-      router.refresh();
+      /**
+       * Salvar os DADOS GERAIS volta para a listagem (ADR-0413).
+       *
+       * A cronologia NÃO segue esta regra: criar, editar e excluir Registro
+       * permanecem no workspace. A separação é física — os registros vivem em
+       * `Cronologia`/`RegistroDialog`, com Server Actions próprias que só
+       * revalidam `/instalacoes/[id]`. Não há condicional a manter aqui.
+       *
+       * `setStatus` saiu junto: seria inócuo, porque a página sai. O badge é
+       * recalculado do dado persistido na próxima abertura.
+       */
+      router.push("/instalacoes");
     } else {
       toast.error(result.error);
+      setSaving(false);
     }
-    setSaving(false);
   }
 
   async function confirmCancelar(motivo: string) {

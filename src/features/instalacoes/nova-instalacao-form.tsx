@@ -127,8 +127,21 @@ export function NovaInstalacaoForm({ tecnicos }: { tecnicos: UsuarioOption[] }) 
 
     if (result.success) {
       form.reset(values); // limpa o "dirty" antes de navegar (evita o guard)
-      toast.success(`Instalação ${result.data.numero} criada.`);
-      router.push(`/instalacoes/${result.data.id}`);
+      /**
+       * Volta para a LISTAGEM, não para o workspace (ADR-0413): o cadastro
+       * termina onde o usuário confere o resultado.
+       *
+       * A ação "Abrir" no toast devolve o atalho que o redirect tira — quem
+       * cria a instalação para já lançar o primeiro registro continua a um
+       * clique de distância, em vez de ter de procurá-la na tabela.
+       */
+      toast.success(`Instalação ${result.data.numero} criada.`, {
+        action: {
+          label: "Abrir",
+          onClick: () => router.push(`/instalacoes/${result.data.id}`),
+        },
+      });
+      router.push("/instalacoes");
     } else {
       setSaving(false);
       toast.error(result.error);

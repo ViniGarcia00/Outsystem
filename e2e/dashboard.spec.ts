@@ -101,6 +101,12 @@ test("Dashboard: instalação agendada aparece em Próximas Instalações", asyn
   await page.getByLabel("Status").click();
   await page.getByRole("option", { name: "Agendada", exact: true }).click();
   await page.getByRole("button", { name: "Salvar" }).click();
+  // Sprint 4.3 (ADR-0413): criar volta para a LISTAGEM. O apelido não foi
+  // preenchido, então ele é o nome do cliente sugerido — que é único por teste.
+  await expect(page).toHaveURL(/\/instalacoes$/);
+  await page
+    .getByRole("link", { name: `Abrir instalação ${clienteNome}` })
+    .click();
   await expect(page).toHaveURL(/\/instalacoes\/(?!nova$)[^/]+$/);
 
   const numero = (

@@ -67,19 +67,37 @@ async function escolherTecnico(
   await page.getByRole("option", { name: nome, exact: true }).click();
 }
 
-/** Monta uma instalação para o cliente e devolve o caminho da instalação. */
+let seqInstalacao = 0;
+
+/**
+ * Monta uma instalação para o cliente e devolve o caminho do workspace.
+ *
+ * Desde a Sprint 4.3 (ADR-0413) salvar **volta para a listagem**, não para o
+ * workspace. O helper preenche um APELIDO único e usa o link dele na tabela
+ * para chegar ao workspace — o apelido sugerido é o nome do cliente, e dois
+ * cenários criam duas instalações para o MESMO cliente, o que tornaria o link
+ * ambíguo se dependêssemos da sugestão.
+ */
 async function criarInstalacao(
   page: Page,
   clienteNome: string,
   responsavel?: string,
 ): Promise<string> {
+  const apelido = `E2E Obra ${Date.now()}-${++seqInstalacao}`;
+
   await page.goto("/instalacoes/nova");
   await page.getByLabel("Cliente", { exact: true }).fill(clienteNome);
   await page.getByRole("option", { name: clienteNome }).click();
+  await page.getByLabel("Apelido", { exact: true }).fill(apelido);
   if (responsavel) {
     await escolherTecnico(page, "Responsável atual", responsavel);
   }
   await page.getByRole("button", { name: "Salvar" }).click();
+
+  await expect(page).toHaveURL(/\/instalacoes$/);
+  await page
+    .getByRole("link", { name: `Abrir instalação ${apelido}` })
+    .click();
   await expect(page).toHaveURL(/\/instalacoes\/(?!nova$)[^/]+$/);
   return new URL(page.url()).pathname;
 }
@@ -122,6 +140,12 @@ test("Instalações: criar, conferir snapshot, mudar status e concluir", async (
   await escolherTecnico(page, "Responsável atual", tecnico);
   await page.getByRole("button", { name: "Salvar" }).click();
 
+  // Sprint 4.3 (ADR-0413): criar volta para a LISTAGEM; o workspace se abre
+  // pelo link do apelido, que aqui é o nome do cliente sugerido.
+  await expect(page).toHaveURL(/\/instalacoes$/);
+  await page
+    .getByRole("link", { name: `Abrir instalação ${clienteNome}` })
+    .click();
   await expect(page).toHaveURL(/\/instalacoes\/(?!nova$)[^/]+$/);
   const instalacaoPath = new URL(page.url()).pathname;
 
@@ -215,11 +239,11 @@ test("Instalações: apelido — sugestão, preservação e busca (Sprint 4.3)",
   const apelidoFinal = "Cobertura Jardim Paulistão";
   await apelido.fill(apelidoFinal);
   await page.getByRole("button", { name: "Salvar" }).click();
-  await expect(page).toHaveURL(/\/instalacoes\/(?!nova$)[^/]+$/);
-  const instalacaoPath = new URL(page.url()).pathname;
+  // Criar volta para a listagem (ADR-0413, T14) — já é onde o passo 5 precisa
+  // estar, então não há navegação extra aqui.
+  await expect(page).toHaveURL(/\/instalacoes$/);
 
   // 5) A listagem mostra o apelido como identificação principal, e ele é link.
-  await page.goto("/instalacoes");
   await expect(
     page.getByRole("columnheader", { name: "Apelido" }),
   ).toBeVisible();
@@ -240,7 +264,7 @@ test("Instalações: apelido — sugestão, preservação e busca (Sprint 4.3)",
 
   // 8) O apelido é editável no workspace — é rótulo, não snapshot.
   await linkApelido.click();
-  await expect(page).toHaveURL(instalacaoPath);
+  await expect(page).toHaveURL(/\/instalacoes\/(?!nova$)[^/]+$/);
   await expect(apelido).toHaveValue(apelidoFinal);
   await apelido.fill("Cobertura Jardim Paulistão — Fase 2");
   await page.getByRole("button", { name: "Salvar Alterações" }).click();
@@ -254,6 +278,82 @@ test("Instalações: apelido — sugestão, preservação e busca (Sprint 4.3)",
       name: "Abrir instalação Cobertura Jardim Paulistão — Fase 2",
     }),
   ).toBeVisible();
+});
+
+/**
+ * Redirects ao salvar (Sprint 4.3, T14 — ADR-0413).
+ *
+ * O cenário prova as três regras pela URL FINAL, nunca pelo toast: o toast é
+ * evidência de que a ação respondeu, não de para onde a aplicação foi. A regra
+ * NEGATIVA da cronologia é o motivo real deste teste existir — é a que se perde
+ * primeiro numa refatoração futura, porque "salvar volta para a lista" parece
+ * uma regra geral do módulo, e não é.
+ */
+test("Instalações: salvar dados gerais volta à tabela; salvar registro NÃO (Sprint 4.3)", async ({
+  page,
+}) => {
+  const clienteNome = await criarCliente(page, "Redirect Cliente");
+  const tecnico = await criarTecnico(page, "Redirect");
+  const apelido = `E2E Obra Redirect ${Date.now()}`;
+
+  // --- 1) CRIAR instalação → volta para a tabela ---
+  await page.goto("/instalacoes/nova");
+  await page.getByLabel("Cliente", { exact: true }).fill(clienteNome);
+  await page.getByRole("option", { name: clienteNome }).click();
+  await page.getByLabel("Apelido", { exact: true }).fill(apelido);
+  await page.getByRole("button", { name: "Salvar" }).click();
+
+  await expect(page).toHaveURL(/\/instalacoes$/);
+  const linkObra = page.getByRole("link", { name: `Abrir instalação ${apelido}` });
+  await expect(linkObra).toBeVisible();
+
+  // O toast traz a ação "Abrir", que devolve o atalho para o workspace.
+  const acaoAbrir = page.getByRole("button", { name: "Abrir" });
+  await expect(acaoAbrir).toBeVisible();
+  await acaoAbrir.click();
+  await expect(page).toHaveURL(/\/instalacoes\/(?!nova$)[^/]+$/);
+  const instalacaoPath = new URL(page.url()).pathname;
+
+  // --- 2) SALVAR DADOS GERAIS → volta para a tabela ---
+  await page.getByLabel("Status").click();
+  await page.getByRole("option", { name: "Agendada" }).click();
+  await page.getByRole("button", { name: "Salvar Alterações" }).click();
+  await expect(page).toHaveURL(/\/instalacoes$/);
+
+  // --- 3) CRIAR REGISTRO → permanece no workspace ---
+  await page.goto(instalacaoPath);
+  await criarRegistro(page, {
+    tipo: "Visita ao cliente",
+    aconteceuEm: "2026-08-20T10:00",
+    responsavel: tecnico,
+    relatorio: "Visita inicial para levantamento.",
+  });
+  // A asserção que importa: a URL NÃO mudou.
+  await expect(page).toHaveURL(instalacaoPath);
+  await expect(page).not.toHaveURL(/\/instalacoes$/);
+  await expect(page.getByTestId("registro-card")).toHaveCount(1);
+
+  // --- 4) EDITAR REGISTRO → permanece no workspace ---
+  await page.getByRole("button", { name: "Editar" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  await dialog.getByLabel("Relatório").fill("Relatório revisado após a visita.");
+  await dialog.getByRole("button", { name: "Salvar" }).click();
+  await expect(dialog).toBeHidden();
+
+  await expect(page).toHaveURL(instalacaoPath);
+  await expect(page).not.toHaveURL(/\/instalacoes$/);
+  await expect(page.getByTestId("registro-card")).toContainText(
+    "Relatório revisado após a visita.",
+  );
+
+  // --- 5) Cancelar instalação NÃO foi alterado: continua no workspace ---
+  await page.getByRole("button", { name: "Cancelar instalação" }).click();
+  const cancelDialog = page.getByRole("dialog");
+  await cancelDialog.getByLabel("Motivo").fill("Cancelamento de teste E2E.");
+  await cancelDialog.getByRole("button", { name: "Cancelar instalação" }).click();
+  await expect(cancelDialog).toBeHidden();
+  await expect(page).toHaveURL(instalacaoPath);
 });
 
 test("Instalações: o número da listagem é um link que abre o workspace", async ({
@@ -549,6 +649,8 @@ test("Instalações: técnico inativado some das opções novas mas continua no 
   await page.getByRole("option", { name: cliente }).click();
   await escolherTecnico(page, "Responsável atual", tecnico);
   await page.getByRole("button", { name: "Salvar" }).click();
+  await expect(page).toHaveURL(/\/instalacoes$/);
+  await page.getByRole("link", { name: `Abrir instalação ${cliente}` }).click();
   await expect(page).toHaveURL(/\/instalacoes\/(?!nova$)[^/]+$/);
   const instalacaoPath = new URL(page.url()).pathname;
 
@@ -586,6 +688,8 @@ test("Instalações: renomear o técnico NÃO reescreve a cronologia; trocar o r
   await page.getByRole("option", { name: cliente }).click();
   await escolherTecnico(page, "Responsável atual", carlos);
   await page.getByRole("button", { name: "Salvar" }).click();
+  await expect(page).toHaveURL(/\/instalacoes$/);
+  await page.getByRole("link", { name: `Abrir instalação ${cliente}` }).click();
   await expect(page).toHaveURL(/\/instalacoes\/(?!nova$)[^/]+$/);
   const instalacaoPath = new URL(page.url()).pathname;
 
