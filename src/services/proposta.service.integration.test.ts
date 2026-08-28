@@ -262,6 +262,134 @@ describe("congelamento e status são equivalentes nos estados de hoje", () => {
 });
 
 /**
+ * Campos contratuais do contrato Rev. 4 (Sprint 4.4, T8 — ADR-0416).
+ *
+ * Persistência, duplicação e o comportamento no fork. O último bloco é o que
+ * mais importa: ele **documenta a dívida** registrada no ADR-0415, em vez de
+ * deixar a surpresa para quem for mexer depois.
+ */
+describe("campos contratuais da Rev. 4", () => {
+  const comContratuais = (over: Partial<NovaPropostaPayload> = {}) => ({
+    ...payload(),
+    prazoExecucaoDiasUteis: 30,
+    valorParcelaFinal: 12345.67,
+    observacoesAceite: "Entrega parcial acordada.",
+    ...over,
+  });
+
+  const lerContratuais = (id: string) =>
+    prisma.proposta.findUniqueOrThrow({
+      where: { id },
+      select: {
+        prazoExecucaoDiasUteis: true,
+        valorParcelaFinal: true,
+        observacoesAceite: true,
+      },
+    });
+
+  it("a criação persiste os três", async () => {
+    const { id } = await criarPropostaCompleta(comContratuais());
+    propostasCriadas.push(id);
+
+    const p = await lerContratuais(id);
+    expect(p.prazoExecucaoDiasUteis).toBe(30);
+    expect(Number(p.valorParcelaFinal!.toString())).toBe(12345.67);
+    expect(p.observacoesAceite).toBe("Entrega parcial acordada.");
+  });
+
+  it("a proposta existe sem eles — são opcionais no cadastro", async () => {
+    const id = await novaProposta();
+
+    const p = await lerContratuais(id);
+    expect(p.prazoExecucaoDiasUteis).toBeNull();
+    expect(p.valorParcelaFinal).toBeNull();
+    expect(p.observacoesAceite).toBeNull();
+  });
+
+  it("salvar atualiza os três", async () => {
+    const id = await novaProposta();
+
+    await salvarProposta(id, comContratuais({ prazoExecucaoDiasUteis: 45 }));
+
+    const p = await lerContratuais(id);
+    expect(p.prazoExecucaoDiasUteis).toBe(45);
+    expect(Number(p.valorParcelaFinal!.toString())).toBe(12345.67);
+  });
+
+  it("o valor é Decimal — 0,1 + 0,2 não vira 0,30000000000000004", async () => {
+    const { id } = await criarPropostaCompleta(
+      comContratuais({ valorParcelaFinal: 0.3 }),
+    );
+    propostasCriadas.push(id);
+
+    const p = await lerContratuais(id);
+    expect(p.valorParcelaFinal!.toString()).toBe("0.3");
+  });
+
+  it("duplicar COPIA os três — são condições comerciais, como formaPagamento", async () => {
+    const { id } = await criarPropostaCompleta(comContratuais());
+    propostasCriadas.push(id);
+
+    const nova = await duplicarProposta(id);
+    propostasCriadas.push(nova.id);
+
+    const p = await lerContratuais(nova.id);
+    expect(p.prazoExecucaoDiasUteis).toBe(30);
+    expect(Number(p.valorParcelaFinal!.toString())).toBe(12345.67);
+    expect(p.observacoesAceite).toBe("Entrega parcial acordada.");
+  });
+
+  it("alterar um deles numa revisão congelada FORKA, como qualquer edição", async () => {
+    const { id } = await criarPropostaCompleta(comContratuais());
+    propostasCriadas.push(id);
+    await emitirProposta(id);
+    const antes = await estado(id);
+
+    const r = await salvarProposta(id, comContratuais({ prazoExecucaoDiasUteis: 60 }));
+
+    expect(r.forked).toBe(true);
+    expect(r.status).toBe("RASCUNHO");
+    const depois = await estado(id);
+    expect(depois.currentRevisionId).not.toBe(antes.currentRevisionId);
+  });
+
+  /**
+   * ⚠️ DÍVIDA TÉCNICA DOCUMENTADA (ADR-0415), não um defeito desta Sprint.
+   *
+   * Estes campos vivem na `Proposta`, não na `PropostaRevisao` — como
+   * `formaPagamento`, desconto e frete desde sempre. O fork cria a revisão nova,
+   * mas o cabeçalho é **sobrescrito**: a revisão emitida NÃO preserva o valor da
+   * época.
+   *
+   * Não gera documento errado hoje, porque só se gera contrato da revisão
+   * ATUAL. O teste existe para que a limitação fique **pinada e visível** — se
+   * alguém um dia mover os campos para a revisão, ele falha e obriga a revisitar
+   * a decisão conscientemente.
+   */
+  it("o valor NÃO é histórico por revisão — a revisão emitida não guarda o antigo", async () => {
+    const { id } = await criarPropostaCompleta(
+      comContratuais({ prazoExecucaoDiasUteis: 30 }),
+    );
+    propostasCriadas.push(id);
+    await emitirProposta(id);
+    const revEmitidaId = (await estado(id)).currentRevisionId!;
+
+    await salvarProposta(id, comContratuais({ prazoExecucaoDiasUteis: 60 }));
+
+    // O conteúdo da revisão emitida continua intacto...
+    const rev = await prisma.propostaRevisao.findUniqueOrThrow({
+      where: { id: revEmitidaId },
+      select: { emittedAt: true, templateContratoVersao: true },
+    });
+    expect(rev.emittedAt).toBeInstanceOf(Date);
+    expect(rev.templateContratoVersao).toBe(TEMPLATE_CONTRATO_VIGENTE);
+
+    // ...mas o campo de cabeçalho foi sobrescrito. É a dívida do ADR-0415.
+    expect((await lerContratuais(id)).prazoExecucaoDiasUteis).toBe(60);
+  });
+});
+
+/**
  * Versionamento do template de contrato (Sprint 4.4, T5 — ADR-0415).
  *
  * O defeito que isto previne: o contrato era gerado com o arquivo que
