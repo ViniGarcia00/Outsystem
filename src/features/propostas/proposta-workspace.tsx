@@ -79,6 +79,9 @@ export function PropostaWorkspace({
     previsaoInstalacao: data.previsaoInstalacao,
     obsComerciais: data.obsComerciais,
     obsTecnicas: data.obsTecnicas,
+    prazoExecucaoDiasUteis: data.prazoExecucaoDiasUteis,
+    valorParcelaFinal: data.valorParcelaFinal,
+    observacoesAceite: data.observacoesAceite,
   });
   const [desconto, setDesconto] = useState<Desconto>({
     tipo: data.descontoTipo,
@@ -143,6 +146,15 @@ export function PropostaWorkspace({
       ...(patch.obsTecnicas !== undefined
         ? { obsTecnicas: patch.obsTecnicas ?? "" }
         : {}),
+      ...(patch.prazoExecucaoDiasUteis !== undefined
+        ? { prazoExecucaoDiasUteis: patch.prazoExecucaoDiasUteis ?? null }
+        : {}),
+      ...(patch.valorParcelaFinal !== undefined
+        ? { valorParcelaFinal: patch.valorParcelaFinal ?? null }
+        : {}),
+      ...(patch.observacoesAceite !== undefined
+        ? { observacoesAceite: patch.observacoesAceite ?? "" }
+        : {}),
     }));
   };
 
@@ -161,6 +173,9 @@ export function PropostaWorkspace({
       previsaoInstalacao: header.previsaoInstalacao || null,
       obsComerciais: header.obsComerciais || null,
       obsTecnicas: header.obsTecnicas || null,
+      prazoExecucaoDiasUteis: header.prazoExecucaoDiasUteis,
+      valorParcelaFinal: header.valorParcelaFinal,
+      observacoesAceite: header.observacoesAceite || null,
       descontoTipo: desconto.tipo,
       descontoValor: desconto.valor,
       frete,

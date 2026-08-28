@@ -38,6 +38,10 @@ export interface CabecalhoValores {
   previsaoInstalacao: string;
   obsComerciais: string;
   obsTecnicas: string;
+  // Campos CONTRATUAIS do contrato Rev. 4 (ADR-0416).
+  prazoExecucaoDiasUteis: number | null;
+  valorParcelaFinal: number | null;
+  observacoesAceite: string;
 }
 
 /** Sentinela para "sem vendedor" (o Select do shadcn não aceita value vazio). */

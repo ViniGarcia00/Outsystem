@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { formatCurrency } from "@/utils";
 
 import type { CabecalhoValores } from "./proposta-cabecalho";
 import type { CabecalhoPatchValues } from "./schema";
@@ -33,6 +34,8 @@ export function FinalizacaoProposta({
   // Últimos valores comitados (evita salvar sem mudança real).
   const ultimaFormaPagamento = useRef(valores.formaPagamento);
   const ultimaPrevisao = useRef(valores.previsaoInstalacao);
+  const ultimoPrazo = useRef(valores.prazoExecucaoDiasUteis);
+  const ultimaObsAceite = useRef(valores.observacoesAceite);
 
   return (
     <section className="space-y-4">
@@ -86,6 +89,93 @@ export function FinalizacaoProposta({
         </CardContent>
       </Card>
 
+      {/* Contrato — campos que alimentam o contrato Rev. 4 (ADR-0416). Ficam em
+          card próprio porque são CLÁUSULA, não material de venda: o usuário
+          precisa ver que estes três vão para um documento assinado. */}
+      <Card>
+        <CardContent className="space-y-4">
+          <h3 className="text-sm font-semibold text-muted-foreground">
+            Contrato
+          </h3>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="fin-prazo-execucao">
+                Prazo de execução (dias úteis)
+              </Label>
+              <Input
+                id="fin-prazo-execucao"
+                type="number"
+                min={1}
+                step={1}
+                inputMode="numeric"
+                defaultValue={valores.prazoExecucaoDiasUteis ?? ""}
+                disabled={readOnly}
+                placeholder="Ex.: 30"
+                onBlur={(e) => {
+                  const v = e.target.value.trim();
+                  // Inteiro positivo ou nada. Zero e negativo caem em null, e o
+                  // Zod recusaria de qualquer forma.
+                  const n = v === "" ? null : Math.trunc(Number(v));
+                  const valido = n !== null && Number.isFinite(n) && n > 0 ? n : null;
+                  if (valido !== ultimoPrazo.current) {
+                    ultimoPrazo.current = valido;
+                    onCampo({ prazoExecucaoDiasUteis: valido });
+                  }
+                }}
+              />
+              <p className="text-xs text-muted-foreground">
+                Cláusula 3.1. O contrato já escreve “dias úteis”.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="fin-parcela-final">Parcela final</Label>
+              <Input
+                id="fin-parcela-final"
+                inputMode="numeric"
+                autoComplete="off"
+                disabled={readOnly}
+                placeholder="R$ 0,00"
+                /* Vazio quando não informado — "não informado" e "zero" são
+                   estados diferentes: o primeiro bloqueia a geração do
+                   contrato, o segundo é um valor válido. */
+                value={
+                  valores.valorParcelaFinal === null
+                    ? ""
+                    : formatCurrency(valores.valorParcelaFinal)
+                }
+                onChange={(e) => {
+                  const digits = e.target.value.replace(/\D/g, "");
+                  onCampo({
+                    valorParcelaFinal: digits ? Number(digits) / 100 : null,
+                  });
+                }}
+              />
+              <p className="text-xs text-muted-foreground">
+                Anexo II — exigível no aceite.
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="fin-obs-aceite">Observações do Termo de Aceite</Label>
+            <Textarea
+              id="fin-obs-aceite"
+              rows={2}
+              defaultValue={valores.observacoesAceite}
+              disabled={readOnly}
+              placeholder="Aparecem no Anexo II. Deixe em branco se não houver."
+              onBlur={(e) => {
+                const v = e.target.value;
+                if (v !== ultimaObsAceite.current) {
+                  ultimaObsAceite.current = v;
+                  onCampo({ observacoesAceite: v || null });
+                }
+              }}
+            />
+          </div>
+        </CardContent>
+      </Card>
     </section>
   );
 }

@@ -39,6 +39,9 @@ const CABECALHO_INICIAL: CabecalhoValores = {
   // Valores padrão (o usuário pode alterar normalmente) — ADR-0224.
   formaPagamento: "3x no Cartão de Crédito\n5% de Desconto no PIX",
   previsaoInstalacao: "3 dias",
+  prazoExecucaoDiasUteis: null,
+  valorParcelaFinal: null,
+  observacoesAceite: "",
   obsComerciais: "",
   obsTecnicas: "",
 };
@@ -100,6 +103,15 @@ export function NovaPropostaWorkspace({
       ...(patch.obsTecnicas !== undefined
         ? { obsTecnicas: patch.obsTecnicas ?? "" }
         : {}),
+      ...(patch.prazoExecucaoDiasUteis !== undefined
+        ? { prazoExecucaoDiasUteis: patch.prazoExecucaoDiasUteis ?? null }
+        : {}),
+      ...(patch.valorParcelaFinal !== undefined
+        ? { valorParcelaFinal: patch.valorParcelaFinal ?? null }
+        : {}),
+      ...(patch.observacoesAceite !== undefined
+        ? { observacoesAceite: patch.observacoesAceite ?? "" }
+        : {}),
     }));
   };
 
@@ -132,6 +144,9 @@ export function NovaPropostaWorkspace({
       previsaoInstalacao: header.previsaoInstalacao || null,
       obsComerciais: header.obsComerciais || null,
       obsTecnicas: header.obsTecnicas || null,
+      prazoExecucaoDiasUteis: header.prazoExecucaoDiasUteis,
+      valorParcelaFinal: header.valorParcelaFinal,
+      observacoesAceite: header.observacoesAceite || null,
       descontoTipo: desconto.tipo,
       descontoValor: desconto.valor,
       frete,
