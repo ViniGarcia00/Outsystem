@@ -47,7 +47,12 @@ import {
  */
 
 /**
- * Busca instantânea: número, cliente, endereço, responsável e status.
+ * Busca instantânea: apelido, número, cliente, endereço, responsável e status.
+ *
+ * O CLIENTE continua aqui mesmo tendo perdido a coluna na Sprint 4.5. Buscar
+ * pelo nome do cliente é como o usuário chega à obra quando não lembra o
+ * apelido — a coluna era apresentação, a busca é acesso. As duas coisas são
+ * independentes por construção: este acessor não olha para as colunas.
  *
  * O antigo campo "Projeto" saiu na Sprint 4.0.3 (ADR-0404) e não deixou
  * referência aqui. A normalização de acento vem de `useCrudList`, que consome a
@@ -129,25 +134,11 @@ export function InstalacoesList({
 
     return [
       {
-        id: "apelido",
-        // Identificação PRINCIPAL da instalação (Sprint 4.3, ADR-0413): é por
-        // ela que o usuário reconhece a obra — "Casa Alphaville" diz mais que
-        // "1046". Também é link: obrigar a mirar no número para abrir tornaria
-        // a coluna principal a única não clicável da linha.
-        header: () => sortHeader("apelido", "Apelido"),
-        cell: ({ row }) => (
-          <Link
-            href={`/instalacoes/${row.original.id}`}
-            aria-label={`Abrir instalação ${row.original.apelido}`}
-            className="rounded-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
-          >
-            {row.original.apelido}
-          </Link>
-        ),
-      },
-      {
         id: "numero",
-        // O número é a porta de entrada do workspace (Sprint 4.0.3, ADR-0404).
+        // Primeira coluna desde a Sprint 4.5: é o identificador estável da
+        // obra e o que o usuário confere contra um documento. O apelido, ao
+        // lado, é o que ele reconhece.
+        //
         // `next/link` renderiza um <a> de verdade: navegável por Tab, com foco
         // visível e Ctrl/Cmd+clique abrindo em nova aba. Nada disso funcionaria
         // com onClick na <tr>, que é o motivo de não fazermos assim.
@@ -163,9 +154,24 @@ export function InstalacoesList({
         ),
       },
       {
-        id: "clienteNome",
-        header: () => sortHeader("clienteNome", "Cliente"),
-        cell: ({ row }) => row.original.clienteNome,
+        id: "apelido",
+        // Identificação por RECONHECIMENTO (Sprint 4.3, ADR-0413): "Casa
+        // Alphaville" diz mais que "1046". Continua sendo link — obrigar a
+        // mirar no número tornaria esta a única coluna não clicável da linha.
+        //
+        // Desde a Sprint 4.5 a coluna Cliente não existe mais, e o valor que
+        // chega aqui já vem resolvido do service (apelido → cliente → número).
+        // A ordenação segue exatamente o texto exibido, sem lógica extra.
+        header: () => sortHeader("apelido", "Apelido"),
+        cell: ({ row }) => (
+          <Link
+            href={`/instalacoes/${row.original.id}`}
+            aria-label={`Abrir instalação ${row.original.apelido}`}
+            className="rounded-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+          >
+            {row.original.apelido}
+          </Link>
+        ),
       },
       {
         id: "enderecoResumo",

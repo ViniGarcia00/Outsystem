@@ -1,3 +1,4 @@
+import { apelidoExibido } from "@/features/instalacoes/apelido";
 import {
   snapshotEndereco,
   type EnderecoInstalacao,
@@ -160,19 +161,29 @@ export async function listInstalacoes(): Promise<InstalacaoListItem[]> {
     orderBy: { numero: "desc" },
   });
 
-  return rows.map((r) => ({
-    id: r.id,
-    numero: r.numero,
-    // Fallback defensivo: a coluna é nullable e o backfill preencheu tudo, mas
-    // a identificação principal da listagem nunca pode sair vazia.
-    apelido: r.apelido ?? nomeCliente(r.cliente),
-    clienteNome: nomeCliente(r.cliente),
-    dataAgendada: r.dataAgendada,
-    responsavelNome: r.tecnicoResponsavel?.nome ?? null,
-    status: r.status as StatusInstalacao,
-    enderecoResumo: resumoEndereco(r),
-    updatedAt: r.updatedAt,
-  }));
+  return rows.map((r) => {
+    const cliente = nomeCliente(r.cliente);
+    return {
+      id: r.id,
+      numero: r.numero,
+      /**
+       * Fallback de EXIBIÇÃO (Sprint 4.5): apelido → cliente → número. A coluna
+       * é nullable e o backfill preencheu tudo, mas desde que a coluna Cliente
+       * saiu da tabela esta é a única identificação da linha — não pode sair
+       * vazia nem como "—".
+       *
+       * Nada disto é gravado. `getInstalacao`, que alimenta o input editável do
+       * workspace, segue sem o fallback ampliado de propósito.
+       */
+      apelido: apelidoExibido(r.apelido, cliente, r.numero),
+      clienteNome: cliente,
+      dataAgendada: r.dataAgendada,
+      responsavelNome: r.tecnicoResponsavel?.nome ?? null,
+      status: r.status as StatusInstalacao,
+      enderecoResumo: resumoEndereco(r),
+      updatedAt: r.updatedAt,
+    };
+  });
 }
 
 export async function getInstalacao(
