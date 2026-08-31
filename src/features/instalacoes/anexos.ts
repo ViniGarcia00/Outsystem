@@ -14,15 +14,56 @@
  *    a intenção é falhar antes, e alto.
  */
 
-/** MIME aceito → extensão física. Ampliar é uma linha; nada mais depende disso. */
+/**
+ * MIME aceito → extensão física. Ampliar é uma linha; nada mais depende disso.
+ *
+ * Sprint 4.5: Word e Excel entraram ao lado das imagens e do PDF — a obra
+ * produz orçamento, planilha de medição e laudo, e todos chegavam por fora do
+ * sistema.
+ *
+ * **Limitação conhecida e aceita.** A validação é por MIME declarado, não por
+ * conteúdo. `application/vnd.ms-excel` é o que alguns ambientes Windows
+ * reportam para arquivos que não são XLS estrito — CSV inclusive. O arquivo
+ * seria guardado com extensão `.xls` e o conteúdo intacto: nada executa, nada
+ * escapa da raiz de uploads. Inspeção de magic bytes foi avaliada e ficou FORA
+ * de propósito nesta Sprint (ADR-0417).
+ */
 export const MIME_ACEITOS = {
   "image/jpeg": "jpg",
   "image/png": "png",
   "image/webp": "webp",
   "application/pdf": "pdf",
+  "application/msword": "doc",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+    "docx",
+  "application/vnd.ms-excel": "xls",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
 } as const;
 
 export type MimeAceito = keyof typeof MIME_ACEITOS;
+
+/**
+ * Extensões do `accept`, na ordem em que o usuário as reconhece.
+ *
+ * Existe SEPARADA do mapa de MIME por um motivo só: `.jpeg` e `.jpg` são o
+ * mesmo `image/jpeg`, e o mapa guarda uma extensão por MIME. O teste
+ * "toda extensão da allowlist de MIME aparece no accept" é o que impede as
+ * duas listas de divergirem.
+ *
+ * **Não é validação.** O que o servidor aceita continua sendo decidido só por
+ * `MIME_ACEITOS`; isto filtra o diálogo de arquivos.
+ */
+export const EXTENSOES_ACEITAS = [
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".webp",
+  ".pdf",
+  ".doc",
+  ".docx",
+  ".xls",
+  ".xlsx",
+] as const;
 
 /** 10 MB por arquivo — cobre foto de celular com folga. */
 export const MAX_BYTES = 10 * 1024 * 1024;
@@ -30,11 +71,21 @@ export const MAX_BYTES = 10 * 1024 * 1024;
 /** 10 anexos por registro. */
 export const MAX_POR_REGISTRO = 10;
 
-/** `accept` do `<input type="file">`, derivado da allowlist — nunca escrito à mão. */
-export const ACCEPT_ANEXO = Object.keys(MIME_ACEITOS).join(",");
+/**
+ * `accept` do `<input type="file">`, derivado da allowlist — nunca escrito à
+ * mão.
+ *
+ * Soma MIMEs e extensões porque só MIME não basta: o diálogo de arquivos do
+ * Windows filtra os formatos Office pela extensão de forma bem mais confiável,
+ * e `.doc`/`.xls` são justamente onde isso aparece.
+ */
+export const ACCEPT_ANEXO = [
+  ...Object.keys(MIME_ACEITOS),
+  ...EXTENSOES_ACEITAS,
+].join(",");
 
 export const ANEXO_TIPO_RECUSADO =
-  "Formato não aceito. Envie JPG, PNG, WebP ou PDF.";
+  "Formato não aceito. Envie JPG, PNG, WebP, PDF, Word ou Excel.";
 export const ANEXO_VAZIO = "Arquivo vazio.";
 export const ANEXO_LIMITE_EXCEDIDO = "O arquivo deve ter no máximo 10 MB.";
 export const ANEXO_MAXIMO_ATINGIDO = `Este registro já tem ${MAX_POR_REGISTRO} anexos.`;

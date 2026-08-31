@@ -5,6 +5,7 @@ import {
   ANEXO_LIMITE_EXCEDIDO,
   ANEXO_TIPO_RECUSADO,
   ANEXO_VAZIO,
+  EXTENSOES_ACEITAS,
   MAX_BYTES,
   MAX_POR_REGISTRO,
   MIME_ACEITOS,
@@ -24,17 +25,59 @@ import {
  */
 
 describe("allowlist de tipos", () => {
-  it("aceita exatamente JPG, PNG, WebP e PDF", () => {
+  /**
+   * A lista é EXAUSTIVA de propósito. Ampliar formatos é decisão de produto —
+   * o teste falhar ao adicionar um tipo novo é o comportamento desejado.
+   *
+   * Sprint 4.5: Word e Excel entraram ao lado de JPG, PNG, WebP e PDF.
+   */
+  it("aceita exatamente imagens, PDF, Word e Excel", () => {
     expect(Object.keys(MIME_ACEITOS).sort()).toEqual([
+      "application/msword",
       "application/pdf",
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       "image/jpeg",
       "image/png",
       "image/webp",
     ]);
   });
 
+  it("mapeia cada MIME para a extensão física esperada", () => {
+    expect(extensaoDe("image/jpeg")).toBe("jpg");
+    expect(extensaoDe("image/png")).toBe("png");
+    expect(extensaoDe("image/webp")).toBe("webp");
+    expect(extensaoDe("application/pdf")).toBe("pdf");
+    expect(extensaoDe("application/msword")).toBe("doc");
+    expect(
+      extensaoDe(
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      ),
+    ).toBe("docx");
+    expect(extensaoDe("application/vnd.ms-excel")).toBe("xls");
+    expect(
+      extensaoDe(
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      ),
+    ).toBe("xlsx");
+  });
+
   it("recusa SVG — é HTML executável, fora de propósito", () => {
     expect(extensaoDe("image/svg+xml")).toBeNull();
+  });
+
+  it("recusa executável e arquivo compactado", () => {
+    for (const mime of [
+      "application/x-msdownload",
+      "application/vnd.microsoft.portable-executable",
+      "application/zip",
+      "application/x-zip-compressed",
+      "application/x-7z-compressed",
+      "application/x-rar-compressed",
+    ]) {
+      expect(extensaoDe(mime)).toBeNull();
+    }
   });
 
   it("recusa tipos genéricos usados para burlar allowlist", () => {
@@ -48,8 +91,59 @@ describe("allowlist de tipos", () => {
     }
   });
 
+  /**
+   * Vizinhos plausíveis dos formatos aceitos. Estão aqui porque a allowlist
+   * cresceu: `text/csv` e os `.odt`/`.ods` seriam a próxima suposição de quem
+   * lesse "Excel e Word" sem ler o mapa.
+   */
+  it("recusa formatos próximos que NÃO foram aprovados", () => {
+    for (const mime of [
+      "text/csv",
+      "application/vnd.oasis.opendocument.text",
+      "application/vnd.oasis.opendocument.spreadsheet",
+      "application/rtf",
+      "application/vnd.ms-powerpoint",
+      "image/gif",
+      "image/avif",
+    ]) {
+      expect(extensaoDe(mime)).toBeNull();
+    }
+  });
+
+  /**
+   * O `accept` soma MIMEs e extensões. Só MIME não basta: o file picker do
+   * Windows filtra os formatos Office de forma mais confiável pela extensão, e
+   * `.doc`/`.xls` são exatamente onde isso aparece.
+   */
   it("o `accept` do input é derivado da allowlist, não escrito à mão", () => {
-    expect(ACCEPT_ANEXO).toBe(Object.keys(MIME_ACEITOS).join(","));
+    expect(ACCEPT_ANEXO).toBe(
+      [...Object.keys(MIME_ACEITOS), ...EXTENSOES_ACEITAS].join(","),
+    );
+  });
+
+  it("o `accept` cobre as nove extensões aprovadas, com `.jpeg` ao lado de `.jpg`", () => {
+    expect([...EXTENSOES_ACEITAS]).toEqual([
+      ".jpg",
+      ".jpeg",
+      ".png",
+      ".webp",
+      ".pdf",
+      ".doc",
+      ".docx",
+      ".xls",
+      ".xlsx",
+    ]);
+  });
+
+  /**
+   * A divergência que este teste impede: alguém adiciona um MIME e esquece a
+   * extensão (ou o contrário), e o picker passa a mostrar formatos que o
+   * servidor recusa — ou a esconder formatos que ele aceita.
+   */
+  it("toda extensão da allowlist de MIME aparece no `accept`", () => {
+    for (const ext of Object.values(MIME_ACEITOS)) {
+      expect(EXTENSOES_ACEITAS).toContain(`.${ext}`);
+    }
   });
 });
 
@@ -64,6 +158,33 @@ describe("nomeFisico", () => {
     expect(nomeFisico("abc123", "application/pdf")).toBe("abc123.pdf");
     expect(nomeFisico("abc123", "image/webp")).toBe("abc123.webp");
     expect(nomeFisico("abc123", "image/png")).toBe("abc123.png");
+    expect(nomeFisico("abc123", "application/msword")).toBe("abc123.doc");
+    expect(
+      nomeFisico(
+        "abc123",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      ),
+    ).toBe("abc123.docx");
+    expect(nomeFisico("abc123", "application/vnd.ms-excel")).toBe("abc123.xls");
+    expect(
+      nomeFisico(
+        "abc123",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      ),
+    ).toBe("abc123.xlsx");
+  });
+
+  /**
+   * A garantia vale para os formatos novos exatamente como valia para os
+   * antigos: o `.exe` no fim do nome enviado não vira extensão física.
+   */
+  it("um nome como `planilha.xlsx.exe` não produz `.exe`", () => {
+    const fisico = nomeFisico(
+      "abc123",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+    expect(fisico).toBe("abc123.xlsx");
+    expect(fisico.endsWith(".exe")).toBe(false);
   });
 
   it("lança para MIME fora da allowlist — não inventa extensão", () => {
@@ -108,6 +229,22 @@ describe("caminhoRelativoDe", () => {
 describe("validarArquivo", () => {
   it("aceita um arquivo dentro das regras", () => {
     expect(validarArquivo({ mime: "image/jpeg", tamanho: 1024 })).toBeNull();
+  });
+
+  it("aceita todos os nove MIMEs da allowlist", () => {
+    for (const mime of Object.keys(MIME_ACEITOS)) {
+      expect(validarArquivo({ mime, tamanho: 1024 })).toBeNull();
+    }
+  });
+
+  it("recusa SVG, executável e ZIP mesmo dentro do limite de tamanho", () => {
+    for (const mime of [
+      "image/svg+xml",
+      "application/x-msdownload",
+      "application/zip",
+    ]) {
+      expect(validarArquivo({ mime, tamanho: 1024 })).toBe(ANEXO_TIPO_RECUSADO);
+    }
   });
 
   it("recusa tipo fora da allowlist", () => {

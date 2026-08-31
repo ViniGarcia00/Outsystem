@@ -116,7 +116,7 @@ export function AnexosEditor({
                 title={
                   noLimite
                     ? `Máximo de ${MAX_POR_REGISTRO} anexos por registro.`
-                    : "JPG, PNG, WebP ou PDF, até 10 MB."
+                    : "JPG, PNG, WebP, PDF, Word e Excel. Máx. 10 MB por arquivo."
                 }
               >
                 <Upload className="h-4 w-4" />
