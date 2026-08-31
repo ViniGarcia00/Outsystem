@@ -2651,9 +2651,9 @@ observação, sem alteração de timeout: mexer nisso é decisão de outro escop
 | 2 | `72e0b09` | T3 — tabela sem coluna Cliente e Número antes do Apelido |
 | 3 | `4fb1a59` | T4 — integração: upload real dos 8 formatos e fallback do apelido |
 | 4 | `9424e50` | T5 — E2E: DOCX ponta a ponta e a tabela na ordem nova |
-| 5 | `HASH_FECHAMENTO` | T6 — VERSION 1.8.0, documentação e gate oficial |
+| 5 | `d0b984f` | T6 — VERSION 1.8.0, documentação e gate oficial |
 
-- **Hash do commit de fechamento:** `HASH_FECHAMENTO`
+- **Hash do commit de fechamento:** `d0b984f`
 
 Cinco commits para seis tasks: a T1 foi a auditoria, que não produziu código —
 produziu o escopo. O registro deste hash é feito em **commit documental separado**,
