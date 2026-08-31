@@ -4,6 +4,54 @@ Todas as mudanças relevantes deste projeto são documentadas aqui.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o
 projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [1.8.0] — 2026-08-31
+
+Sprint 4.5. Duas evoluções no módulo **Instalações**: os anexos do Registro
+passam a aceitar documentos do Office, e a tabela da listagem perde a coluna
+Cliente. Nenhuma migration — allowlist, validação e apresentação.
+
+### Adicionado
+
+- **Anexos em Word e Excel.** `.doc`, `.docx`, `.xls` e `.xlsx` entram na
+  allowlist ao lado de JPG, PNG, WebP e PDF. A obra produz orçamento, planilha de
+  medição e laudo, e todos chegavam por fora do sistema. Os limites não mudaram:
+  **10 MB por arquivo, 10 anexos por registro**.
+- **`accept` do seletor de arquivos com MIMEs e extensões.** Só MIME não bastava:
+  o diálogo do Windows filtra os formatos Office pela extensão de forma bem mais
+  confiável. As duas listas são mantidas coerentes por teste.
+- **Fallback de exibição do apelido** na listagem: `apelido` → nome do cliente →
+  número da instalação. Sem a coluna Cliente, a coluna Apelido virou a única
+  identificação da linha e não pode aparecer vazia nem como "—".
+
+### Alterado
+
+- **Tabela de Instalações reordenada:** Número, Apelido, Endereço, Data,
+  Responsável, Status e Última Atualização. **Número vem primeiro** — é o
+  identificador estável, o que se confere contra um documento.
+- **Coluna Cliente removida da tabela.** Era redundante: desde o ADR-0413 o
+  apelido é sugerido a partir do cliente, então as duas colunas exibiam o mesmo
+  texto na maioria das linhas. Saiu da **apresentação** apenas — o cliente
+  continua na entidade, no DTO, no workspace e **na busca**.
+
+### Segurança
+
+- **A ampliação de formatos não relaxou nenhuma garantia do ADR-0414.** A
+  extensão física continua vindo do MIME validado (`planilha.xlsx.exe` grava
+  `.xlsx`), o nome enviado pelo navegador continua sendo só metadado, o caminho
+  continua relativo sob `resolveWithin`, e o anexo continua alcançável apenas
+  pelo agregado completo. SVG, executáveis e ZIP seguem recusados.
+- **Limitação conhecida e aceita:** a validação é por MIME declarado, não por
+  conteúdo. `application/vnd.ms-excel` é o que alguns ambientes reportam para
+  arquivos que não são XLS estrito, CSV inclusive. Inspeção de magic bytes foi
+  avaliada e ficou fora de propósito (ADR-0417); registrada no BACKLOG.
+
+### Notas
+
+- **Sem migration, sem backfill.** O fallback do apelido é de visualização e
+  **não** é aplicado em `getInstalacao`, que alimenta o input editável do
+  workspace — aplicá-lo lá faria o nome do cliente ser gravado como apelido no
+  próximo "Salvar".
+
 ## [1.7.0] — 2026-08-28
 
 Sprint 4.4. O contrato deixa de ser **um arquivo** e passa a ser **um texto

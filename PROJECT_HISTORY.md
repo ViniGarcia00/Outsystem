@@ -2542,3 +2542,158 @@ Verificações além do gate:
 `package-lock.json` **não** foi tocado: o repositório nunca o sincronizou com a
 versão (segue em `1.0.0` desde o início), e o comportamento estabelecido foi
 mantido.
+
+---
+
+## Sprint 4.5 — Anexos Word/Excel e tabela de Instalações (2026-08-31, versão 1.8.0)
+
+Duas evoluções pequenas no módulo Instalações, aprovadas juntas porque compartilham
+uma propriedade: **as duas mexem em apresentação e validação, nenhuma toca em
+estrutura de dados**. Zero migrations, zero backfill.
+
+### A auditoria decidiu o tamanho da Sprint
+
+A primeira tarefa foi auditar, e ela mudou a natureza do trabalho. Três achados:
+
+1. **A allowlist de anexos já era um ponto único.** `MIME_ACEITOS`
+   (`features/instalacoes/anexos.ts`) alimenta `extensaoDe`, `nomeFisico`,
+   `validarArquivo`, o `accept` do input e o `Content-Type` da rota de download.
+   Ampliar formatos custou **uma entrada no mapa** — o resto veio junto. É o
+   ADR-0414 se pagando.
+2. **O fallback do apelido já existia pela metade.** `listInstalacoes` fazia
+   `r.apelido ?? nomeCliente(r.cliente)`. Faltavam string vazia, string só com
+   espaços e o fallback final pelo número.
+3. **A ordenação do Apelido não precisava de nada.** Como o DTO entrega o valor
+   já resolvido, `useCrudList` ordena pelo texto exibido. O item 11 do escopo
+   ("se a ordenação ficar mal posicionada, relatar antes de criar lógica maior")
+   se resolveu sozinho.
+
+### T2 — Word e Excel na allowlist
+
+Quatro MIMEs novos, e a decisão de somar **extensões** ao `accept` além dos MIMEs:
+o diálogo de arquivos do Windows filtra `.doc` e `.xls` pela extensão de forma bem
+mais confiável que pelo MIME. As duas listas existem separadas (`.jpg` e `.jpeg`
+são o mesmo `image/jpeg`) e são mantidas coerentes **por teste**, não por
+disciplina.
+
+Nada da arquitetura de segurança mudou. O que os testes fixam:
+
+- `planilha.xlsx.exe` grava `.xlsx`;
+- `orcamento.xlsx` com MIME de PDF grava `.pdf` — o nome enviado nunca decide;
+- SVG, EXE, ZIP, ODS, RTF, PPT e CSV são recusados;
+- os limites de 10 MB e 10 por registro valem igual para Word e Excel.
+
+**Limitação conhecida, aceita por decisão explícita do dono do produto:** a
+validação é por MIME *declarado*. `application/vnd.ms-excel` é o que alguns
+ambientes Windows reportam para arquivos que não são XLS estrito, CSV inclusive.
+Inspeção de magic bytes ficou **fora de propósito**: traria dependência nova e um
+modo de falha novo (arquivo legítimo recusado por assinatura inesperada) para um
+risco que o resto da arquitetura já contém. Ver ADR-0417 e `BACKLOG.md`.
+
+### T3 — A coluna Cliente sai; o cliente continua na busca
+
+Nova ordem: Número, Apelido, Endereço, Data, Responsável, Status, Última
+Atualização. A coluna Cliente era redundante na prática — desde o ADR-0413 o
+apelido é *sugerido* a partir do cliente, então as duas colunas exibiam o mesmo
+texto na maioria das linhas.
+
+**Coluna e busca são independentes**, e foi preciso escrever o teste de um jeito
+que provasse isso: cliente com acento e apelido **diferente** do nome do cliente.
+Com apelido igual — que é o caso comum, por causa da sugestão — "busca por
+cliente" passaria mesmo se o cliente tivesse saído do acessor de busca.
+
+### A divergência deliberada entre as duas leituras
+
+`apelidoExibido` (módulo puro) resolve `apelido → cliente → número` e é aplicado
+**só** em `listInstalacoes`. `getInstalacao` fica de fora **de propósito**: ele
+alimenta o input **editável** do workspace, e com o fallback aplicado lá um
+apelido vazio apareceria preenchido com o nome do cliente e seria **persistido no
+próximo "Salvar"** — uma decisão que o usuário nunca tomou.
+
+É a parte da Sprint que mais parece descuido e menos é. Um teste de integração
+existe só para fixá-la, e o ADR-0417 explica o porquê.
+
+### Três testes existentes quebraram — e o motivo era instrutivo
+
+O E2E acusou três falhas nos cenários de Instalações. Nenhuma era regressão: os
+três localizavam a linha da tabela **pelo texto da coluna Cliente**.
+
+O detalhe que valeu a leitura: no cenário de round-trip, o alvo era
+`getByRole("cell", { name: clienteNome, exact: true })`. Com a coluna removida,
+sobrou a célula do Apelido — que exibe o mesmo texto, mas **não casa**, porque o
+nome acessível da célula vem do `aria-label` do link ("Abrir instalação ..."), não
+do texto visível. O comentário no teste dizia que a célula fora escolhida para
+desfazer uma ambiguidade; na verdade ela funcionava porque a coluna Cliente era a
+única com o nome como texto puro.
+
+Correções: o round-trip passou a mirar o **link** do apelido; o de cancelamento
+passou a receber um apelido explícito (o helper `criarInstalacao` ganhou o
+parâmetro). Nos dois, a **busca continua sendo feita pelo nome do cliente** — é a
+garantia que precisava sobreviver.
+
+### Flake pré-existente no E2E, diagnosticado e não "corrigido"
+
+Duas execuções da suíte completa falharam em testes **diferentes** de Propostas,
+sempre com a mesma assinatura: um `toHaveURL` após submit estourando os 15 s. Os
+mesmos testes passam isolados.
+
+Causa: o `webServer` do Playwright é `npm run dev` (`playwright.config.ts:58`), e o
+Next compila rota **sob demanda**; a primeira visita a uma rota ainda não compilada
+pode passar de 15 s sob carga. Não tem relação com esta Sprint — nenhum arquivo de
+Propostas foi tocado. A terceira execução saiu **39/39**. Fica registrado como
+observação, sem alteração de timeout: mexer nisso é decisão de outro escopo.
+
+### Commits da Sprint 4.5
+
+| # | Hash | Task |
+| --- | --- | --- |
+| 1 | `bd4de46` | T2 — anexos do Registro aceitam Word e Excel |
+| 2 | `72e0b09` | T3 — tabela sem coluna Cliente e Número antes do Apelido |
+| 3 | `4fb1a59` | T4 — integração: upload real dos 8 formatos e fallback do apelido |
+| 4 | `9424e50` | T5 — E2E: DOCX ponta a ponta e a tabela na ordem nova |
+| 5 | `HASH_FECHAMENTO` | T6 — VERSION 1.8.0, documentação e gate oficial |
+
+- **Hash do commit de fechamento:** `HASH_FECHAMENTO`
+
+Cinco commits para seis tasks: a T1 foi a auditoria, que não produziu código —
+produziu o escopo. O registro deste hash é feito em **commit documental separado**,
+seguindo o padrão do projeto (Sprint 4.4, `2c9d329`).
+
+### Gate oficial da 1.8.0
+
+| # | Item | Resultado |
+| --- | --- | --- |
+| 1 | Lint | **0 erros, 0 warnings** |
+| 2 | Typecheck | **0** |
+| 3 | Build | **OK** |
+| 4 | Unit | **387/387** (26 arquivos) |
+| 5 | Integração | **124/124** (6 arquivos) |
+| 6 | Smoke/E2E | **39/39** · resíduo de banco e de disco **zero** |
+| 7 | `/api/health` | **200** · `{"status":"ok","version":"1.8.0","database":"up"}` |
+| 8 | `/dev/diagnostics` | **200** · 0,52 s |
+| 9 | PostgreSQL | **18.1** (x86_64-windows, msvc-19.44.35219, 64-bit) |
+| 10 | Prisma | **7.8.0** · conectado |
+| 11 | Documentação | PROJECT_CONTEXT, VISION, BACKLOG, DECISIONS (ADR-0417) |
+| 12 | CHANGELOG | seção **[1.8.0]** |
+| 13 | VERSION | **1.8.0** (e `package.json` **1.8.0**) |
+| 14 | Commit | commit oficial da Sprint + hash registrado acima |
+
+Verificações além do gate:
+
+| Verificação | Resultado |
+| --- | --- |
+| `migrate status` | *Database schema is up to date* · **26 migrations** · 0 pendentes |
+| `migrate diff` (banco × schema) | **No difference detected** — sem drift, como previsto |
+| `db:validate` | **14 ok, 0 falhas** |
+| Resíduo de banco | **zero** — 0 anexos, 0 instalações/clientes `E2E` |
+| Resíduo de filesystem | **zero** — `storage/uploads/instalacoes` vazio, só o `logo.jpg` preexistente |
+
+**Nenhuma migration nesta Sprint**, como previsto na auditoria: `26 migrations`
+antes e depois, e o `migrate diff` confirma ausência de drift.
+
+`package-lock.json` **não** foi tocado: o repositório nunca o sincronizou com a
+versão (segue em `1.0.0` desde o início), e o comportamento estabelecido foi
+mantido.
+
+**MINOR e não PATCH:** aceitar novos formatos de anexo é funcionalidade visível ao
+usuário, não correção de defeito.

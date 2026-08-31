@@ -2347,3 +2347,78 @@ que não cabe nesta release e que deve ter Sprint própria. Registrado em
 - **Consequência:** o contrato deixa de ter qualquer placeholder preenchido à
   mão, e os dois números que passam a ser variáveis têm origem explícita e
   auditável — em vez de serem digitados no Word a cada envio.
+
+---
+
+### ADR-0417 — Anexos Word/Excel por allowlist de MIME, e a coluna Apelido como identificação única da linha
+
+**Contexto.** Sprint 4.5. Duas evoluções pequenas no módulo Instalações, ligadas
+por um ponto só: as duas mexem em COMO a informação é apresentada e aceita, sem
+tocar em estrutura de dados. Nenhuma migration.
+
+**Decisão 1 — Word e Excel entram na allowlist, que continua sendo de MIME.**
+
+`MIME_ACEITOS` passa de quatro para oito entradas: `.doc`, `.docx`, `.xls` e
+`.xlsx` ao lado de JPG, PNG, WebP e PDF. A obra produz orçamento, planilha de
+medição e laudo, e todos chegavam por fora do sistema.
+
+O que **não** muda é o que importa: a extensão física continua derivada do MIME
+validado, o nome enviado pelo navegador continua sendo apenas metadado, o
+caminho continua relativo e sob `resolveWithin`, e o anexo continua alcançável
+só pelo agregado completo (`anexoId` + `registroId` + `instalacaoId`). Ampliar
+formatos custou uma entrada no mapa porque o ADR-0414 concentrou a regra num
+lugar só — este ADR é, em boa parte, a validação daquele desenho.
+
+O `accept` do input passou a somar MIMEs **e** extensões. Só MIME não bastava: o
+diálogo de arquivos do Windows filtra os formatos Office pela extensão de forma
+bem mais confiável. As duas listas são mantidas coerentes por teste, não por
+disciplina.
+
+**Limitação conhecida e ACEITA.** A validação é por MIME *declarado*, não por
+conteúdo. `application/vnd.ms-excel` é o que alguns ambientes Windows reportam
+para arquivos que não são XLS estrito — CSV inclusive. Um CSV renomeado seria
+aceito e guardado como `.xls`, com o conteúdo intacto.
+
+Isso foi avaliado e **não** será tratado nesta Sprint: inspeção de magic bytes ou
+parser de Office trariam dependência nova e um modo de falha novo (arquivo
+legítimo recusado por assinatura inesperada) para um risco que o resto da
+arquitetura já contém — nada é executado, nada escapa da raiz de uploads, e o
+`Content-Type` que sai é sempre derivado da allowlist, com `nosniff`. Registrado
+no BACKLOG.
+
+**Decisão 2 — A coluna Cliente sai da tabela; o cliente NÃO sai da busca.**
+
+A tabela passa a ser Número, Apelido, Endereço, Data, Responsável, Status e
+Última Atualização. Número vem primeiro porque é o identificador estável, o que
+se confere contra um documento; o apelido vem em seguida porque é o que o
+usuário reconhece.
+
+A coluna Cliente era redundante na prática: desde o ADR-0413 o apelido é
+*sugerido* a partir do cliente, então as duas colunas exibiam o mesmo texto na
+maioria das linhas. **Coluna e busca são coisas independentes**, e a busca por
+nome do cliente continua — é como se chega à obra quando não se lembra do
+apelido. O teste que separa as duas usa apelido diferente do nome do cliente de
+propósito: sem isso, "busca por cliente" passaria mesmo com o cliente fora do
+acessor.
+
+**Decisão 3 — O fallback do apelido é de EXIBIÇÃO, e só na listagem.**
+
+Sem a coluna Cliente, a coluna Apelido virou a única identificação da linha.
+`apelidoExibido` (módulo puro) resolve `apelido → nome do cliente → número`, e o
+mapper de `listInstalacoes` a aplica. O travessão de ausência que `nomeCliente`
+devolve é tratado como ausência: exibi-lo traria de volta exatamente o "—" que a
+regra proíbe.
+
+**`getInstalacao` fica FORA disso, de propósito** — é a parte deste ADR que se
+perde primeiro numa refatoração futura, porque a divergência parece um descuido.
+Não é. `getInstalacao` alimenta o input **editável** do workspace: com o fallback
+aplicado lá, um apelido vazio apareceria preenchido com o nome do cliente e
+seria persistido no próximo "Salvar" — uma decisão que o usuário nunca tomou.
+Um teste de integração fixa essa divergência.
+
+**Nada é gravado.** Sem migration, sem backfill, sem sobrescrever apelido
+existente.
+
+**Consequência.** A ordenação do Apelido saiu de graça: como o DTO já entrega o
+valor resolvido, a listagem ordena pelo texto exibido sem nenhuma lógica nova e
+sem nada novo no banco.

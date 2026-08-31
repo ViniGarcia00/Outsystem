@@ -2,6 +2,33 @@
 
 > Vazio por design ao final da Sprint 0. Preenchido ao longo das Sprints.
 
+## Apurado na Sprint 4.5 — Anexos Word/Excel e tabela de Instalações (2026-08-31)
+
+- [ ] **Validação de anexo é por MIME declarado, não por conteúdo**
+      (prioridade baixa — limitação conhecida, ACEITA por decisão explícita)
+      **Contexto:** a allowlist decide pelo `file.type` que o navegador envia.
+      `application/vnd.ms-excel` é o que alguns ambientes Windows reportam para
+      arquivos que **não** são XLS estrito — CSV inclusive. Um arquivo assim
+      seria aceito e guardado com extensão `.xls`, conteúdo intacto.
+      **Por que não é um furo hoje:** nada é executado, nada escapa da raiz de
+      uploads (`resolveWithin`), o nome físico é gerado no servidor e o
+      `Content-Type` servido é sempre derivado da allowlist, com `nosniff`. O
+      pior caso é um arquivo guardado com a extensão errada.
+      **Por que não foi tratado na 4.5:** inspeção de magic bytes ou parser de
+      Office trariam dependência nova e um modo de falha novo — arquivo legítimo
+      recusado por assinatura inesperada — para um risco que o resto da
+      arquitetura já contém. Ver ADR-0417.
+
+- [ ] **Ordenação do Apelido é textual, inclusive no valor de fallback**
+      (prioridade baixa)
+      **Contexto:** a listagem ordena pelo texto exibido, que pode ser o apelido,
+      o nome do cliente ou o número. Uma instalação sem apelido ordena, portanto,
+      pelo nome do cliente — que é o comportamento desejado, e é por isso que
+      isto **não** é bug. Fica registrado apenas porque a leitura "ordena por
+      `Instalacao.apelido`" é intuitiva e está errada.
+      **Só vira trabalho** se alguém pedir ordenação no banco: aí o fallback
+      precisaria virar SQL, e hoje não precisa. Ver ADR-0417.
+
 ## Apurado na Sprint 4.4 — Contrato Rev. 4 (2026-08-28)
 
 - [ ] **Campos comerciais de cabeçalho não são históricos** (prioridade alta —

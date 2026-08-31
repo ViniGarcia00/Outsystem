@@ -179,8 +179,9 @@ About é voltada ao usuário final e existirá também em produção.
 > registrado na **revisão** (`aprovadaEm`) e invalidação automática ao alterar; a
 > Instalação ganhou **apelido**, identificação própria por obra e agora principal
 > na listagem, com retorno à tabela ao salvar os dados gerais; e a cronologia
-> passou a aceitar **anexos** (JPG/PNG/WebP/PDF, 10 MB, 10 por registro), com
-> upload por Route Handler. Ver ADR-0412..0414.
+> passou a aceitar **anexos** (JPG/PNG/WebP/PDF, mais Word e Excel desde a Sprint
+> 4.5 — 10 MB, 10 por registro), com upload por Route Handler. Ver
+> ADR-0412..0414.
 >
 > **Estado atual (2026-08-28): Sprint 4.4 concluída na versão 1.7.0.** O
 > template do contrato passou a ser **versionado**: um arquivo por versão do
@@ -190,6 +191,24 @@ About é voltada ao usuário final e existirá também em produção.
 > (vigente desde 28/08/2026), que trouxe prazo de execução, parcela final e
 > observações do Termo de Aceite como campos da Proposta, com **guarda de
 > geração** para os dois primeiros. Ver ADR-0415 e ADR-0416.
+>
+> **Estado atual (2026-08-31): Sprint 4.5 concluída na versão 1.8.0.** Duas
+> evoluções no módulo Instalações, ambas sem migration. Os **anexos do Registro**
+> passaram a aceitar **Word e Excel** (`.doc`, `.docx`, `.xls`, `.xlsx`) ao lado
+> de JPG, PNG, WebP e PDF — uma entrada a mais no mapa `MIME_ACEITOS`, porque o
+> ADR-0414 concentrou a regra num lugar só; limites de 10 MB e 10 por registro
+> inalterados. E a **tabela de Instalações** perdeu a coluna Cliente, ficando
+> Número, Apelido, Endereço, Data, Responsável, Status e Última Atualização — o
+> cliente saiu da apresentação, **não** da busca, do DTO, do workspace nem da
+> entidade. O apelido ganhou fallback de exibição (apelido → cliente → número)
+> **só na listagem**: `getInstalacao` fica de fora de propósito, porque alimenta
+> o input editável e o fallback viraria gravação silenciosa. Ver ADR-0417.
+>
+> **Limitação aceita na 1.8.0:** a validação de anexo é por **MIME declarado**,
+> não por conteúdo — `application/vnd.ms-excel` é reportado por alguns ambientes
+> para arquivos que não são XLS estrito, CSV inclusive. Nada executa e nada
+> escapa da raiz de uploads; inspeção de magic bytes ficou fora de propósito.
+> Ver ADR-0417 e `BACKLOG.md`.
 >
 > **Dívida registrada na 1.7.0:** desconto, frete, forma de pagamento, previsão
 > de instalação e os três campos contratuais vivem na `Proposta` e são

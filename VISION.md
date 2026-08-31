@@ -263,11 +263,12 @@ acontecimento — nunca um campo único que se sobrescreve.
   trazer o histórico de instalações que já estavam em andamento.
 - Um acontecimento **não pode estar no futuro** — ainda não aconteceu.
 - A cronologia é ordenada pelo **acontecimento**, não pelo cadastro.
-- **Anexos (1.6.0):** cada registro aceita até **10 arquivos**, de até **10 MB**
-  cada, em **JPG, PNG, WebP ou PDF** — foto da visita, nota fiscal do material.
-  Ficam no **card do registro**, não no formulário: o arquivo se liga a um
-  registro que já existe. Excluir o registro leva os anexos junto; **cancelar a
-  instalação não remove nada**.
+- **Anexos (1.6.0; formatos ampliados na 1.8.0):** cada registro aceita até **10
+  arquivos**, de até **10 MB** cada, em **JPG, PNG, WebP, PDF, Word (.doc,
+  .docx) e Excel (.xls, .xlsx)** — foto da visita, nota fiscal do material,
+  orçamento, planilha de medição, laudo. Ficam no **card do registro**, não no
+  formulário: o arquivo se liga a um registro que já existe. Excluir o registro
+  leva os anexos junto; **cancelar a instalação não remove nada**.
 
 ### Custos extras
 
