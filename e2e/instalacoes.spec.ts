@@ -82,8 +82,12 @@ async function criarInstalacao(
   page: Page,
   clienteNome: string,
   responsavel?: string,
+  // Desde a Sprint 4.5 a tabela não tem coluna Cliente, então quem precisa
+  // achar a LINHA passa o próprio apelido — é o texto que a identifica.
+  apelidoDesejado?: string,
 ): Promise<string> {
-  const apelido = `E2E Obra ${Date.now()}-${++seqInstalacao}`;
+  const apelido =
+    apelidoDesejado ?? `E2E Obra ${Date.now()}-${++seqInstalacao}`;
 
   await page.goto("/instalacoes/nova");
   await page.getByLabel("Cliente", { exact: true }).fill(clienteNome);
@@ -184,12 +188,13 @@ test("Instalações: criar, conferir snapshot, mudar status e concluir", async (
     page.getByRole("columnheader", { name: "Projeto" }),
   ).toHaveCount(0);
   await page.getByRole("searchbox", { name: "Buscar" }).fill(clienteNome);
-  // `getByRole("cell")` em vez de `getByText`: desde a Sprint 4.3 o apelido é
-  // sugerido a partir do cliente, então o mesmo texto aparece na coluna Apelido
-  // (dentro de um link) e na coluna Cliente. O locator antigo virou ambíguo — é
-  // consequência da feature, não regressão. A célula é o alvo certo aqui.
+  // A coluna Cliente saiu na Sprint 4.5. O que prova o ponto deste trecho — a
+  // busca ainda encontra a instalação pelo nome do cliente — é o LINK do
+  // apelido, que aqui carrega o nome sugerido do cliente. Não a célula: o nome
+  // acessível dela vem do `aria-label` do link ("Abrir instalação ..."), não
+  // do texto visível.
   await expect(
-    page.getByRole("cell", { name: clienteNome, exact: true }),
+    page.getByRole("link", { name: `Abrir instalação ${clienteNome}` }),
   ).toBeVisible();
 
   // O workspace continua sem o campo removido.
@@ -416,11 +421,60 @@ test("Instalações: anexos do registro — upload, download e exclusão (Sprint
   expect(baixado.headers()["x-content-type-options"]).toBe("nosniff");
   expect(Buffer.from(await baixado.body())).toEqual(PNG_1x1_E2E);
 
+  // --- documento Office: upload e download ponta a ponta (Sprint 4.5) ---
+  //
+  // O DOCX é o caso que interessa aqui e não no service: prova que o formato
+  // atravessa o navegador, o Route Handler e volta com o cabeçalho certo. O
+  // conteúdo é irrelevante — o sistema não abre o arquivo, só o guarda.
+  const DOCX = Buffer.from("conteudo-docx-de-teste", "utf8");
+  await input.setInputFiles({
+    name: "Relatório de Visita.docx",
+    mimeType:
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    buffer: DOCX,
+  });
+
+  await expect(page.getByTestId("anexo-item")).toHaveCount(2);
+  const itemDocx = page
+    .getByTestId("anexo-item")
+    .filter({ hasText: "Relatório de Visita.docx" });
+  await expect(itemDocx).toHaveCount(1);
+
+  const hrefDocx = await itemDocx.getByRole("link").getAttribute("href");
+  const docxBaixado = await page.request.get(hrefDocx!);
+  expect(docxBaixado.status()).toBe(200);
+  // Content-Type derivado da allowlist, não ecoado da linha.
+  expect(docxBaixado.headers()["content-type"]).toBe(
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  );
+  // Documento BAIXA (imagem é que abre inline), com o nome original e acento.
+  expect(docxBaixado.headers()["content-disposition"]).toBe(
+    `attachment; filename*=UTF-8''${encodeURIComponent("Relatório de Visita.docx")}`,
+  );
+  expect(docxBaixado.headers()["x-content-type-options"]).toBe("nosniff");
+  expect(Buffer.from(await docxBaixado.body())).toEqual(DOCX);
+
+  // Sai da contagem para não interferir nos passos seguintes.
+  await page
+    .getByRole("button", { name: "Excluir anexo Relatório de Visita.docx" })
+    .click();
+  await page.getByRole("button", { name: "Confirmar" }).click();
+  await expect(page.getByTestId("anexo-item")).toHaveCount(1);
+
   // --- tipo fora da allowlist é recusado pelo SERVIDOR ---
   await input.setInputFiles({
     name: "script.html",
     mimeType: "text/html",
     buffer: Buffer.from("<script>alert(1)</script>"),
+  });
+  await expect(page.getByText(/Formato não aceito/)).toBeVisible();
+  await expect(page.getByTestId("anexo-item")).toHaveCount(1);
+
+  // --- ZIP também é recusado, pelo MIME e não pela extensão do nome ---
+  await input.setInputFiles({
+    name: "fotos.zip",
+    mimeType: "application/zip",
+    buffer: Buffer.from("conteudo-zip-de-teste"),
   });
   await expect(page.getByText(/Formato não aceito/)).toBeVisible();
   await expect(page.getByTestId("anexo-item")).toHaveCount(1);
@@ -488,6 +542,84 @@ test("Instalações: registro com custos continua bloqueado, e o anexo sobrevive
   await expect(page.getByTestId("anexo-item")).toHaveCount(1);
 });
 
+/**
+ * Tabela de Instalações (Sprint 4.5, T5 — ADR-0417).
+ *
+ * A ordem das colunas e a ausência da coluna Cliente são afirmadas pelos
+ * CABEÇALHOS, não por índice de célula: é o que o usuário vê, e não quebra
+ * quando uma coluna de ação muda de lugar.
+ *
+ * O par que dá sentido ao teste é o último bloco: a coluna Cliente saiu da
+ * APRESENTAÇÃO, mas o cliente continua alcançável pela BUSCA. As duas coisas
+ * são independentes, e é fácil remover a segunda junto com a primeira por
+ * descuido.
+ */
+test("Instalações: tabela sem coluna Cliente, Número antes do Apelido (Sprint 4.5)", async ({
+  page,
+}) => {
+  // Cliente com ACENTO e apelido DIFERENTE do nome do cliente: as duas coisas
+  // juntas é que tornam o teste discriminante. Se o apelido repetisse o nome
+  // do cliente, buscar por cliente passaria mesmo com o cliente fora da busca.
+  const clienteNome = await criarCliente(page, "Tabela Construção");
+  const apelido = `E2E Obra Tabela ${Date.now()}`;
+
+  await page.goto("/instalacoes/nova");
+  await page.getByLabel("Cliente", { exact: true }).fill(clienteNome);
+  await page.getByRole("option", { name: clienteNome }).click();
+  await page.getByLabel("Apelido", { exact: true }).fill(apelido);
+  await page.getByRole("button", { name: "Salvar" }).click();
+  await expect(page).toHaveURL(/\/instalacoes$/);
+
+  await page.getByRole("searchbox", { name: "Buscar" }).fill(apelido);
+
+  // A coluna Cliente não existe mais.
+  await expect(
+    page.getByRole("columnheader", { name: "Cliente" }),
+  ).toHaveCount(0);
+
+  // E a ordem é exatamente esta.
+  const cabecalhos = await page
+    .getByRole("columnheader")
+    .allInnerTexts()
+    .then((textos) => textos.map((t) => t.trim()).filter(Boolean));
+
+  // "Ações" fecha a lista: é a coluna sem rótulo visível, com texto sr-only.
+  expect(cabecalhos).toEqual([
+    "Número",
+    "Apelido",
+    "Endereço",
+    "Data",
+    "Responsável",
+    "Status",
+    "Última Atualização",
+    "Ações",
+  ]);
+
+  const link = page.getByRole("link", { name: `Abrir instalação ${apelido}` });
+  await expect(link).toBeVisible();
+
+  // O nome do cliente NÃO aparece mais em célula nenhuma da linha.
+  await expect(
+    page.getByRole("cell", { name: clienteNome, exact: true }),
+  ).toHaveCount(0);
+
+  // Mas a BUSCA continua encontrando a instalação pelo nome do cliente — é o
+  // acesso de quem não lembra o apelido. Coluna e busca são independentes.
+  await page.getByRole("searchbox", { name: "Buscar" }).fill(clienteNome);
+  await expect(link).toBeVisible();
+
+  // ...inclusive sem acento e em caixa alta (fonte única @/utils/busca).
+  await page.getByRole("searchbox", { name: "Buscar" }).fill("Construcao");
+  await expect(link).toBeVisible();
+  await page.getByRole("searchbox", { name: "Buscar" }).fill("CONSTRUÇÃO");
+  await expect(link).toBeVisible();
+
+  // O cliente segue no workspace: saiu da tabela, não da entidade.
+  await link.click();
+  await expect(page).toHaveURL(/\/instalacoes\/(?!nova$)[^/]+$/);
+  await expect(page.getByText(clienteNome).first()).toBeVisible();
+});
+
 test("Instalações: o número da listagem é um link que abre o workspace", async ({
   page,
 }) => {
@@ -550,8 +682,11 @@ test("Instalações: cancelar preserva a instalação no histórico", async ({
   page,
 }) => {
   const clienteNome = await criarCliente(page, "Cancelar Cliente");
+  // Apelido explícito: sem a coluna Cliente (Sprint 4.5), é ele que identifica
+  // a linha na tabela.
+  const apelido = `E2E Obra Cancelar ${Date.now()}`;
 
-  await criarInstalacao(page, clienteNome);
+  await criarInstalacao(page, clienteNome, undefined, apelido);
 
   await page.getByRole("button", { name: "Cancelar instalação" }).click();
   const dialog = page.getByRole("dialog");
@@ -563,8 +698,10 @@ test("Instalações: cancelar preserva a instalação no histórico", async ({
 
   // Continua existindo na listagem, agora como Cancelada.
   await page.goto("/instalacoes");
+  // A busca continua sendo pelo CLIENTE — é a garantia que sobreviveu à
+  // remoção da coluna. A linha, essa, é localizada pelo apelido.
   await page.getByRole("searchbox", { name: "Buscar" }).fill(clienteNome);
-  const linha = page.getByRole("row").filter({ hasText: clienteNome });
+  const linha = page.getByRole("row").filter({ hasText: apelido });
   await expect(linha).toBeVisible();
   await expect(linha).toContainText("Cancelada");
 });
