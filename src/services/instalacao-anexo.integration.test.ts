@@ -220,6 +220,183 @@ describe("criarAnexo", () => {
   });
 });
 
+/**
+ * Formatos aceitos (Sprint 4.5, T4 — ADR-0417).
+ *
+ * Por que INTEGRAÇÃO e não unidade: a unidade já prova o MAPA (MIME →
+ * extensão). O que só o disco responde é se o upload real de cada formato
+ * chega ao filesystem com a extensão certa e o conteúdo intacto — que é a
+ * garantia que interessa quando alguém anexa um orçamento em .xlsx.
+ */
+describe("formatos aceitos", () => {
+  /**
+   * Os nove pares aprovados. Não é `Object.entries(MIME_ACEITOS)` de propósito:
+   * derivar da própria allowlist faria o teste concordar com qualquer coisa que
+   * ela passasse a dizer. A lista está escrita à mão para que ampliar formatos
+   * exija tocar aqui.
+   */
+  const FORMATOS = [
+    ["imagem JPG", "image/jpeg", "jpg", "foto.jpg"],
+    ["imagem PNG", "image/png", "png", "planta.png"],
+    ["imagem WebP", "image/webp", "webp", "fachada.webp"],
+    ["PDF", "application/pdf", "pdf", "laudo.pdf"],
+    ["Word 97 (.doc)", "application/msword", "doc", "relatório antigo.doc"],
+    [
+      "Word (.docx)",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "docx",
+      "Relatório de Visita.docx",
+    ],
+    ["Excel 97 (.xls)", "application/vnd.ms-excel", "xls", "medição.xls"],
+    [
+      "Excel (.xlsx)",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "xlsx",
+      "Orçamento Materiais.xlsx",
+    ],
+  ] as const;
+
+  for (const [rotulo, mime, ext, nome] of FORMATOS) {
+    it(`aceita ${rotulo} e grava com extensão .${ext}`, async () => {
+      const reg = await novoRegistro(instalacaoA);
+      const conteudo = Buffer.from(`conteúdo ${ext}`, "utf8");
+      const dto = await criarAnexo(
+        instalacaoA,
+        reg,
+        arquivo(nome, mime, conteudo),
+      );
+
+      const linha = await prisma.instalacaoRegistroAnexo.findUniqueOrThrow({
+        where: { id: dto.id },
+      });
+
+      // Extensão física derivada do MIME; nome original preservado como metadado.
+      expect(linha.nomeArmazenado).toMatch(/^[a-z0-9]+\.[a-z]+$/);
+      expect(linha.nomeArmazenado.endsWith(`.${ext}`)).toBe(true);
+      expect(linha.nomeOriginal).toBe(nome);
+      expect(linha.mimeType).toBe(mime);
+
+      // O arquivo existe em disco, com o conteúdo exato que subiu.
+      expect(existsSync(absoluto(linha.caminhoRelativo))).toBe(true);
+      expect(await readFile(absoluto(linha.caminhoRelativo))).toEqual(conteudo);
+
+      // E volta pelo agregado completo, com o MIME que entrou.
+      const lido = await lerAnexo(instalacaoA, reg, dto.id);
+      expect(lido!.mimeType).toBe(mime);
+      expect(lido!.nomeOriginal).toBe(nome);
+      expect(lido!.data).toEqual(conteudo);
+    });
+  }
+
+  /**
+   * A garantia central do ADR-0414 vale igual para os formatos novos: o `.exe`
+   * no fim do nome enviado não vira extensão física.
+   */
+  it("`planilha.xlsx.exe` não produz um `.exe` em disco", async () => {
+    const reg = await novoRegistro(instalacaoA);
+    const dto = await criarAnexo(
+      instalacaoA,
+      reg,
+      arquivo(
+        "planilha.xlsx.exe",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      ),
+    );
+
+    const linha = await prisma.instalacaoRegistroAnexo.findUniqueOrThrow({
+      where: { id: dto.id },
+    });
+
+    expect(linha.nomeOriginal).toBe("planilha.xlsx.exe");
+    expect(linha.nomeArmazenado).toMatch(/^[a-z0-9]+\.xlsx$/);
+    expect(linha.nomeArmazenado).not.toContain("exe");
+    expect(linha.caminhoRelativo.endsWith(".exe")).toBe(false);
+    expect(existsSync(absoluto(linha.caminhoRelativo))).toBe(true);
+  });
+
+  /**
+   * `.doc` e `.xls` chegando com o MIME do outro formato — o nome enviado NÃO
+   * participa da decisão, então o que manda é o MIME validado.
+   */
+  it("a extensão física segue o MIME, não o nome enviado", async () => {
+    const reg = await novoRegistro(instalacaoA);
+    const dto = await criarAnexo(
+      instalacaoA,
+      reg,
+      arquivo("orcamento.xlsx", "application/pdf"),
+    );
+
+    const linha = await prisma.instalacaoRegistroAnexo.findUniqueOrThrow({
+      where: { id: dto.id },
+    });
+    expect(linha.nomeArmazenado).toMatch(/^[a-z0-9]+\.pdf$/);
+    expect(linha.nomeOriginal).toBe("orcamento.xlsx");
+  });
+
+  it("recusa SVG, executável e ZIP, sem deixar arquivo em disco", async () => {
+    const reg = await novoRegistro(instalacaoA);
+    const recusados = [
+      ["desenho.svg", "image/svg+xml"],
+      ["instalador.exe", "application/x-msdownload"],
+      ["fotos.zip", "application/zip"],
+      ["fotos.zip", "application/x-zip-compressed"],
+      ["planilha.ods", "application/vnd.oasis.opendocument.spreadsheet"],
+      ["lista.csv", "text/csv"],
+    ] as const;
+
+    for (const [nome, mime] of recusados) {
+      await expect(
+        criarAnexo(instalacaoA, reg, arquivo(nome, mime)),
+      ).rejects.toThrow(ANEXO_TIPO_RECUSADO);
+    }
+
+    expect(
+      await prisma.instalacaoRegistroAnexo.count({ where: { registroId: reg } }),
+    ).toBe(0);
+    // Nem a pasta do registro chega a ser criada: a validação vem antes do IO.
+    expect(
+      existsSync(
+        absoluto(`instalacoes/${instalacaoA}/registros/${reg}`),
+      ),
+    ).toBe(false);
+  });
+
+  it("um Word acima de 10 MB é recusado como qualquer outro formato", async () => {
+    const reg = await novoRegistro(instalacaoA);
+    const grande = Buffer.alloc(10 * 1024 * 1024 + 1, 1);
+    await expect(
+      criarAnexo(
+        instalacaoA,
+        reg,
+        arquivo(
+          "manual.docx",
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          grande,
+        ),
+      ),
+    ).rejects.toThrow(ANEXO_LIMITE_EXCEDIDO);
+  });
+
+  it("o teto de 10 por registro não depende do formato", async () => {
+    const reg = await novoRegistro(instalacaoA);
+    for (let i = 0; i < MAX_POR_REGISTRO; i++) {
+      await criarAnexo(
+        instalacaoA,
+        reg,
+        arquivo(`doc${i}.xlsx`, "application/vnd.ms-excel"),
+      );
+    }
+
+    await expect(
+      criarAnexo(instalacaoA, reg, arquivo("excedente.doc", "application/msword")),
+    ).rejects.toThrow(ANEXO_MAXIMO_ATINGIDO);
+
+    expect(
+      await prisma.instalacaoRegistroAnexo.count({ where: { registroId: reg } }),
+    ).toBe(MAX_POR_REGISTRO);
+  });
+});
+
 describe("listarAnexos e lerAnexo", () => {
   it("lista apenas os anexos do registro pedido", async () => {
     const reg = await novoRegistro(instalacaoA);

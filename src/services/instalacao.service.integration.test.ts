@@ -31,6 +31,8 @@ const MARCA = `E2E Apelido ${Date.now()}`;
 let clienteId: string;
 let clientePjId: string;
 const instalacoesCriadas: string[] = [];
+/** Clientes criados dentro de um caso, além dos dois do `beforeAll`. */
+const clientesExtras: string[] = [];
 
 function input(apelido: string, extra: Partial<NovaInstalacaoInput> = {}): NovaInstalacaoInput {
   return {
@@ -90,7 +92,7 @@ afterAll(async () => {
     });
   }
   await prisma.cliente.deleteMany({
-    where: { id: { in: [clienteId, clientePjId].filter(Boolean) } },
+    where: { id: { in: [clienteId, clientePjId, ...clientesExtras].filter(Boolean) } },
   });
 });
 
@@ -181,6 +183,100 @@ describe("apelido nas leituras", () => {
 
     const detalhe = await getInstalacao(id);
     expect(detalhe?.apelido).toBe("Sítio Ibiúna");
+  });
+});
+
+/**
+ * Fallback de EXIBIÇÃO do apelido (Sprint 4.5, ADR-0417).
+ *
+ * Por que INTEGRAÇÃO: a coluna `apelido` é nullable no banco e o formulário
+ * NUNCA produz nulo — só uma escrita direta chega a esse estado. A regra
+ * existe justamente para as linhas que a UI não consegue criar, então é contra
+ * o banco que ela precisa ser provada. A semântica pura já está coberta em
+ * `features/instalacoes/apelido.test.ts`.
+ *
+ * O par com `getInstalacao` é o ponto do bloco: as duas leituras divergem DE
+ * PROPÓSITO. Listagem preenche a lacuna; detalhe não, porque alimenta o input
+ * editável do workspace e o fallback viraria gravação silenciosa no próximo
+ * "Salvar".
+ */
+describe("apelido vazio na listagem cai para o cliente", () => {
+  /** Escreve direto no banco: é o único caminho para um apelido vazio. */
+  async function comApelidoCru(valor: string | null, clienteDaVez = clienteId) {
+    const { id } = await novaInstalacao("Placeholder", {
+      clienteId: clienteDaVez,
+    });
+    await prisma.instalacao.update({
+      where: { id },
+      data: { apelido: valor },
+    });
+    return id;
+  }
+
+  const linhaDe = async (id: string) =>
+    (await listInstalacoes()).find((i) => i.id === id);
+
+  it("apelido nulo → nome do cliente", async () => {
+    const id = await comApelidoCru(null);
+    expect((await linhaDe(id))?.apelido).toBe(`${MARCA} Cliente`);
+  });
+
+  it("apelido vazio → nome do cliente", async () => {
+    const id = await comApelidoCru("");
+    expect((await linhaDe(id))?.apelido).toBe(`${MARCA} Cliente`);
+  });
+
+  it("apelido só com espaços → nome do cliente", async () => {
+    const id = await comApelidoCru("   ");
+    expect((await linhaDe(id))?.apelido).toBe(`${MARCA} Cliente`);
+  });
+
+  /** PJ exibe a razão social — a mesma semântica de `nomeCliente`. */
+  it("cliente PJ cai para a razão social", async () => {
+    const id = await comApelidoCru(null, clientePjId);
+    expect((await linhaDe(id))?.apelido).toBe(`${MARCA} Construtora LTDA`);
+  });
+
+  it("cliente sem nome nem empresa → número da instalação", async () => {
+    const anonimo = await prisma.cliente.create({
+      data: { nome: null, empresa: null, tipoPessoa: "PF" },
+      select: { id: true },
+    });
+    clientesExtras.push(anonimo.id);
+
+    const id = await comApelidoCru(null, anonimo.id);
+    const linha = await linhaDe(id);
+    expect(linha?.apelido).toBe(String(linha?.numero));
+    expect(linha?.apelido).not.toBe("—");
+  });
+
+  it("apelido preenchido continua ganhando do cliente", async () => {
+    const id = await comApelidoCru("  Casa Alphaville  ");
+    expect((await linhaDe(id))?.apelido).toBe("Casa Alphaville");
+  });
+
+  /**
+   * A divergência deliberada entre as duas leituras. Se alguém "uniformizar"
+   * isto no futuro, o apelido do cliente passa a ser gravado sem intenção.
+   */
+  it("getInstalacao NÃO aplica o fallback ampliado — o input editável fica vazio", async () => {
+    const id = await comApelidoCru("   ");
+    const detalhe = await getInstalacao(id);
+
+    expect(detalhe?.apelido?.trim()).toBe("");
+    expect(detalhe?.clienteNome).toBe(`${MARCA} Cliente`);
+
+    // E o banco continua com o que estava lá: nada foi gravado por ler.
+    const gravada = await prisma.instalacao.findUniqueOrThrow({
+      where: { id },
+      select: { apelido: true },
+    });
+    expect(gravada.apelido).toBe("   ");
+  });
+
+  it("o cliente continua no DTO mesmo sem coluna na tabela", async () => {
+    const id = await comApelidoCru(null);
+    expect((await linhaDe(id))?.clienteNome).toBe(`${MARCA} Cliente`);
   });
 });
 
