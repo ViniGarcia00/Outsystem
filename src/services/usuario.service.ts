@@ -1,7 +1,9 @@
 import {
+  disponivelAtivo,
   disponivelPara,
   LABEL_PAPEL,
   rotuloOpcao,
+  rotuloOpcaoAtivo,
   type PapelUsuario,
 } from "@/features/usuarios/opcoes";
 import { prisma } from "@/infrastructure/database";
@@ -128,20 +130,30 @@ export async function updateUsuario(
 
 /**
  * Exclusão permitida apenas para usuário NUNCA usado — o padrão de Cliente,
- * Produto, Vendedor e Técnico. "Usado" agora são TRÊS relações, porque a mesma
- * identidade pode ter atuado nos dois papéis.
+ * Produto, Vendedor e Técnico. "Usado" são SETE relações desde a Sprint 4.6,
+ * porque a mesma identidade pode ter atuado em vários papéis e módulos.
  *
  * A checagem existe aqui mesmo com o `onDelete: Restrict` no banco: o Restrict
  * protege qualquer caminho de escrita, mas devolve erro de FK. É esta função
  * que produz a mensagem que orienta o usuário a inativar.
+ *
+ * **Toda relação NOVA com `Usuario` precisa entrar nesta lista.** Esquecer uma
+ * não abre brecha de integridade — o Restrict continua barrando —, mas troca
+ * uma orientação clara por um erro cru de banco na tela.
  */
 export async function removeUsuario(id: string): Promise<void> {
-  const [emPropostas, emInstalacoes, emRegistros] = await Promise.all([
+  const usos = await Promise.all([
     prisma.proposta.count({ where: { vendedorId: id } }),
     prisma.instalacao.count({ where: { tecnicoResponsavelId: id } }),
     prisma.instalacaoRegistro.count({ where: { tecnicoId: id } }),
+    // Pós-venda (Sprint 4.6): responsável e autor de registro, nos dois
+    // submódulos. Todos RESTRICT, como os três acima.
+    prisma.trocaAntecipada.count({ where: { responsavelId: id } }),
+    prisma.trocaAntecipadaRegistro.count({ where: { responsavelId: id } }),
+    prisma.ordemServicoPosVenda.count({ where: { responsavelId: id } }),
+    prisma.ordemServicoPosVendaRegistro.count({ where: { responsavelId: id } }),
   ]);
-  if (emPropostas + emInstalacoes + emRegistros > 0) {
+  if (usos.reduce((soma, n) => soma + n, 0) > 0) {
     throw new Error(CANNOT_DELETE_USED_IN_RECORDS);
   }
   await prisma.usuario.delete({ where: { id } });
@@ -205,4 +217,61 @@ export async function assertPapel(
   });
   if (!u) throw new Error(USUARIO_NAO_ENCONTRADO);
   if (!disponivelPara(u, papel)) throw new Error(semPapelMsg(papel));
+}
+
+// ---------------------------------------------------------------------------
+// Vínculo SEM exigência de papel (Sprint 4.6, ADR-0422)
+// ---------------------------------------------------------------------------
+//
+// Irmãs aditivas das duas funções acima, para vínculos em que **qualquer
+// usuário ativo** serve — hoje, a Troca Antecipada e a timeline dela. Nenhuma
+// substitui as anteriores: Proposta, Instalação e Ordem de Serviço continuam
+// exigindo papel, com o mesmo código de antes.
+
+export const USUARIO_INATIVO =
+  "O usuário selecionado está inativo e não pode receber vínculos novos.";
+
+/**
+ * Opções do `Select` quando o papel NÃO é exigido: **ativos ∪ os ids
+ * informados**.
+ *
+ * `incluirIds` carrega quem já está vinculado àquele agregado, mesmo inativo.
+ * Sem eles, abrir uma troca cujo responsável foi inativado mostraria o campo em
+ * branco, e salvar qualquer outra alteração apagaria o vínculo em silêncio —
+ * exatamente a razão pela qual `listUsuarioOptions` faz o mesmo. Inativo
+ * aparece rotulado, para não ser escolhido por engano num vínculo novo.
+ */
+export async function listUsuarioOptionsAtivos(
+  incluirIds: string[] = [],
+): Promise<UsuarioOption[]> {
+  const ids = [...new Set(incluirIds.filter(Boolean))];
+  const rows = await prisma.usuario.findMany({
+    where: { OR: [{ ativo: true }, { id: { in: ids } }] },
+    select: { id: true, nome: true, ativo: true },
+    orderBy: { nome: "asc" },
+  });
+  return rows.map((u) => ({ value: u.id, label: rotuloOpcaoAtivo(u) }));
+}
+
+/**
+ * Exige que `usuarioId` esteja ATIVO. Sem exigência de papel.
+ *
+ * Recebe o `tx` de quem chama para rodar DENTRO da mesma transação: a
+ * verificação e a escrita precisam enxergar o mesmo estado — mesma razão de
+ * `assertPapel`.
+ *
+ * Chamada APENAS para vínculo novo ou alterado, nunca para vínculo preexistente
+ * inalterado. É isso que permite editar uma troca cujo responsável foi
+ * inativado sem perder o vínculo histórico.
+ */
+export async function assertUsuarioAtivo(
+  tx: Tx,
+  usuarioId: string,
+): Promise<void> {
+  const u = await tx.usuario.findUnique({
+    where: { id: usuarioId },
+    select: { ativo: true },
+  });
+  if (!u) throw new Error(USUARIO_NAO_ENCONTRADO);
+  if (!disponivelAtivo(u)) throw new Error(USUARIO_INATIVO);
 }
