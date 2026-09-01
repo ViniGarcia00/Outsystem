@@ -2894,7 +2894,7 @@ escolhe o técnico. Nunca há conversão automática.
 | 11 | Documentação | ARCHITECTURE §4.8, PROJECT_CONTEXT, VISION, BACKLOG, DECISIONS (ADR-0418..0422), CHECKLIST_RELEASE |
 | 12 | CHANGELOG | seção **[1.9.0]** |
 | 13 | VERSION | **1.9.0** (e `package.json` **1.9.0**) |
-| 14 | Commit | **pendente** — entrega em estado pré-commit, por solicitação |
+| 14 | Commit | commit oficial da Sprint + hash registrado abaixo |
 
 Verificações além do gate:
 
@@ -2937,7 +2937,7 @@ explicitamente um alvo igual à raiz de uploads.
 ### Migration desta Sprint
 
 `20260901000000_pos_venda` — **aditiva**: 5 enums, 12 tabelas `pos_venda_*`, 2
-sequências (`RESTART WITH 1001`), 24 índices e 18 foreign keys. Sem `DROP`, sem
+sequências (`RESTART WITH 1001`), 25 índices e 19 foreign keys. Sem `DROP`, sem
 backfill, sem perda de dados. As únicas relações com `clientes`, `produtos` e
 `usuarios` são FKs **saindo** das tabelas novas; o lado inverso no schema Prisma
 não gera DDL.
@@ -2945,3 +2945,32 @@ não gera DDL.
 FKs definidas conscientemente: Cliente, Produto, Usuário e Troca → `RESTRICT`
 (cadastro usado nunca some, e apagar a Troca não arrasta a OS); itens, registros,
 custos, anexos e auditorias → `CASCADE` (são conteúdo do agregado).
+
+### Commits da Sprint 4.6
+
+Quinze commits, em ordem de dependência — cada um compila sozinho:
+
+| # | Hash | Commit |
+|---|------|--------|
+| 1 | `5482011` | `docs(sprint-4.6)` — plano e design do módulo |
+| 2 | `492431e` | `feat(db)` — 5 enums, 12 tabelas e 2 sequences |
+| 3 | `e930c55` | `refactor(anexos)` — primitivos neutros em `@/lib/anexos` |
+| 4 | `6d40656` | `feat(usuarios)` — vínculo sem exigência de papel |
+| 5 | `27fe487` | `feat(pos-venda)` — domínio puro compartilhado |
+| 6 | `60cd7c2` | `feat(pos-venda)` — services da Troca Antecipada |
+| 7 | `d204fbb` | `feat(pos-venda)` — services da Ordem de Serviço |
+| 8 | `5a84385` | `feat(pos-venda)` — UI compartilhada: timeline, custos, anexos, hub |
+| 9 | `f9e3aae` | `feat(pos-venda)` — Troca Antecipada: schema, actions e telas |
+| 10 | `31583e6` | `feat(pos-venda)` — Ordem de Serviço: schema, actions e telas |
+| 11 | `236f706` | `feat(pos-venda)` — vínculo Troca → OS, rotas e item de menu |
+| 12 | `56f6dc5` | `test(e2e)` — Pós-venda ponta a ponta e limpeza |
+| 13 | `2dfad52` | `docs(sprint-4.6)` — ADRs, arquitetura e histórico |
+| 14 | `efabad2` | `chore(release)` — **1.9.0** (commit de fechamento) |
+| 15 | *este* | `docs(historico)` — registra o hash do fechamento |
+
+- **Hash do commit de fechamento:** `efabad2`
+
+O gate reexecutado sobre a árvore já comitada repetiu o resultado da entrega,
+com uma diferença: o **E2E passou 49/49 na primeira execução**, sem o flake de
+compilação sob demanda descrito acima — o que reforça que aquela falha é de
+timing do `webServer`, não do código.
