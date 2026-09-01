@@ -4,6 +4,152 @@ Todas as mudanças relevantes deste projeto são documentadas aqui.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o
 projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [1.9.0] — 2026-09-01
+
+Sprint 4.6. Módulo **Pós-venda** — o segundo operacional do sistema. Nasceu de
+dois casos reais: uma **fechadura** substituída antes da devolução e **sete
+interruptores** enviados com o retorno vindo em duas etapas. O que se perdia no
+WhatsApp — quantas peças ainda estão pendentes, quanto custou o motoboy, o que
+foi encontrado na análise — passou a ter registro.
+
+São **dois processos separados por decisão** (ADR-0418): a **Troca Antecipada**
+responde "o defeituoso voltou?"; a **Ordem de Serviço** responde "qual era o
+defeito, e o que foi feito?". A OS **existe sem Troca** — é isso que impede o
+módulo de forçar uma troca fantasma para toda análise técnica.
+
+> ⚠️ A Ordem de Serviço entregue aqui é de **pós-venda / manutenção de
+> equipamentos**. Uma futura OS de **instalação** é outro processo, e nada neste
+> módulo a antecipa.
+
+### Adicionado
+
+- **Menu `Pós-venda`**, entre Instalações e Usuários, apontando para um **hub**
+  com as duas opções que existem. Nada de "em breve": os submódulos não têm item
+  próprio na barra lateral. A ordem do menu é requisito de produto, travada por
+  teste unitário **e** por smoke.
+- **Troca Antecipada** (`/pos-venda/trocas-antecipadas`): numeração própria a
+  partir de 1001, cliente do cadastro, **referência** como identificação
+  operacional, responsável, relato inicial, status e **destinatário do envio**
+  (Cliente / Instalador / Outro — os dois últimos exigem o nome, e **não** há
+  cadastro de parceiro nesta versão).
+- **Grade de produtos da Troca** com três quantidades por item — enviada,
+  esperada de retorno e devolvida — e a **pendência calculada**, nunca digitada.
+  Cada item vem do cadastro (preservando o `produtoId` real) **ou** é descrito
+  manualmente, para a peça que não está no catálogo.
+- **Ordem de Serviço de pós-venda** (`/pos-venda/ordens-de-servico`): numeração
+  própria e independente, criação **manual** como fluxo principal, produtos com
+  quantidade inteira maior que zero, e **diagnóstico encontrado + solução
+  aplicada por produto**, além da conclusão técnica geral.
+- **Timeline** nos dois processos, com custos por acontecimento e **anexos** —
+  JPG, PNG, WebP, PDF, Word e Excel, 10 MB por arquivo e 10 por registro, sob as
+  mesmas garantias do ADR-0414.
+- **Vínculo opcional Troca ↔ OS.** Na criação manual da OS, um `Select` simples
+  oferece as trocas **do mesmo cliente** que ainda não têm ordem de serviço — e o
+  campo só aparece quando existe alguma. A origem vira link nos dois sentidos.
+- **Botão "Criar Ordem de Serviço"** na Troca, com pré-preenchimento de cliente,
+  vínculo, contexto na referência e os **produtos devolvidos**.
+- **Busca e filtro por status** nas duas listagens, sem acento e sem caixa, pela
+  fonte única `@/utils/busca`. A OS também é encontrada pelo **número da Troca**
+  vinculada.
+- **Trilha de auditoria** própria nos dois agregados — criação, alteração,
+  mudança de status, finalização, cancelamento e **vínculo**, este último gravado
+  nos dois lados.
+
+### Regras que definem o módulo
+
+- **A OS recebe uma fotografia, não um espelho** (ADR-0419). Troca com 5 de 7
+  devolvidos gera uma OS de 5 — e a OS **continua 5** depois que os outros 2
+  voltarem. **Não existe código de sincronização**, nem desligado, nem atrás de
+  flag: é a ausência dele que torna a garantia real. Um teste de integração e um
+  cenário E2E fixam o comportamento.
+- **Uma Troca tem zero ou uma OS**, garantido por `@unique` no banco — a regra
+  mora na constraint, não em código. O service duplica a checagem só para
+  produzir uma mensagem legível.
+- **A origem da OS é DERIVADA** do vínculo (`null` = Direta). Não existe coluna
+  `origem`: seria um segundo lugar onde a mesma verdade mora.
+- **Finalizar a Troca pede confirmação forte e NUNCA bloqueia** (ADR-0420). O
+  diálogo enumera item a item o que não voltou; quem confirma está afirmando a
+  decisão. Bloquear empurraria o usuário a registrar uma devolução que não houve.
+- **Finalizar a OS exige informação técnica:** conclusão geral **ou**
+  diagnóstico/solução de ao menos um produto. A assimetria com a Troca é
+  deliberada — pendência de devolução tem desfechos legítimos fora do sistema;
+  "consertamos e ninguém sabe o quê" não tem.
+- **Custos da Troca e da OS nunca se somam.** São históricos independentes:
+  nenhuma tela exibe total combinado, e criar a OS a partir da Troca **não copia
+  custo algum**.
+- **Cancelar preserva tudo** — timeline, custos, produtos e anexos. Nenhum dos
+  dois processos é excluído.
+- **Responsável com exigência diferente em cada processo** (ADR-0422). A
+  **Troca** aceita qualquer usuário **ativo** — quem acompanha envio, devolução,
+  frete e cobrança é frequentemente administrativo, e exigir técnico ali
+  empurraria quem administra o cadastro a marcar `ehTecnico` em gente
+  administrativa só para poder atribuí-la, corrompendo o significado do papel. A
+  **OS** exige `ehTecnico`: ali o trabalho é análise e reparo. Vale para o
+  cabeçalho e para a timeline de cada um.
+- **Nenhum papel novo de usuário**, e nenhum helper existente alterado: quatro
+  funções **aditivas** (`disponivelAtivo`, `rotuloOpcaoAtivo`,
+  `listUsuarioOptionsAtivos`, `assertUsuarioAtivo`) ao lado das de papel. As
+  regras do ADR-0410 continuam: checagem só em vínculo novo ou alterado, e
+  snapshot do nome no registro da timeline.
+- **A herança de responsável Troca → OS continua exigindo técnico.** Com a Troca
+  aceitando administrativos, esse deixou de ser caso de borda: a OS nasce **sem
+  responsável** quando o da Troca não é técnico, e ninguém é convertido
+  automaticamente.
+
+### Alterado
+
+- **`src/lib/anexos.ts` passa a ser a fonte única dos primitivos de anexo**
+  (ADR-0421): allowlist de MIME, limites, validação, nome físico, sanitização e
+  montagem segura de caminho. `features/instalacoes/anexos.ts` **re-exporta
+  tudo** e mantém seus construtores de caminho — nenhum call site mudou, e os
+  31 testes daquele módulo continuaram verdes **sem uma linha alterada**. A
+  alternativa era escrever a mesma allowlist duas vezes, que é o defeito que o
+  ADR-0402 corrigiu na busca.
+- **`removeUsuario` passou a contar sete relações**, não três. Sem isso, excluir
+  um usuário usado no Pós-venda devolveria erro cru de FK em vez da mensagem que
+  orienta a inativar.
+- **A limpeza E2E (`globalTeardown`) cobre as doze tabelas novas e as pastas
+  físicas do módulo.** Ordem explícita: ordens de serviço **antes** das trocas
+  (a FK é `Restrict`), filhos antes das raízes, usuários por último.
+
+### Banco
+
+- **Migration ADITIVA** (`20260901000000_pos_venda`): **doze** tabelas com
+  prefixo `pos_venda_` — seis por processo (raiz, itens, registros, custos,
+  anexos e auditoria) —, cinco enums e duas sequências próprias
+  (`RESTART WITH 1001`).
+  Nenhuma tabela existente muda de estrutura; as únicas relações com `clientes`,
+  `produtos` e `usuarios` são FKs **saindo** das tabelas novas. Sem DROP, sem
+  backfill, sem perda de dados.
+- **FKs conscientes:** Cliente, Produto, Usuário e Troca → `Restrict` (cadastro
+  usado nunca some, e apagar a Troca não arrasta a OS); itens, registros, custos,
+  anexos e auditorias → `Cascade` (são conteúdo do agregado).
+- `migrate status` limpo e `migrate diff` **vazio** contra o banco local.
+
+### Testes
+
+- **Unidade:** 565 no total (178 novos) — regras de item (XOR, inteiros,
+  devolvida ≤ esperada, pendência, snapshot Troca → OS), custos, rótulos e
+  ordens, caminhos de anexo e os schemas Zod dos dois submódulos.
+- **Integração (PostgreSQL real):** 225 no total (101 novos) — numeração,
+  auditoria, papel do responsável, reconciliação de itens por id, **pertencimento
+  ao agregado com pares cruzados** (item, registro e anexo), finalização com e
+  sem pendência, guarda técnica da OS, cardinalidade, e o **teste crítico do
+  snapshot** 7/7/5 → OS 5 → Troca 7/7/7 → OS continua 5.
+- **E2E:** 49 no total (10 novos) — fechadura ponta a ponta, interruptores 7/7 com
+  a confirmação forte pelo caminho, produto manual encontrado pela busca, **OS
+  manual completa** (cenário obrigatório), vínculo manual, botão "Criar OS" com o
+  snapshot provado na tela, anexos DOCX/imagem com cabeçalhos e download reais, e
+  cancelamento preservando o histórico, e **responsável administrativo na Troca
+  aparecendo no Select dela e não no da OS**.
+- **Resíduo zero** em banco **e** em disco, verificado pelo `globalTeardown`.
+
+### Fora de escopo, por decisão
+
+Estoque, número de série, garantia, financeiro/cobrança, OS de instalação,
+Pedido de Venda, múltiplas OS por Troca, sincronização Troca → OS e cards de
+Dashboard — **o Dashboard não foi tocado**. Todos registrados no `BACKLOG.md`.
+
 ## [1.8.0] — 2026-08-31
 
 Sprint 4.5. Duas evoluções no módulo **Instalações**: os anexos do Registro
