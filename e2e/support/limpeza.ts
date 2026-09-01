@@ -45,6 +45,25 @@ export interface ContagemResiduos {
   registros: number;
   custos: number;
   usuarios: number;
+  // ── Pós-venda (Sprint 4.6) ────────────────────────────────────────────────
+  // Doze tabelas novas (seis por processo). Contadas separadamente das de
+  // Instalações porque são agregados distintos: um resíduo de Troca não deve
+  // aparecer como resíduo de Instalação no relatório de saída.
+  //
+  // As DUAS de auditoria ficam fora desta contagem — são apagadas em `apagar()`,
+  // mas não entram na asserção de resíduo. É o mesmo tratamento que
+  // `instalacao_auditorias` e `proposta_auditorias` já recebiam: a auditoria só
+  // existe pendurada numa raiz que já é contada, então contá-la seria redundante.
+  trocas: number;
+  trocaItens: number;
+  trocaRegistros: number;
+  trocaCustos: number;
+  trocaAnexos: number;
+  ordensServico: number;
+  osItens: number;
+  osRegistros: number;
+  osCustos: number;
+  osAnexos: number;
 }
 
 export interface ResultadoLimpeza {
@@ -147,15 +166,26 @@ function alvoDentroDaRaiz(raiz: string, ...segmentos: string[]): string {
  * Nunca é um `rm -r` sobre caminho não validado — cada alvo passa por
  * `alvoDentroDaRaiz`, e um id adulterado faz a rotina abortar.
  */
-async function apagarPastas(ids: string[]): Promise<{
+/**
+ * Uma pasta de agregado a remover, já quebrada em segmentos.
+ *
+ * Existe como estrutura — e não como caminho pronto — para que TODO segmento
+ * passe por `alvoDentroDaRaiz`. Montar a string antes tiraria a validação do
+ * caminho crítico, que é exatamente onde ela precisa estar.
+ */
+interface PastaAlvo {
+  segmentos: string[];
+}
+
+async function apagarPastas(alvos: PastaAlvo[]): Promise<{
   removidas: number;
   restantes: string[];
 }> {
   const raiz = raizDeUploads();
   let removidas = 0;
 
-  for (const id of ids) {
-    const alvo = alvoDentroDaRaiz(raiz, "instalacoes", id);
+  for (const { segmentos } of alvos) {
+    const alvo = alvoDentroDaRaiz(raiz, ...segmentos);
     if (existsSync(alvo)) {
       await rm(alvo, { recursive: true, force: true });
       removidas++;
@@ -163,8 +193,8 @@ async function apagarPastas(ids: string[]): Promise<{
   }
 
   // A verificação é a recontagem, agora também em disco.
-  const restantes = ids
-    .map((id) => alvoDentroDaRaiz(raiz, "instalacoes", id))
+  const restantes = alvos
+    .map(({ segmentos }) => alvoDentroDaRaiz(raiz, ...segmentos))
     .filter((alvo) => existsSync(alvo));
 
   return { removidas, restantes };
@@ -174,6 +204,22 @@ async function apagarPastas(ids: string[]): Promise<{
 const CLIENTES_E2E = `SELECT id FROM clientes WHERE nome LIKE $1`;
 const PROPOSTAS_E2E = `SELECT id FROM propostas WHERE "clienteId" IN (${CLIENTES_E2E})`;
 const INSTALACOES_E2E = `SELECT id FROM instalacoes WHERE "clienteId" IN (${CLIENTES_E2E})`;
+
+/**
+ * Pós-venda (Sprint 4.6). Troca e OS são "de teste" pelo mesmo critério:
+ * pertencem a um cliente de teste.
+ *
+ * `OS_E2E` inclui as ordens vinculadas a uma troca de teste **além** das do
+ * próprio cliente. Na prática as duas coisas coincidem (o service exige que a
+ * troca seja do mesmo cliente), mas a limpeza não deve depender de uma regra da
+ * aplicação para saber o que apagar.
+ */
+const TROCAS_E2E = `SELECT id FROM pos_venda_trocas WHERE "clienteId" IN (${CLIENTES_E2E})`;
+const OS_E2E = `SELECT id FROM pos_venda_ordens_servico
+   WHERE "clienteId" IN (${CLIENTES_E2E})
+      OR "trocaAntecipadaId" IN (${TROCAS_E2E})`;
+const TROCA_REGISTROS_E2E = `SELECT id FROM pos_venda_troca_registros WHERE "trocaAntecipadaId" IN (${TROCAS_E2E})`;
+const OS_REGISTROS_E2E = `SELECT id FROM pos_venda_os_registros WHERE "ordemServicoId" IN (${OS_E2E})`;
 
 async function contar(client: Client): Promise<ContagemResiduos> {
   const { rows } = await client.query<Record<string, string>>(
@@ -194,7 +240,27 @@ async function contar(client: Client): Promise<ContagemResiduos> {
             SELECT id FROM instalacao_registros
              WHERE "instalacaoId" IN (${INSTALACOES_E2E})
           )) AS anexos,
-       (SELECT count(*) FROM usuarios WHERE nome LIKE $3) AS usuarios`,
+       (SELECT count(*) FROM usuarios WHERE nome LIKE $3) AS usuarios,
+       (SELECT count(*) FROM pos_venda_trocas
+          WHERE "clienteId" IN (${CLIENTES_E2E})) AS trocas,
+       (SELECT count(*) FROM pos_venda_troca_itens
+          WHERE "trocaAntecipadaId" IN (${TROCAS_E2E})) AS troca_itens,
+       (SELECT count(*) FROM pos_venda_troca_registros
+          WHERE "trocaAntecipadaId" IN (${TROCAS_E2E})) AS troca_registros,
+       (SELECT count(*) FROM pos_venda_troca_custos
+          WHERE "registroId" IN (${TROCA_REGISTROS_E2E})) AS troca_custos,
+       (SELECT count(*) FROM pos_venda_troca_anexos
+          WHERE "registroId" IN (${TROCA_REGISTROS_E2E})) AS troca_anexos,
+       (SELECT count(*) FROM pos_venda_ordens_servico
+          WHERE id IN (${OS_E2E})) AS ordens_servico,
+       (SELECT count(*) FROM pos_venda_os_itens
+          WHERE "ordemServicoId" IN (${OS_E2E})) AS os_itens,
+       (SELECT count(*) FROM pos_venda_os_registros
+          WHERE "ordemServicoId" IN (${OS_E2E})) AS os_registros,
+       (SELECT count(*) FROM pos_venda_os_custos
+          WHERE "registroId" IN (${OS_REGISTROS_E2E})) AS os_custos,
+       (SELECT count(*) FROM pos_venda_os_anexos
+          WHERE "registroId" IN (${OS_REGISTROS_E2E})) AS os_anexos`,
     [MARCADOR_CLIENTE, MARCADOR_PRODUTO, MARCADOR_USUARIO],
   );
   const r = rows[0];
@@ -207,6 +273,16 @@ async function contar(client: Client): Promise<ContagemResiduos> {
     registros: Number(r.registros),
     custos: Number(r.custos),
     usuarios: Number(r.usuarios),
+    trocas: Number(r.trocas),
+    trocaItens: Number(r.troca_itens),
+    trocaRegistros: Number(r.troca_registros),
+    trocaCustos: Number(r.troca_custos),
+    trocaAnexos: Number(r.troca_anexos),
+    ordensServico: Number(r.ordens_servico),
+    osItens: Number(r.os_itens),
+    osRegistros: Number(r.os_registros),
+    osCustos: Number(r.os_custos),
+    osAnexos: Number(r.os_anexos),
   };
 }
 
@@ -215,11 +291,17 @@ async function contar(client: Client): Promise<ContagemResiduos> {
  *
  *   Instalacao.propostaId    → Restrict  ⇒ instalações antes de propostas
  *   PropostaItem.produtoId   → Restrict  ⇒ itens antes de produtos
- *   Usuario → Restrict       ⇒ usuários por último — TRÊS relações apontam
- *                              para ele desde a Sprint 4.2 (ADR-0410):
- *                              Proposta.vendedorId (NOVA),
- *                              Instalacao.tecnicoResponsavelId e
- *                              InstalacaoRegistro.tecnicoId
+ *   Usuario → Restrict       ⇒ usuários por último — SETE relações apontam
+ *                              para ele desde a Sprint 4.6:
+ *                              Proposta.vendedorId,
+ *                              Instalacao.tecnicoResponsavelId,
+ *                              InstalacaoRegistro.tecnicoId,
+ *                              TrocaAntecipada.responsavelId,
+ *                              TrocaAntecipadaRegistro.responsavelId,
+ *                              OrdemServicoPosVenda.responsavelId e
+ *                              OrdemServicoPosVendaRegistro.responsavelId
+ *   OS.trocaAntecipadaId     → Restrict  ⇒ ORDENS DE SERVIÇO antes das TROCAS
+ *   Item de pós-venda → Produto → Restrict ⇒ itens antes de produtos
  *
  * `propostas.currentRevisionId` aponta para `proposta_revisoes`; o vínculo é
  * zerado antes de apagar as revisões, senão a FK bloqueia.
@@ -227,6 +309,59 @@ async function contar(client: Client): Promise<ContagemResiduos> {
 async function apagar(client: Client): Promise<void> {
   const c = [MARCADOR_CLIENTE];
   const p = [MARCADOR_PRODUTO];
+
+  // ── Pós-venda (Sprint 4.6) ──────────────────────────────────────────────
+  //
+  // ORDEM DE SERVIÇO ANTES DA TROCA: `OrdemServicoPosVenda.trocaAntecipadaId`
+  // é RESTRICT, e apagar a troca primeiro seria barrado pelo banco.
+  //
+  // Dentro de cada agregado, filhos antes da raiz. As FKs têm CASCADE, mas a
+  // ordem explícita é a regra do ADR-0403: não confiar em cascade onde a ordem
+  // pode ser afirmada — e é o que torna a recontagem uma verificação de
+  // verdade, e não uma tautologia.
+  await client.query(
+    `DELETE FROM pos_venda_os_anexos WHERE "registroId" IN (${OS_REGISTROS_E2E})`,
+    c,
+  );
+  await client.query(
+    `DELETE FROM pos_venda_os_custos WHERE "registroId" IN (${OS_REGISTROS_E2E})`,
+    c,
+  );
+  await client.query(
+    `DELETE FROM pos_venda_os_registros WHERE "ordemServicoId" IN (${OS_E2E})`,
+    c,
+  );
+  await client.query(
+    `DELETE FROM pos_venda_os_itens WHERE "ordemServicoId" IN (${OS_E2E})`,
+    c,
+  );
+  await client.query(
+    `DELETE FROM pos_venda_os_auditorias WHERE "ordemServicoId" IN (${OS_E2E})`,
+    c,
+  );
+  await client.query(`DELETE FROM pos_venda_ordens_servico WHERE id IN (${OS_E2E})`, c);
+
+  await client.query(
+    `DELETE FROM pos_venda_troca_anexos WHERE "registroId" IN (${TROCA_REGISTROS_E2E})`,
+    c,
+  );
+  await client.query(
+    `DELETE FROM pos_venda_troca_custos WHERE "registroId" IN (${TROCA_REGISTROS_E2E})`,
+    c,
+  );
+  await client.query(
+    `DELETE FROM pos_venda_troca_registros WHERE "trocaAntecipadaId" IN (${TROCAS_E2E})`,
+    c,
+  );
+  await client.query(
+    `DELETE FROM pos_venda_troca_itens WHERE "trocaAntecipadaId" IN (${TROCAS_E2E})`,
+    c,
+  );
+  await client.query(
+    `DELETE FROM pos_venda_troca_auditorias WHERE "trocaAntecipadaId" IN (${TROCAS_E2E})`,
+    c,
+  );
+  await client.query(`DELETE FROM pos_venda_trocas WHERE "clienteId" IN (${CLIENTES_E2E})`, c);
 
   // ── Instalações (e tudo que pende delas) ────────────────────────────────
   // Anexos ANTES dos registros: a FK tem CASCADE, mas a ordem explícita é a
@@ -298,6 +433,21 @@ async function apagar(client: Client): Promise<void> {
     p,
   );
 
+  // ── Itens de PÓS-VENDA que referenciem produto de teste ────────────────
+  // Mesma razão do bloco acima: `produtoId` é RESTRICT nos dois itens novos.
+  // Na prática só acontece se alguém montar uma troca/OS manual com um produto
+  // E2E fora de um cliente E2E; a limpeza precisa ser correta mesmo nesse caso.
+  await client.query(
+    `DELETE FROM pos_venda_troca_itens WHERE "produtoId" IN (
+       SELECT id FROM produtos WHERE codigo LIKE $1)`,
+    p,
+  );
+  await client.query(
+    `DELETE FROM pos_venda_os_itens WHERE "produtoId" IN (
+       SELECT id FROM produtos WHERE codigo LIKE $1)`,
+    p,
+  );
+
   // ── Cadastros base ──────────────────────────────────────────────────────
   await client.query(`DELETE FROM produtos WHERE codigo LIKE $1`, p);
   await client.query(`DELETE FROM clientes WHERE nome LIKE $1`, c);
@@ -331,13 +481,32 @@ export async function limparResiduosE2E(): Promise<ResultadoLimpeza> {
   try {
     const antes = await contar(client);
 
-    // Os ids das instalações E2E precisam ser lidos ANTES do DELETE — depois
-    // dele não há como saber quais pastas remover.
-    const { rows: alvos } = await client.query<{ id: string }>(
-      `SELECT id FROM instalacoes WHERE "clienteId" IN (${CLIENTES_E2E})`,
-      [MARCADOR_CLIENTE],
-    );
-    const idsInstalacoes = alvos.map((r) => r.id);
+    // Os ids dos agregados E2E precisam ser lidos ANTES do DELETE — depois dele
+    // não há como saber quais pastas remover.
+    //
+    // Três origens de pasta física desde a Sprint 4.6: instalações,
+    // trocas antecipadas e ordens de serviço. Cada uma tem raiz própria em
+    // disco (`instalacoes/`, `pos-venda/trocas/`, `pos-venda/ordens-servico/`),
+    // e os segmentos são montados aqui e validados um a um por
+    // `alvoDentroDaRaiz`.
+    const [instalacoes, trocas, ordens] = await Promise.all([
+      client.query<{ id: string }>(
+        `SELECT id FROM instalacoes WHERE "clienteId" IN (${CLIENTES_E2E})`,
+        [MARCADOR_CLIENTE],
+      ),
+      client.query<{ id: string }>(TROCAS_E2E, [MARCADOR_CLIENTE]),
+      client.query<{ id: string }>(OS_E2E, [MARCADOR_CLIENTE]),
+    ]);
+
+    const pastas: PastaAlvo[] = [
+      ...instalacoes.rows.map((r) => ({ segmentos: ["instalacoes", r.id] })),
+      ...trocas.rows.map((r) => ({
+        segmentos: ["pos-venda", "trocas", r.id],
+      })),
+      ...ordens.rows.map((r) => ({
+        segmentos: ["pos-venda", "ordens-servico", r.id],
+      })),
+    ];
 
     await client.query("BEGIN");
     try {
@@ -350,7 +519,7 @@ export async function limparResiduosE2E(): Promise<ResultadoLimpeza> {
 
     // Só depois do COMMIT: falhar aqui deixa arquivo órfão, que é o lado
     // tolerado; o contrário deixaria linha apontando para arquivo removido.
-    const { removidas, restantes } = await apagarPastas(idsInstalacoes);
+    const { removidas, restantes } = await apagarPastas(pastas);
     if (restantes.length > 0) {
       throw new Error(
         "[limpeza E2E] Pastas de anexos remanescentes após a limpeza: " +

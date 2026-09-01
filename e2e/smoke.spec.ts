@@ -168,14 +168,18 @@ test("Clientes: criar e editar (CRUD básico)", async ({ page }) => {
 test("navegação principal entre os módulos", async ({ page }) => {
   await page.goto("/propostas");
 
-  // Ordem do menu (Sprint 4.0.3, revista na 4.2) — requisito de produto.
-  // O teste unitário trava `mainNavigation`; aqui provamos o que chega à tela.
+  // Ordem do menu (Sprint 4.0.3, revista na 4.2 e na 4.6) — requisito de
+  // produto. O teste unitário trava `mainNavigation`; aqui provamos o que chega
+  // à tela. `Pós-venda` entrou na Sprint 4.6, entre Instalações e Usuários: é
+  // operacional como Instalações, e vem depois porque é o que acontece *depois*
+  // da instalação.
   expect(await nav(page).getByRole("link").allTextContents()).toEqual([
     "Dashboard",
     "Clientes",
     "Produtos",
     "Propostas",
     "Instalações",
+    "Pós-venda",
     "Usuários",
     "Configurações",
   ]);
@@ -186,6 +190,9 @@ test("navegação principal entre os módulos", async ({ page }) => {
     ["Usuários", "/usuarios"],
     ["Configurações", "/configuracoes"],
     ["Instalações", "/instalacoes"],
+    // O item leva ao HUB, não a um submódulo: Trocas e Ordens de Serviço vivem
+    // dentro dele, e promover um dos dois à barra lateral desfaria a decisão.
+    ["Pós-venda", "/pos-venda"],
     ["Dashboard", "/dashboard"],
     ["Propostas", "/propostas"],
   ] as const) {
