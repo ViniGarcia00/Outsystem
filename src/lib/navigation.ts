@@ -1,6 +1,7 @@
 import {
   FileText,
   LayoutDashboard,
+  LifeBuoy,
   Package,
   Settings,
   UserCog,
@@ -24,6 +25,13 @@ import type { NavItem } from "@/types";
  * interna, sem SEO nem link externo — manter os dois nomes vivos contrariaria
  * o objetivo da Sprint. `UserCog` distingue de `Users`, que é Clientes.
  *
+ * `Pós-venda` (Sprint 4.6) entra DEPOIS de Instalações e antes de Usuários: é
+ * operacional como Instalações, e vem em seguida porque é o que acontece
+ * *depois* da instalação. O item aponta para o hub `/pos-venda`, que oferece
+ * Trocas Antecipadas e Ordens de Serviço — os submódulos não têm item próprio
+ * no menu, para não inflar a barra lateral com um nível que o hub já resolve.
+ * `LifeBuoy` (suporte) distingue de `Wrench`, que é Instalações.
+ *
  * A home da aplicação (`/`) continua abrindo Propostas.
  */
 export const mainNavigation: NavItem[] = [
@@ -32,6 +40,7 @@ export const mainNavigation: NavItem[] = [
   { title: "Produtos", href: "/produtos", icon: Package },
   { title: "Propostas", href: "/propostas", icon: FileText },
   { title: "Instalações", href: "/instalacoes", icon: Wrench },
+  { title: "Pós-venda", href: "/pos-venda", icon: LifeBuoy },
   { title: "Usuários", href: "/usuarios", icon: UserCog },
   { title: "Configurações", href: "/configuracoes", icon: Settings },
 ];

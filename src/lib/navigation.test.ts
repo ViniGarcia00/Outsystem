@@ -3,9 +3,9 @@ import { describe, expect, it } from "vitest";
 import { mainNavigation } from "./navigation";
 
 /**
- * A ordem do menu é requisito de produto (Sprint 4.0.3, revista na 4.2), não
- * detalhe estético. Sem este teste, um item acrescentado no fim do array
- * passaria despercebido.
+ * A ordem do menu é requisito de produto (Sprint 4.0.3, revista na 4.2 e na
+ * 4.6), não detalhe estético. Sem este teste, um item acrescentado no fim do
+ * array passaria despercebido.
  */
 const ORDEM_ESPERADA = [
   "Dashboard",
@@ -13,17 +13,29 @@ const ORDEM_ESPERADA = [
   "Produtos",
   "Propostas",
   "Instalações",
+  "Pós-venda",
   "Usuários",
   "Configurações",
 ];
 
 describe("mainNavigation", () => {
-  it("mantém exatamente a ordem definida na Sprint 4.2", () => {
+  it("mantém exatamente a ordem definida na Sprint 4.6", () => {
     expect(mainNavigation.map((i) => i.title)).toEqual(ORDEM_ESPERADA);
   });
 
-  it("tem exatamente sete itens — Vendedores e Técnicos viraram Usuários", () => {
-    expect(mainNavigation).toHaveLength(7);
+  it("tem exatamente oito itens — Pós-venda entrou na Sprint 4.6", () => {
+    expect(mainNavigation).toHaveLength(8);
+  });
+
+  /**
+   * Pós-venda vem DEPOIS de Instalações: é o que acontece *depois* da
+   * instalação, e a vizinhança dos dois itens operacionais é deliberada.
+   */
+  it("posiciona Pós-venda logo após Instalações", () => {
+    const titulos = mainNavigation.map((i) => i.title);
+    expect(titulos.indexOf("Pós-venda")).toBe(
+      titulos.indexOf("Instalações") + 1,
+    );
   });
 
   it("preserva as rotas de cada item", () => {
@@ -35,6 +47,7 @@ describe("mainNavigation", () => {
       Produtos: "/produtos",
       Propostas: "/propostas",
       Instalações: "/instalacoes",
+      "Pós-venda": "/pos-venda",
       Usuários: "/usuarios",
       Configurações: "/configuracoes",
     });
@@ -46,6 +59,16 @@ describe("mainNavigation", () => {
     const hrefs = mainNavigation.map((i) => i.href);
     expect(hrefs).not.toContain("/vendedores");
     expect(hrefs).not.toContain("/tecnicos");
+  });
+
+  /**
+   * Os submódulos do Pós-venda vivem no HUB, não no menu (Sprint 4.6). Promover
+   * um deles à barra lateral desfaria a decisão sem que ninguém percebesse.
+   */
+  it("não expõe os submódulos de Pós-venda direto no menu", () => {
+    const hrefs = mainNavigation.map((i) => i.href);
+    expect(hrefs).not.toContain("/pos-venda/trocas-antecipadas");
+    expect(hrefs).not.toContain("/pos-venda/ordens-de-servico");
   });
 
   it("todo item tem ícone", () => {
