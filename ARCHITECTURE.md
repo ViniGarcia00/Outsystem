@@ -44,6 +44,8 @@ importa o Prisma diretamente — o acesso a dados passa por `services`, que usam
 src/
   app/                       # Rotas (App Router) — 1 pasta por menu
     dashboard/ propostas/ clientes/ produtos/ usuarios/ configuracoes/
+    instalacoes/             # módulo operacional (Sprint 4.0.1)
+    pos-venda/               # hub + trocas-antecipadas/ + ordens-de-servico/
     layout.tsx               # ThemeProvider + TooltipProvider + AppShell
     page.tsx                 # redireciona "/" -> "/propostas"
     globals.css              # Tailwind v4 + tokens shadcn (light/dark)
@@ -57,7 +59,12 @@ src/
     tables/                  # DataTable (TanStack Table genérico)
 
   features/                  # Feature-First
-    dashboard/ clientes/ produtos/ usuarios/ configuracoes/
+    dashboard/ clientes/ produtos/ usuarios/ configuracoes/ instalacoes/
+    pos-venda/               # módulo de Pós-venda (Sprint 4.6)
+      anexos.ts custos.ts itens.ts labels.ts    #   REGRA PURA compartilhada
+      timeline.tsx registro-dialog.tsx …        #   UI comum aos dois submódulos
+      trocas/                #   domínio explícito da Troca Antecipada
+      ordens-servico/        #   domínio explícito da Ordem de Serviço
     propostas/               # workspace, seções, itens, serviços, totais
       pdf/                   # geração de PDF (@react-pdf/renderer)
         blocks/              #   cabeçalho, cliente, tabela, rodapé financeiro,
@@ -78,7 +85,9 @@ src/
 
   services/                  # casos de uso (vazio na Sprint 0)
   hooks/                     # hooks reutilizáveis (ex.: useIsMobile)
-  lib/                       # utilitários de libs (cn) e config de navegação
+  lib/                       # utilitários de libs (cn), navegação, mensagens,
+                             #   validação Zod e `anexos.ts` (fonte única dos
+                             #   primitivos de anexo — ADR-0421)
   types/                     # tipos globais (ActionResult, NavItem)
   utils/                     # formatadores (currency, date, cpf/cnpj, phone)
   generated/prisma/          # Prisma Client gerado (NÃO versionado)
@@ -442,6 +451,140 @@ ADR-0402 e o item de busca escalável no `BACKLOG.md`.
 `src/utils/data-brasil.ts` é o dono transversal do fuso `America/Sao_Paulo`
 (`FUSO_BRASIL`, `OFFSET_BRASIL`, `inicioDoDiaBrasil`). Não confundir com
 `utils/format/date.ts`, que formata para exibição e **não** fixa timezone.
+
+## 4.8. Pós-venda — Troca Antecipada e Ordem de Serviço (Sprint 4.6)
+
+Segundo módulo operacional. Controla o que acontece **depois** que o produto já
+está instalado: envio antecipado de substituto, devolução do defeituoso, e a
+análise/reparo do que voltou. Ver ADR-0418 a ADR-0421.
+
+**São DOIS processos, não um.** O negócio os confunde porque acontecem em
+sequência:
+
+| | Troca Antecipada | Ordem de Serviço |
+|---|---|---|
+| Responde | "o defeituoso voltou?" | "qual era o defeito, e o que foi feito?" |
+| Fecha quando | o retorno é resolvido | a análise/reparo termina |
+| Existe sem a outra? | sim | **sim** |
+
+**Esta OS é de pós-venda / manutenção de equipamentos.** Não confundir com uma
+futura OS de instalação, que será outra entidade.
+
+```
+Cliente
+   ├── TrocaAntecipada  (numero próprio 1001+, status, destinatário)
+   │     ├── Itens          → produtoId (Restrict) OU descricaoManual
+   │     ├── Auditoria      ← trilha de sistema
+   │     ├── Registros      ← conteúdo operacional (timeline)
+   │     │     ├── Custos   (Decimal 12,2)
+   │     │     └── Anexos   (banco é a autoridade)
+   │     └── 0..1 OrdemServicoPosVenda      ← @unique do lado da OS
+   │
+   └── OrdemServicoPosVenda  (numero próprio 1001+, status)
+         ├── trocaAntecipadaId OPCIONAL  → origem DERIVADA daqui
+         ├── Itens      → + diagnosticoItem / solucaoItem
+         ├── Auditoria
+         └── Registros
+               ├── Custos
+               └── Anexos
+```
+
+Doze tabelas novas, todas com prefixo `pos_venda_` — **seis por processo**:
+raiz, itens, registros, custos, anexos e auditoria. **Nenhuma FK aponta para
+`Instalacao`** — os padrões de arquitetura e UX foram copiados, as entidades e
+regras são próprias.
+
+### Regras que definem o módulo
+
+- **Numeração** por duas sequências nativas independentes
+  (`pos_venda_trocas_numero_seq`, `pos_venda_ordens_servico_numero_seq`, ambas
+  `RESTART WITH 1001`). Nunca o `id`, nunca `MAX(numero)+1`.
+- **`origem` da OS é DERIVADA**, não persistida:
+  `trocaAntecipadaId IS NULL` ⇒ Direta. Uma coluna seria um segundo lugar onde a
+  mesma verdade mora (ADR-0419).
+- **Cardinalidade Troca ↔ OS = 0..1**, garantida pelo `@unique` em
+  `OrdemServicoPosVenda.trocaAntecipadaId`. A regra mora no banco, não em código.
+- **Troca → OS é SNAPSHOT.** O botão "Criar Ordem de Serviço" copia os itens com
+  `quantidadeDevolvida > 0`, com a quantidade daquele instante. Não existe código
+  de sincronização — nem desligado, nem atrás de flag. É a ausência dele que
+  torna a garantia real.
+- **Pendência de retorno é DERIVADA:** `max(esperada - devolvida, 0)`, em
+  `features/pos-venda/itens.ts` (módulo puro). Nenhuma coluna, nenhum contador.
+- **Item: `produtoId` OU `descricaoManual`.** Nunca os dois vazios. Sem snapshot
+  de código/descrição, ao contrário de `PropostaItem` — aqui a pergunta é *qual
+  peça é esta*, e a resposta é sobre o cadastro atual.
+- **Custos da Troca e da OS NUNCA se somam.** Históricos independentes: nenhuma
+  tela exibe total combinado, e criar a OS a partir da Troca não copia custo.
+- **Finalização** é ação explícita nos dois, com guardas diferentes (ADR-0420):
+  a Troca pede **confirmação forte** enumerando as pendências (nunca bloqueia); a
+  OS **exige informação técnica** — conclusão geral ou diagnóstico/solução de ao
+  menos um item.
+- **Cancelar, nunca excluir.** Timeline, custos, itens e anexos preservados.
+- **Responsável: exigência DIFERENTE nos dois submódulos** (ADR-0422). A **Troca**
+  aceita qualquer usuário **ativo** — acompanhar envio, devolução, frete e
+  cobrança é trabalho frequentemente administrativo. A **OS** exige `ehTecnico`:
+  ali o trabalho é análise e reparo. Vale para o cabeçalho **e** para a timeline
+  de cada um. **Nenhum papel novo foi criado**; a checagem roda só em vínculo
+  novo ou alterado, e o snapshot do nome segue o ADR-0408.
+- **Timeline ≠ auditoria**, como nas Instalações (ADR-0401): operações de
+  registro não geram entrada de auditoria.
+- **Ordenação da timeline:** `dataHora desc`, `createdAt desc`, `id desc`.
+- **Busca** pela fonte única `@/utils/busca` (ADR-0402), em memória. A OS também
+  é encontrada pelo **número da Troca** vinculada.
+- **Datas** reusam `features/instalacoes/datas.ts` (fuso fixo
+  `America/Sao_Paulo`) — declarar o fuso duas vezes é o erro que aquele módulo
+  documenta.
+
+### Navegação
+
+`Pós-venda` entra no menu principal entre Instalações e Usuários, e aponta para
+um **hub** com as duas opções que existem. Os submódulos não têm item próprio na
+barra lateral. A ordem é requisito de produto, travada por teste unitário e por
+smoke.
+
+```
+/pos-venda                              hub
+/pos-venda/trocas-antecipadas[/nova|/[id]]
+/pos-venda/ordens-de-servico[/nova|/[id]]
+     └── /[id]/registros/[registroId]/anexos[/[anexoId]]   Route Handlers
+```
+
+### Componentização
+
+O módulo compartilha internamente o que os dois submódulos têm em comum —
+timeline, card de registro, diálogo, editor de custos, editor de anexos, resumo
+de custos, diálogo de cancelamento e o de escolha de produto. Todos recebem por
+prop o que varia (rota de anexos, categorias oferecidas, Server Actions), e por
+isso **não contêm nenhum `if` de submódulo**.
+
+O que é domínio explícito fica separado em `trocas/` e `ordens-servico/`: schema,
+actions, listagem, formulário de criação, workspace e grade de produtos. A grade
+é diferente por necessidade — na Troca é aritmética (tabela), na OS são dois
+textos longos por peça (cards).
+
+### Anexos
+
+Mesma arquitetura homologada no ADR-0414, com os primitivos promovidos a
+`src/lib/anexos.ts` (ADR-0421): allowlist de MIME, 10 MB por arquivo, 10 por
+registro, extensão derivada do MIME validado, nome físico gerado no servidor,
+caminho relativo sob `resolveWithin`, resolução pelo agregado completo, linha
+apagada antes do arquivo.
+
+```
+instalacoes/<instalacaoId>/registros/<registroId>/<chave>.<ext>
+pos-venda/trocas/<trocaId>/registros/<registroId>/<chave>.<ext>
+pos-venda/ordens-servico/<osId>/registros/<registroId>/<chave>.<ext>
+```
+
+Um **único** service (`pos-venda-anexo.service.ts`) serve os dois submódulos,
+com uma `PortaAnexo` por agregado: a lógica arriscada é escrita uma vez, e as
+consultas Prisma ficam explícitas, com a condição de pertencimento por extenso.
+
+### Fora de escopo, por decisão
+
+Estoque, número de série, garantia, financeiro, cobrança, OS de instalação,
+Pedido de Venda, múltiplas OS por Troca, sincronização Troca → OS e cards de
+Dashboard. Todos registrados no `BACKLOG.md`.
 
 ## 5. Configuração e Storage (Windows Server 2019)
 

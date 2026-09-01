@@ -2422,3 +2422,374 @@ existente.
 **Consequência.** A ordenação do Apelido saiu de graça: como o DTO já entrega o
 valor resolvido, a listagem ordena pelo texto exibido sem nenhuma lógica nova e
 sem nada novo no banco.
+
+---
+
+## Sprint 4.6 — Módulo Pós-venda: Troca Antecipada e Ordem de Serviço
+
+### ADR-0418 — Pós-venda são DOIS processos, com entidades próprias
+
+**Contexto.** Produtos já instalados dão defeito, e a Outmat costuma enviar o
+substituto **antes** de receber o defeituoso, para não deixar o cliente parado.
+Hoje isso vive no WhatsApp: ninguém sabe quantas peças ainda estão pendentes de
+devolução, o custo do motoboy não é rastreado, o produto que volta pode ficar
+sem análise, e o conhecimento sobre defeitos recorrentes se perde.
+
+Dois casos reais deram origem ao módulo: uma **fechadura** (1 enviada, 1
+esperada de volta) e **7 interruptores** (7 enviados, 7 esperados, retorno em
+duas etapas).
+
+**Decisão 1 — Troca Antecipada e Ordem de Serviço são entidades SEPARADAS.**
+
+O negócio confunde as duas porque elas acontecem em sequência. São perguntas
+diferentes:
+
+| | Troca Antecipada | Ordem de Serviço |
+|---|---|---|
+| Responde | "o defeituoso voltou?" | "qual era o defeito, e o que foi feito?" |
+| Fecha quando | o retorno é resolvido | a análise/reparo termina |
+| Existe sem a outra? | sim | **sim** |
+
+Modelá-las como uma coisa só forçaria uma Troca fantasma para toda análise
+técnica — e uma peça pode chegar para conserto sem nunca ter havido envio
+antecipado. É por isso que a **criação manual da OS é o fluxo obrigatório** da
+Sprint, e o vínculo com a Troca é opcional em todo lugar.
+
+**Esta OS é de PÓS-VENDA / MANUTENÇÃO DE EQUIPAMENTOS.** Uma futura OS de
+instalação será outra entidade; nada aqui é preparado para ela.
+
+**Decisão 2 — Não reutilizar `Instalacao`.**
+
+Doze tabelas novas com prefixo `pos_venda_`, **seis por processo**: raiz,
+itens, registros, custos, anexos e auditoria. Os PADRÕES de arquitetura e UX foram
+copiados das Instalações — timeline, custos por registro, anexos, agregado
+condicionado, snapshot de responsável —, mas nenhuma FK aponta para
+`Instalacao`, e nenhum service é compartilhado. Reaproveitar a entidade
+economizaria tabelas e custaria a capacidade de evoluir os dois módulos
+separadamente, que é justamente o que um módulo novo precisa poder fazer.
+
+**Decisão 3 — Item NÃO guarda snapshot de código/descrição do Produto.**
+
+Diferente de `PropostaItem` (ADR-0207), que congela preço porque é documento
+comercial assinável, o item de pós-venda não tem preço e não vai para documento
+nenhum: a pergunta é *qual peça é esta*, e a resposta é sobre o cadastro
+**atual**. Renomear um produto deve refletir na OS aberta. A FK é `Restrict`, e
+o `produtoId` REAL é preservado — é o que torna possível, no futuro, analisar
+defeito recorrente por produto.
+
+Complementar: `produtoId` **OU** `descricaoManual`, nunca os dois vazios. A peça
+que volta nem sempre está no catálogo (a fechadura antiga do hall, que a Outmat
+nunca vendeu). A regra vive em módulo puro, é aplicada no Zod e **de novo** no
+service — a segunda é a que vale, porque a primeira depende de quem chamou.
+
+**Decisão 4 — `quantidadePendenteRetorno` é DERIVADO, não coluna.**
+
+`max(esperada - devolvida, 0)`, e nada mais. Persistir um valor calculável é
+criar uma segunda verdade: a primeira vez que alguém atualizar
+`quantidadeDevolvida` sem recalcular o pendente, a listagem passa a mentir e
+ninguém percebe. Mesmo princípio do ADR-0219.
+
+**Decisão 5 — UMA enum de categoria de custo, DUAS listas de exibição.**
+
+`CategoriaCustoPosVenda` reúne `MOTOBOY, SEDEX, FRETE, VISITA, PECA, MATERIAL,
+TERCEIRIZACAO, OUTROS`. A Troca oferece as de ENVIO; a OS, as de REPARO. Duas
+enums no banco obrigariam a duplicar o módulo de cálculo e a tabela de rótulos
+para ganhar uma garantia que o `Select` já dá. A separação é travada por teste.
+
+**Decisão 6 — Custos da Troca e da OS NUNCA se somam.**
+
+São históricos independentes. Nenhuma tela exibe um total combinado, nenhuma
+função soma os dois agregados, e criar a OS a partir de uma Troca **não copia
+custo algum**. Frete e motoboy são da operação de troca; peça e mão de obra são
+do reparo — somá-los produziria um número que não responde pergunta nenhuma.
+
+**Decisão 7 — Responsável vem de `Usuario`; nenhum papel novo.**
+
+> ⚠️ **Supersedida em parte pelo ADR-0422.** Esta decisão exigia `ehTecnico` nos
+> DOIS submódulos. A revisão pré-commit mostrou que a simetria estava errada:
+> acompanhar uma Troca é trabalho frequentemente administrativo. Hoje a **Troca
+> aceita qualquer usuário ativo** e só a **OS** exige `ehTecnico`. O resto da
+> decisão — nenhum papel novo, e as regras do ADR-0410 — continua valendo.
+
+Criar uma role só para o módulo mudaria `Usuario` estruturalmente sem
+necessidade. Valem as mesmas regras do ADR-0410: exigência aplicada apenas em
+vínculo **novo ou alterado**, opções incluindo os já vinculados ainda que
+indisponíveis, e snapshot de nome no registro da timeline (ADR-0408).
+
+`removeUsuario` passou a contar **sete** relações. Esquecer uma não abre brecha
+de integridade — o `Restrict` continua barrando —, mas troca uma orientação
+clara ("utilize a opção Inativar") por um erro cru de FK na tela.
+
+**Consequência.** O módulo entra sem tocar em estrutura de Cliente, Produto,
+Usuario, Proposta ou Instalação. A migration é puramente aditiva, e as únicas
+mudanças fora do módulo são o menu, o `removeUsuario` e a limpeza E2E.
+
+---
+
+### ADR-0419 — Origem derivada, cardinalidade no banco, snapshot sem sincronização
+
+**Contexto.** A OS pode nascer de uma Troca. Três decisões pequenas que, juntas,
+definem como os dois processos se relacionam sem virarem um só.
+
+**Decisão 1 — `origem` é DERIVADA de `trocaAntecipadaId`; não existe coluna.**
+
+`null` = DIRETA, preenchido = TROCA_ANTECIPADA. Uma coluna `origem` seria um
+segundo lugar onde a mesma verdade mora, e no dia em que divergisse do vínculo
+não haveria como saber qual das duas está certa. O tipo `OrigemOS` existe só em
+TypeScript, para a apresentação, e a derivação é uma função só (`origemDe`) —
+nunca uma expressão solta espalhada por componente.
+
+**Decisão 2 — Cardinalidade zero-ou-uma, garantida por `@unique` no banco.**
+
+`OrdemServicoPosVenda.trocaAntecipadaId` é `@unique`. A regra mora no banco, não
+em código: é a única forma de ela não depender de quem escreve. O service também
+checa, mas **só para produzir uma mensagem legível** — o erro de constraint não
+serve para quem está na tela.
+
+Múltiplas OS por Troca ficaram no BACKLOG. Quando entrarem, o caminho é remover
+o índice: migration aditiva, sem perda de dados.
+
+A FK é `Restrict`: apagar a Troca não pode arrastar a OS junto. Na prática Troca
+não é apagada (é cancelada, ADR-0203/0400), mas a FK não depende disso.
+
+**Decisão 3 — Troca → OS é SNAPSHOT, e a garantia é a ausência de código.**
+
+O botão "Criar Ordem de Serviço" foi implementado — a spec o deixava opcional, e
+ele coube em uma função de service, uma transação e nenhuma arquitetura nova.
+
+Copia cliente, vínculo, contexto na referência e os itens com
+`quantidadeDevolvida > 0`: `produtoId` real preservado, item manual levando a
+`descricaoManual`, e `quantidade` recebendo a devolvida **daquele instante**.
+
+A Troca 7/7/5 gera uma OS de 5. Quando a Troca virar 7/7/7, a OS continua 5.
+Isso não é um efeito colateral aceito — é o comportamento pretendido: a OS
+descreve o que chegou para análise, e o que chegou depois é outro fato.
+
+**Não existe código de sincronização** — nem desligado, nem comentado, nem atrás
+de flag. É isso que torna a garantia real: não há o que alguém possa religar por
+engano. Um teste de integração e um cenário E2E fixam o comportamento, porque
+"sincronizar" parece uma melhoria até alguém perceber que a OS passou a mentir
+sobre o que analisou.
+
+Duas recusas explícitas: **nenhum item devolvido** (não há o que analisar, e a
+mensagem diz o que fazer antes de tentar de novo) e **troca que já tem OS**.
+
+O responsável da Troca só é herdado se ainda estiver **disponível para o papel**:
+um vínculo novo exige o papel (ADR-0410), e herdar em silêncio um responsável
+inativado criaria justamente o vínculo que a regra proíbe.
+
+**Decisão 4 — O vínculo NÃO é editável depois da criação.**
+
+`cabecalhoOSSchema` sequer declara `trocaAntecipadaId`. Torná-lo mutável
+transformaria a origem, que é fato histórico ("esta OS nasceu daquela troca"),
+em campo editável — e o snapshot dos itens deixaria de corresponder à troca
+apontada.
+
+**Consequência.** Os dois processos se relacionam por um único ponteiro, com uma
+constraint dura e nenhuma máquina de sincronização. É o desenho mais simples que
+atende o caso real, e o mais fácil de afrouxar depois se o negócio pedir.
+
+---
+
+### ADR-0420 — Finalização: confirmação forte na Troca, exigência técnica na OS
+
+**Contexto.** Os dois processos terminam por ação explícita, mas o que impede um
+encerramento ruim é diferente em cada um. A spec da Sprint fixou a regra da
+Troca e deixou a da OS em aberto (§33), pedindo que a decisão fosse registrada.
+
+**Decisão 1 — Troca: confirmação FORTE, nunca bloqueio.**
+
+Havendo item com `devolvida < esperada`, a finalização exige
+`confirmarPendencia: true`. A interface abre um diálogo que **enumera as
+pendências item a item** — um "tem certeza?" genérico não é confirmação forte, é
+um clique a mais. Quem finaliza com 2 de 7 interruptores faltando precisa estar
+afirmando isso, não descobrindo depois.
+
+**Não é bloqueio**, e isso é o ponto. Produto perdido, acordo comercial, cobrança
+futura e decisão administrativa são desfechos reais. Bloquear empurraria o
+usuário a lançar uma devolução que não houve — trocar um registro honesto de
+pendência por um dado falso.
+
+Troca **sem itens** não tem pendência: não há nada esperado, e finalizar é
+legítimo (o substituto foi enviado, o defeituoso ficou com o cliente por acordo,
+e ninguém chegou a cadastrar item).
+
+**Decisão 2 — OS: exige informação técnica, e não há confirmação para pular.**
+
+> `diagnosticoConclusao` geral preenchido **OU** ao menos um item com
+> `diagnosticoItem` ou `solucaoItem` preenchido.
+
+É a regra mais frouxa que ainda garante o registro. A OS existe para responder
+"qual era o defeito e o que foi feito"; finalizá-la em branco recria exatamente
+o buraco que o módulo veio fechar — o histórico técnico que hoje se perde no
+WhatsApp.
+
+A assimetria com a Troca é deliberada: pendência de devolução tem desfechos
+legítimos **fora** do sistema; "consertamos e ninguém sabe o quê" não é um
+desfecho, é informação perdida. Por isso ali há um botão para prosseguir e aqui
+não há.
+
+Não é UX ruim: o campo geral é um textarea no próprio workspace, os campos por
+item ficam no card do produto, e a mensagem de recusa diz exatamente o que
+falta. Texto só com espaços não conta como informação técnica.
+
+**Decisão 3 — Campos de encerramento são carimbados uma vez.**
+
+`finalizadaEm` e `canceladaEm` são gravados na PRIMEIRA transição e nunca
+sobrescritos, como `Proposta.emitidaAt`. Refinalizar uma troca reaberta não
+reescreve o dia em que ela foi encerrada pela primeira vez.
+
+**Decisão 4 — Cancelar preserva tudo.**
+
+Troca e OS são canceladas, **nunca excluídas** (mesmo princípio do ADR-0203 e do
+ADR-0400). Timeline, custos, itens e anexos são preservados; o motivo é opcional
+e vai para a trilha de auditoria. Na interface, cancelada e finalizada deixam o
+workspace somente-leitura — terminal na tela, nunca por exclusão de registro.
+
+**Consequência.** A Troca fecha com honestidade sobre o que não voltou; a OS
+fecha com registro do que foi feito. Nenhum dos dois é um botão que apenas muda
+uma cor.
+
+---
+
+### ADR-0421 — `src/lib/anexos.ts` como fonte única dos primitivos de anexo
+
+**Contexto.** Sprint 4.6. O Pós-venda precisa de anexos com exatamente as mesmas
+garantias das Instalações (ADR-0414/0417): allowlist de MIME, 10 MB por arquivo,
+10 por registro, extensão derivada do MIME validado, nome físico gerado no
+servidor, caminho relativo sob `resolveWithin`.
+
+Havia duas saídas: escrever a mesma allowlist de novo, ou promovê-la a fonte
+única. A primeira é precisamente o defeito que o ADR-0402 corrigiu na busca —
+duas cópias da mesma regra que divergem em silêncio, e ninguém percebe até um
+arquivo ser aceito num módulo e recusado no outro.
+
+**Decisão — extrair os primitivos NEUTROS de domínio para `src/lib/anexos.ts`.**
+
+Saem de `features/instalacoes/anexos.ts`: `MIME_ACEITOS`, `EXTENSOES_ACEITAS`,
+`MAX_BYTES`, `MAX_POR_REGISTRO`, `ACCEPT_ANEXO`, as mensagens, `extensaoDe`,
+`nomeFisico`, `validarArquivo`, `sanitizarNomeOriginal`, `formatarTamanho`,
+`segmentoSeguro` e `caminhoRelativoSeguro`. Entra também `MIMES_INLINE`, que
+estava duplicado na rota de download.
+
+**A superfície pública de `features/instalacoes/anexos.ts` não mudou.**
+Ele re-exporta tudo e mantém seus próprios construtores de caminho. Nenhum call
+site foi tocado, e o teste que já existia continua valendo palavra por palavra —
+31/31 verdes depois da extração, sem uma linha alterada no arquivo de teste. É o
+que qualifica isto como extração e não como refatoração: comportamento idêntico,
+zero mudança de chamada.
+
+**O que permanece PRÓPRIO de cada módulo é o particionamento em disco.** Cada um
+organiza os uploads do seu jeito:
+
+```
+instalacoes/<instalacaoId>/registros/<registroId>/<chave>.<ext>
+pos-venda/trocas/<trocaId>/registros/<registroId>/<chave>.<ext>
+pos-venda/ordens-servico/<osId>/registros/<registroId>/<chave>.<ext>
+```
+
+O prefixo `pos-venda/` existe para que a limpeza E2E e a inspeção manual no
+servidor tenham uma raiz só do módulo, sem esbarrar em `instalacoes/`. Um teste
+afirma que Troca e OS nunca produzem o mesmo caminho para o mesmo id, e que
+nenhum dos dois colide com a raiz das Instalações.
+
+**Decisão complementar — UM service de anexo para os dois submódulos, com
+"portas" explícitas.**
+
+Troca e OS têm tabelas próprias e colunas de FK com nomes diferentes. O que NÃO
+pode ser escrito duas vezes é a lógica arriscada: validação, geração do nome
+físico, `resolveWithin`, a **ordem das escritas** e o tratamento de falha —
+duplicar isso é como se perde uma garantia de segurança em uma das cópias.
+
+A saída é uma `PortaAnexo` por agregado: cinco consultas Prisma diretas, cada uma
+com a condição de pertencimento escrita por extenso, legível e revisável. Nada
+de delegate dinâmico, nada de `any` — o discriminador é um `Record` de duas
+entradas, e o typecheck cobre as duas. O invariante do ADR-0414 continua inteiro:
+
+```
+criar   → grava o ARQUIVO, depois a LINHA (falhou a linha: apaga o arquivo)
+excluir → apaga a LINHA, depois o ARQUIVO (falhou o arquivo: só loga)
+```
+
+Um teste de integração prova a resolução pelo agregado completo com **pares
+cruzados discriminantes**, incluindo o caso em que o mesmo `registroId` é
+tentado no submódulo errado.
+
+**Consequência.** Ampliar formatos volta a ser uma linha, agora para os dois
+módulos ao mesmo tempo. Um teste afirma que Pós-venda, Instalações e `lib`
+compartilham o **mesmo objeto** `MIME_ACEITOS` — se alguém reintroduzir uma
+cópia local em qualquer ponta, as referências deixam de ser idênticas e o teste
+falha.
+
+---
+
+### ADR-0422 — Responsável do Pós-venda: papel exigido na OS, não na Troca (supersede parcial do ADR-0418)
+
+**Contexto.** A Sprint 4.6 entregou os dois submódulos exigindo `ehTecnico` no
+responsável — do cabeçalho e dos registros de timeline, nos dois. A escolha foi
+por simetria com Instalações, não por requisito: a spec §6 dizia apenas
+"selecionar do modelo atual de Usuários" e "não criar nova role".
+
+A revisão pré-commit apontou que a simetria estava errada. Os dois processos não
+são o mesmo tipo de trabalho:
+
+| | Troca Antecipada | Ordem de Serviço |
+|---|---|---|
+| O que se faz | envia, cobra devolução, paga frete, acompanha pendência | analisa, diagnostica, repara |
+| Quem faz | frequentemente **administrativo/comercial** | **técnico** |
+
+Exigir técnico na Troca limitava o cadastro sem nenhuma razão de negócio — e
+pior: empurraria quem administra o sistema a marcar `ehTecnico` em gente
+administrativa só para poder atribuí-la, corrompendo o significado do papel.
+
+**Decisão 1 — Troca Antecipada aceita QUALQUER usuário ATIVO.**
+
+Sem exigência de papel, no cabeçalho e na timeline. A única recusa que resta é
+**usuário inativo em vínculo NOVO** — a mesma regra de sempre, com um eixo a
+menos.
+
+Vale para as cinco camadas: lista de opções da criação, lista do workspace,
+`criarTroca`, `atualizarTroca` e o responsável do registro da timeline. Um
+acontecimento da timeline da Troca é tipicamente administrativo — "enviado por
+motoboy", "postado", "cliente cobrado pela devolução", "frete R$ 60" — e exigir
+técnico para registrar isso não descreveria o trabalho real.
+
+**Decisão 2 — Ordem de Serviço CONTINUA exigindo `ehTecnico`.**
+
+Cabeçalho e timeline, sem alteração. A OS é o processo técnico de análise e
+manutenção; ali o papel descreve o trabalho corretamente. **Nada do código da OS
+foi tocado.**
+
+**Decisão 3 — Nenhum papel novo, e nenhum helper existente alterado.**
+
+Quatro adições, todas irmãs das existentes:
+
+| Novo | Espelha | Diferença |
+|---|---|---|
+| `disponivelAtivo(u)` | `disponivelPara(u, papel)` | só `ativo` |
+| `rotuloOpcaoAtivo(u)` | `rotuloOpcao(u, papel)` | só o sufixo "(inativo)" |
+| `listUsuarioOptionsAtivos(ids)` | `listUsuarioOptions(papel, ids)` | sem filtro de papel |
+| `assertUsuarioAtivo(tx, id)` | `assertPapel(tx, id, papel)` | sem exigência de papel |
+
+`rotuloOpcaoAtivo` **nunca** diz "(sem papel de …)": seria informação sobre um
+requisito que este vínculo não tem.
+
+Proposta, Instalação e Ordem de Serviço continuam chamando exatamente as funções
+de antes, com o mesmo comportamento. **Nenhuma função existente mudou de
+assinatura ou de semântica** — é por isso que a mudança não exigiu tocar em
+`instalacao.service.ts` nem em `proposta.service.ts`.
+
+**Decisão 4 — A herança de responsável de Troca → OS continua exigindo técnico.**
+
+`criarOSDaTroca` já copiava o responsável apenas quando `ativo && ehTecnico`.
+Isso deixou de ser caso de borda e virou o caminho **normal**: como a Troca
+agora aceita administrativos, o responsável dela frequentemente não serve para a
+OS. Nesse caso a OS nasce **sem responsável**, e alguém escolhe o técnico.
+**Nunca há conversão automática para outro usuário** — inventar um responsável
+seria pior do que deixar o campo vazio.
+
+**Consequência.** O papel volta a significar o que diz: `ehTecnico` marca quem
+executa trabalho técnico, e nada além disso. A regra de vínculo preexistente
+inalterado permanece intacta nos dois submódulos — editar um processo cujo
+responsável foi inativado depois continua funcionando, e o vínculo histórico não
+é zerado em silêncio.

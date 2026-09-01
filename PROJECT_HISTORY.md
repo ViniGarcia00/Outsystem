@@ -2697,3 +2697,251 @@ mantido.
 
 **MINOR e não PATCH:** aceitar novos formatos de anexo é funcionalidade visível ao
 usuário, não correção de defeito.
+
+## Sprint 4.6 — Módulo Pós-venda: Troca Antecipada e Ordem de Serviço (2026-09-01, versão 1.9.0)
+
+Segundo módulo **operacional** do sistema, e o primeiro construído inteiro numa
+Sprint só. Nasceu de dois casos reais que a Outmat já vinha resolvendo no
+WhatsApp: uma **fechadura** substituída antes da devolução, e **sete
+interruptores** enviados com o retorno vindo em duas etapas.
+
+O que se perdia: quantas peças ainda estão pendentes, quanto custou o motoboy, se
+o produto devolvido chegou a ser analisado, e o que se descobriu quando foi.
+
+### A decisão que organizou o módulo
+
+O negócio confunde **Troca Antecipada** e **Ordem de Serviço** porque as duas
+acontecem em sequência. São perguntas diferentes:
+
+| | Troca Antecipada | Ordem de Serviço |
+|---|---|---|
+| Responde | "o defeituoso voltou?" | "qual era o defeito, e o que foi feito?" |
+| Fecha quando | o retorno é resolvido | a análise/reparo termina |
+| Existe sem a outra? | sim | **sim** |
+
+Modelá-las como uma coisa só forçaria uma Troca fantasma para toda análise
+técnica — e uma peça pode chegar para conserto sem nunca ter havido envio
+antecipado. Por isso a **criação manual da OS é o fluxo principal**, e o vínculo
+com a Troca é opcional em todo lugar (ADR-0418).
+
+⚠️ **A OS entregue é de pós-venda / manutenção de equipamentos.** Uma futura OS
+de instalação é outro processo, e nada aqui a antecipa.
+
+### As três garantias que valem destacar
+
+**1. A OS recebe uma fotografia, não um espelho** (ADR-0419). O botão "Criar
+Ordem de Serviço" copia os produtos com `quantidadeDevolvida > 0`, com a
+quantidade daquele instante. Troca 7/7/5 gera OS de 5 — e a OS **continua 5**
+depois que os outros 2 voltarem.
+
+O que torna a garantia real não é uma regra: é a **ausência de código de
+sincronização**. Não há nada desligado, comentado ou atrás de flag para alguém
+religar por engano. Um teste de integração e um cenário E2E fixam o
+comportamento, porque "sincronizar" parece uma melhoria até alguém perceber que a
+OS passou a mentir sobre o que efetivamente chegou para análise.
+
+**2. A cardinalidade mora no banco.** `pos_venda_ordens_servico.trocaAntecipadaId`
+é `UNIQUE` — uma Troca tem zero ou uma OS. O service duplica a checagem, mas só
+para produzir uma mensagem legível: o erro de constraint não serve para quem está
+na tela. Quando múltiplas OS por Troca forem pedidas, o caminho é `DROP INDEX`,
+migration aditiva.
+
+**3. A origem da OS é DERIVADA, não persistida.** `trocaAntecipadaId IS NULL` ⇒
+Direta. Uma coluna `origem` seria um segundo lugar onde a mesma verdade mora, e
+no dia em que divergisse do vínculo não haveria como saber qual das duas está
+certa.
+
+### As duas finalizações são diferentes de propósito (ADR-0420)
+
+A spec da Sprint fixou a regra da Troca e **deixou a da OS em aberto** (§33),
+pedindo que a decisão fosse registrada. Foi.
+
+**Troca — confirmação forte, nunca bloqueio.** Havendo produto pendente, o
+diálogo **enumera item a item** o que não voltou, e finaliza assim mesmo se
+confirmado. Um "tem certeza?" genérico não é confirmação forte, é um clique a
+mais. E bloquear seria pior: produto perdido, acordo e cobrança futura são
+desfechos reais, e o bloqueio empurraria o usuário a lançar uma devolução que não
+houve — trocar um registro honesto de pendência por um dado falso.
+
+**OS — exige informação técnica, e não há confirmação para pular.** Conclusão
+geral **ou** diagnóstico/solução de ao menos um produto. A assimetria é
+deliberada: pendência de devolução tem desfechos legítimos **fora** do sistema;
+"consertamos e ninguém sabe o quê" não é um desfecho, é informação perdida — o
+buraco exato que o módulo veio fechar.
+
+### O que a Sprint tocou fora do módulo
+
+Três coisas, todas necessárias e todas pequenas:
+
+- **`src/lib/anexos.ts`** (ADR-0421). O Pós-venda precisa das mesmas garantias de
+  anexo das Instalações. Havia duas saídas: escrever a allowlist de novo, ou
+  promovê-la a fonte única. A primeira é o defeito que o ADR-0402 corrigiu na
+  busca. Os primitivos neutros saíram de `features/instalacoes/anexos.ts`, que
+  passou a re-exportá-los. **Nenhum call site mudou, e os 31 testes daquele
+  módulo passaram sem uma linha alterada** — é isso que qualifica a mudança como
+  extração e não como refatoração.
+- **`removeUsuario` passou a contar sete relações**, não três. Sem isso, excluir
+  um usuário usado no Pós-venda devolveria erro cru de FK em vez da mensagem que
+  orienta a inativar. Entrou como item permanente do `CHECKLIST_RELEASE`.
+- **Menu e limpeza E2E.** `Pós-venda` entre Instalações e Usuários, apontando
+  para um hub; e o `globalTeardown` cobrindo as doze tabelas novas mais as pastas
+  físicas dos dois submódulos.
+
+### Teste antigo legitimamente afetado
+
+Um só: `e2e/smoke.spec.ts` trava a ordem da barra lateral por igualdade exata, e
+a ordem mudou por decisão desta Sprint. Atualizado junto com o teste unitário de
+`mainNavigation`, que trava a mesma regra na fonte. Os dois ganharam a asserção
+de que Pós-venda vem **logo após** Instalações, e a de que os submódulos **não**
+aparecem no menu — a decisão do hub se perderia primeiro numa mudança futura.
+
+Nenhum outro teste precisou de ajuste: 48/48 E2E, 218/218 integração e 557/557
+unidade na execução final.
+
+### Divergências e correções durante a implementação
+
+Três, todas técnicas e dentro do escopo autorizado:
+
+1. **`useEffect` com `setState` no diálogo de produto.** O lint do projeto barra
+   `react-hooks/set-state-in-effect`. Em vez de silenciar a regra, o reset passou
+   a acontecer **ao fechar**, num handler de evento — que cobre todos os caminhos
+   de saída (Esc, clique fora, Cancelar, Adicionar) e não custa nada.
+2. **Locator do autocomplete de produto no E2E.** O nome acessível da opção junta
+   o rótulo (SKU) e o sub-rótulo (descrição), então `exact: true` nunca casaria.
+   Corrigido para busca por substring, como o helper já existente no
+   `smoke.spec.ts` — o SKU é único, e a busca devolve exatamente uma opção.
+3. **`SERIAL` do `migrate diff` trocado por `INTEGER` + sequência nomeada.** O
+   diff do Prisma gera `SERIAL`; a convenção do projeto (ADR-0201, migration das
+   Instalações) é sequência nomeada com `RESTART WITH 1001`. Migration ajustada à
+   mão antes de aplicar, e o `migrate diff` posterior confirma ausência de drift.
+
+Nenhuma exigiu decisão de produto, e nenhuma escapou do escopo da Sprint.
+
+### Fora de escopo, por decisão
+
+Estoque, número de série, garantia, financeiro/cobrança, OS de instalação, Pedido
+de Venda, múltiplas OS por Troca, sincronização Troca → OS e cards de Dashboard —
+**o Dashboard não foi tocado**. Todos registrados no `BACKLOG.md`, com o motivo e
+o custo de mudar de ideia.
+
+Vale um destaque no vocabulário: `VALOR_PENDENTE`, na Troca, é status
+**operacional** — significa que alguém precisa decidir o que fazer com um valor.
+Não é título em aberto, e o sistema não o trata como tal.
+
+### Revisão pré-commit: três apontamentos, dois viraram mudança
+
+A entrega passou por revisão antes do commit. Três pontos foram levantados; o
+registro do que **não** mudou vale tanto quanto o do que mudou.
+
+**1. "10 tabelas" era erro de documentação.** O relatório dizia dez em um
+parágrafo e doze em outro. O banco sempre teve **doze**: seis por processo —
+raiz, itens, registros, custos, anexos e **auditoria**. As duas de auditoria vêm
+da spec §46 (registrar criação, status, finalização, cancelamento e vínculo), no
+padrão de `proposta_auditorias` e `instalacao_auditorias`; o "dez" foi copiado da
+lista de entidades da §47, que não as enumerava, e nunca corrigido. **Nenhuma
+entidade era imprevista.** Corrigido em oito arquivos, incluindo os comentários
+da migration e da limpeza E2E, e verificado por varredura.
+
+**2. Finalização da OS: confirmada sem alteração.** A regra implementada já era
+exatamente a desejada — conclusão geral **ou** ao menos um item com diagnóstico
+**ou** solução, com `.trim()` descartando texto em branco. Não exige diagnóstico
+em todos os itens nem os dois campos juntos. Cinco testes de integração e um
+cenário E2E a travam. Nada foi tocado.
+
+**3. Responsável: a simetria com Instalações estava errada.** Este foi o
+apontamento que virou código, e ele merece o registro completo.
+
+A entrega exigia `ehTecnico` nos dois submódulos, por simetria com Instalações —
+não por requisito. A revisão observou que os dois processos não são o mesmo tipo
+de trabalho: acompanhar uma Troca é enviar, cobrar devolução, pagar frete e
+controlar pendência — **trabalho administrativo**. Exigir técnico ali não só
+limitava o cadastro como criava um incentivo perverso: marcar `ehTecnico` em
+gente administrativa só para poder atribuí-la, corrompendo o significado do
+papel.
+
+A correção (ADR-0422, supersede parcial do ADR-0418):
+
+| | Cabeçalho | Timeline |
+|---|---|---|
+| **Troca Antecipada** | qualquer usuário **ativo** | qualquer usuário **ativo** |
+| **Ordem de Serviço** | `ehTecnico` (inalterado) | `ehTecnico` (inalterado) |
+
+Quatro funções **aditivas** — `disponivelAtivo`, `rotuloOpcaoAtivo`,
+`listUsuarioOptionsAtivos`, `assertUsuarioAtivo` — ao lado das de papel.
+**Nenhuma função existente mudou de assinatura ou semântica**, e é por isso que
+Proposta, Instalação e a própria OS não precisaram ser tocadas. Nenhum papel
+novo, nenhuma migration.
+
+Um efeito que deixou de ser caso de borda: `criarOSDaTroca` já só herdava o
+responsável quando `ativo && ehTecnico`. Com a Troca aceitando administrativos,
+esse passou a ser o caminho **normal** — a OS nasce sem responsável e alguém
+escolhe o técnico. Nunca há conversão automática.
+
+### Gate oficial da 1.9.0
+
+| # | Item | Resultado |
+| --- | --- | --- |
+| 1 | Lint | **0 erros, 0 warnings** |
+| 2 | Typecheck | **0** |
+| 3 | Build | **OK** · 11 rotas novas registradas |
+| 4 | Unit | **565/565** (33 arquivos) — 178 novos |
+| 5 | Integração | **225/225** (9 arquivos) — 101 novos |
+| 6 | Smoke/E2E | **49/49** (10 novos) · resíduo de banco e de disco **zero** |
+| 7 | `/api/health` | **200** · `{"status":"ok","version":"1.9.0","database":"up"}` |
+| 8 | `/dev/diagnostics` | **200** · 0,06 s |
+| 9 | PostgreSQL | **18.1** (x86_64-windows, msvc-19.44.35219, 64-bit) |
+| 10 | Prisma | **7.8.0** · conectado |
+| 11 | Documentação | ARCHITECTURE §4.8, PROJECT_CONTEXT, VISION, BACKLOG, DECISIONS (ADR-0418..0422), CHECKLIST_RELEASE |
+| 12 | CHANGELOG | seção **[1.9.0]** |
+| 13 | VERSION | **1.9.0** (e `package.json` **1.9.0**) |
+| 14 | Commit | **pendente** — entrega em estado pré-commit, por solicitação |
+
+Verificações além do gate:
+
+| Verificação | Resultado |
+| --- | --- |
+| `migrate status` | *Database schema is up to date* · **27 migrations** · 0 pendentes |
+| `migrate diff` (banco × schema) | **No difference detected** — sem drift |
+| `db:validate` | **14 ok, 0 falhas** |
+| Sequências novas | `pos_venda_trocas_numero_seq` e `pos_venda_ordens_servico_numero_seq`, ambas iniciadas em **1001** |
+| Tabelas novas | **12** — seis por processo: raiz, itens, registros, custos, anexos e auditoria. Um model Prisma por tabela |
+| Resíduo de banco | **zero** nas 18 contagens do teardown |
+| Resíduo de filesystem | **zero** — só o `logo.jpg` preexistente sob `storage/uploads` |
+| `git diff --check` | limpo |
+| `package-lock.json` | **não tocado** — o repositório nunca o sincronizou com a versão (segue em `1.0.0`), e o comportamento estabelecido foi mantido |
+
+### Flake pré-existente reincidente, diagnosticado e não "corrigido"
+
+Uma das três execuções da suíte completa falhou em dois cenários de Pós-venda
+(`OS: criação manual` e `Anexos`). Os dois **passam isolados**, a suíte de
+Pós-venda sozinha saiu 10/10, e as outras duas execuções completas saíram
+**49/49**. O cenário que falhou levou 26,6 s contra 11 s no caminho normal.
+
+É a mesma assinatura registrada na Sprint 4.5: o `webServer` do Playwright é
+`npm run dev`, e o Next compila rota **sob demanda** — a primeira visita a uma
+rota ainda não compilada pode estourar o timeout sob carga. Não foi introduzido
+por esta Sprint e não foi "corrigido" aqui: mexer em timeout de suíte é decisão
+de outro escopo, e foi exatamente a conclusão registrada da vez anterior.
+
+**MINOR e não MAJOR:** módulo novo e inteiramente aditivo. Nenhuma tabela
+existente mudou de estrutura, nenhum contrato de API quebrou, e as únicas
+alterações fora do módulo são o menu, `removeUsuario` e a infraestrutura de
+limpeza de teste.
+
+**Sobre as pastas vazias em disco.** `storage/uploads/pos-venda/trocas` e
+`.../ordens-servico` existirem e estarem vazias ao fim do gate é o estado
+**correto**, exatamente como `storage/uploads/instalacoes`: a limpeza remove
+pastas **por agregado**, nunca as raízes — `alvoDentroDaRaiz` recusa
+explicitamente um alvo igual à raiz de uploads.
+
+### Migration desta Sprint
+
+`20260901000000_pos_venda` — **aditiva**: 5 enums, 12 tabelas `pos_venda_*`, 2
+sequências (`RESTART WITH 1001`), 24 índices e 18 foreign keys. Sem `DROP`, sem
+backfill, sem perda de dados. As únicas relações com `clientes`, `produtos` e
+`usuarios` são FKs **saindo** das tabelas novas; o lado inverso no schema Prisma
+não gera DDL.
+
+FKs definidas conscientemente: Cliente, Produto, Usuário e Troca → `RESTRICT`
+(cadastro usado nunca some, e apagar a Troca não arrasta a OS); itens, registros,
+custos, anexos e auditorias → `CASCADE` (são conteúdo do agregado).

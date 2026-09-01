@@ -10,7 +10,7 @@
 - **Sem autenticação.**
 - Servidor Windows Server 2019; banco PostgreSQL.
 
-## Estado funcional (1.2.0)
+## Estado funcional (1.9.0)
 
 O **módulo Comercial está concluído**. A proposta cobre o ciclo do documento
 comercial de ponta a ponta:
@@ -26,13 +26,19 @@ comercial de ponta a ponta:
 O **módulo de Instalações** (operacional) também está concluído — ver a seção
 "Regra: instalações" adiante.
 
-**Próximos módulos, ambos operacionais e ainda sem design aprovado:**
+O **módulo de Pós-venda** (1.9.0) entregou dois submódulos: **Troca Antecipada**
+e **Ordem de Serviço de pós-venda/manutenção** — ver "Regra: pós-venda" adiante.
+
+**Próximo módulo operacional, ainda sem design aprovado:**
 
 - **Pedido de Venda**
-- **Ordem de Serviço**
 
-> Nenhum requisito desses dois módulos foi definido. Enquanto não houver design
-> aprovado, **nada sobre eles deve ser presumido** a partir deste documento.
+> Nenhum requisito dele foi definido. Enquanto não houver design aprovado, **nada
+> sobre ele deve ser presumido** a partir deste documento.
+>
+> ⚠️ **A Ordem de Serviço entregue na 1.9.0 é de PÓS-VENDA / MANUTENÇÃO DE
+> EQUIPAMENTOS.** Uma eventual **Ordem de Serviço de instalação** é outro
+> processo, ainda sem design aprovado, e nada do módulo atual a antecipa.
 
 ## Entidades
 
@@ -288,6 +294,114 @@ acontecimento — nunca um campo único que se sobrescreve.
 - Registro **sem custos** pode ser excluído.
 - Registro **com custos** não pode: a exclusão é bloqueada e o sistema orienta a
   editar o registro. Histórico financeiro não desaparece por engano.
+
+## Regra: pós-venda (1.9.0)
+
+Controle **operacional** do que acontece depois que o produto já está instalado.
+Nasceu de dois casos reais: uma **fechadura** substituída antes da devolução, e
+**sete interruptores** enviados com o retorno vindo em duas etapas.
+
+São **dois processos distintos**, e o negócio os confunde porque acontecem em
+sequência:
+
+| | Troca Antecipada | Ordem de Serviço |
+|---|---|---|
+| Responde | "o defeituoso voltou?" | "qual era o defeito, e o que foi feito?" |
+| Fecha quando | o retorno é resolvido | a análise/reparo termina |
+| Existe sem a outra? | sim | **sim** |
+
+> ⚠️ Esta Ordem de Serviço é de **pós-venda / manutenção de equipamentos**. Não
+> confundir com uma futura OS de instalação.
+
+### Troca Antecipada
+
+- **Cliente é obrigatório** e vem do cadastro. **Referência** também: é o texto
+  que identifica o processo na listagem ("Fechadura entrada social", "7
+  interruptores sala/cozinha").
+- **Numeração própria**, começando em 1001, independente de tudo o mais.
+- **Destinatário do substituto:** Cliente, Instalador ou Outro. Quando não é o
+  cliente, o nome é obrigatório — **não existe cadastro de instalador/parceiro**.
+- **Produtos:** cada um vem do cadastro **ou** é descrito manualmente ("Outro /
+  Produto não cadastrado"). Nunca os dois em branco. A peça que volta nem sempre
+  está no catálogo.
+- **Três quantidades por produto:** enviada, esperada de retorno e devolvida.
+  **Devolvida nunca excede a esperada.** O que ainda falta voltar é sempre
+  calculado, nunca digitado.
+- **Enviado e esperado são independentes:** dá para enviar 1 substituto e esperar
+  0 de volta, quando o defeituoso fica com o cliente por acordo.
+- **Status:** Aberta · Envio pendente · Devolução pendente · Em análise · Valor
+  pendente · Finalizada · Cancelada. Qualquer transição é permitida.
+  **`Valor pendente` é status operacional, não financeiro** — significa que
+  alguém precisa decidir o que fazer com um valor, não que existe título aberto.
+- **Finalizar é ação explícita.** Havendo produto pendente, o sistema mostra
+  **quais** e pede confirmação — e **finaliza assim mesmo** se confirmado.
+  Produto perdido, acordo e cobrança futura são desfechos reais; bloquear
+  empurraria o usuário a registrar uma devolução que não houve.
+- **Diagnóstico/conclusão é opcional** e nunca bloqueia a finalização: a análise
+  técnica principal acontece depois, na Ordem de Serviço.
+- **Custos operacionais** (motoboy, sedex, frete, visita) são lançados nos
+  registros da timeline, e o acumulado é sempre calculado.
+
+### Ordem de Serviço de pós-venda
+
+- **Funciona sem Troca Antecipada.** A criação manual é o caminho principal: uma
+  peça pode chegar para conserto sem nunca ter havido envio antecipado.
+- **Numeração própria**, começando em 1001, independente da Troca.
+- **Produtos** seguem a mesma regra (cadastro ou descrição manual), com
+  quantidade inteira **maior que zero**, e ganham dois campos técnicos:
+  **diagnóstico encontrado** e **solução aplicada**.
+- **Status:** Aberta · Aguardando análise · Em análise · Em manutenção ·
+  Aguardando peça · Finalizada · Cancelada.
+- **Finalizar exige informação técnica:** conclusão geral **ou** diagnóstico /
+  solução de ao menos um produto. A OS existe para responder o que era o defeito
+  e o que foi feito; finalizá-la em branco recriaria o buraco que o módulo veio
+  fechar.
+- **Custos próprios** (peça, frete, terceirização, material) — **nunca copiados
+  nem somados aos da Troca**. São históricos independentes.
+
+### Vínculo entre os dois
+
+- O vínculo é **opcional**, e pode ser escolhido na criação manual da OS entre as
+  trocas **do mesmo cliente** que ainda não têm ordem de serviço.
+- **Uma Troca tem zero ou uma Ordem de Serviço.**
+- Da Troca, o botão **"Criar Ordem de Serviço"** abre a OS já preenchida com o
+  cliente, a referência de origem e os **produtos devolvidos**, com a quantidade
+  devolvida no momento.
+- O responsável da Troca só é herdado pela OS se ele **for técnico**. Sendo
+  administrativo, a OS nasce sem responsável e alguém escolhe o técnico — o
+  sistema nunca inventa um substituto.
+- **A OS recebe uma fotografia, não um espelho.** Se a Troca tinha 5 de 7
+  devolvidos, a OS nasce com 5 — e continua com 5 mesmo depois de os outros 2
+  voltarem. O que chegou depois é outro fato.
+- **Sem produto devolvido, a OS não é criada** e o sistema explica por quê.
+
+### Timeline, anexos e cancelamento
+
+- Os dois processos têm **timeline** de acontecimentos (quando ocorreu, quem fez,
+  o que aconteceu), com custos por registro. Fatos anteriores à abertura são
+  aceitos; fatos futuros, não.
+- **Anexos** por registro: JPG, PNG, WebP, PDF, Word e Excel — **10 MB por
+  arquivo, 10 por registro**, as mesmas regras das Instalações.
+- **Registro com custo lançado não é excluído** — corrija os custos antes.
+- **Cancelar nunca apaga.** Timeline, custos, produtos e anexos são preservados,
+  e o processo continua acessível pelo filtro de status.
+- **Responsável** vem do cadastro de **Usuários**, com exigência diferente em
+  cada processo:
+  - **Troca Antecipada:** qualquer usuário **ativo**. Acompanhar envio,
+    devolução, frete e cobrança é trabalho frequentemente administrativo, e
+    exigir técnico limitaria o cadastro sem razão. Vale também para quem assina
+    cada registro da timeline.
+  - **Ordem de Serviço:** precisa ter o papel de **técnico** — ali o trabalho é
+    análise e reparo. Vale também para a timeline dela.
+  - **Usuário inativo** não pode receber vínculo novo em nenhum dos dois; o
+    vínculo já existente é preservado.
+  - **Nenhum papel novo foi criado.** Renomear o cadastro não reescreve fatos já
+    registrados.
+
+### Fora de escopo (1.9.0)
+
+Estoque, número de série, garantia, financeiro, cobrança, OS de instalação,
+Pedido de Venda e cards de Dashboard. Registrados em `BACKLOG.md`.
 
 ## Ciclo de vida da proposta
 

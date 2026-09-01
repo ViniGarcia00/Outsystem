@@ -2,6 +2,104 @@
 
 > Vazio por design ao final da Sprint 0. Preenchido ao longo das Sprints.
 
+## Apurado na Sprint 4.6 — Módulo Pós-venda (2026-09-01)
+
+> Os itens abaixo ficaram **explicitamente fora de escopo** por decisão da
+> Sprint, não por esquecimento. O módulo entrou controlando o processo
+> operacional — quem enviou, o que se espera de volta, o que voltou, quanto
+> custou e o que foi consertado —, sem tocar em estoque, garantia ou financeiro.
+
+### Fora de escopo por decisão (spec §43–§45, ADR-0418)
+
+- [ ] **Estoque** (prioridade a definir)
+      Baixa, reserva, entrada, movimentação e saldo. Nada disso acontece hoje:
+      criar uma Troca ou uma OS **não move estoque**, e a quantidade devolvida é
+      um registro operacional, não um lançamento.
+      **Por que ficou fora:** estoque é um módulo próprio, com regras de custo
+      médio, inventário e conciliação. Acoplá-lo ao Pós-venda faria a Troca
+      carregar meia implementação de estoque — e a metade que falta é sempre a
+      que quebra.
+
+- [ ] **Número de série / rastreio por unidade** (prioridade a definir)
+      Hoje o item é `produto + quantidade`. Não há como dizer *qual* das 7 peças
+      voltou.
+      **Quando vira necessidade:** no dia em que a análise de defeito recorrente
+      precisar distinguir lote ou unidade. Depende de estoque.
+
+- [ ] **Garantia** (prioridade a definir)
+      Sem validação de prazo, sem cálculo de cobertura, sem entidade `Garantia`,
+      sem exigência de NF. Quem decide se é garantia é a pessoa, e a decisão vai
+      para a timeline como texto.
+
+- [ ] **Financeiro / cobrança** (prioridade a definir)
+      Os custos do Pós-venda são **informativos e operacionais**: não geram conta
+      a pagar, conta a receber, cobrança, reembolso, baixa nem pagamento.
+      **Atenção ao nome:** o status `VALOR_PENDENTE` da Troca é **operacional** —
+      sinaliza que alguém precisa decidir o que fazer com um valor. Não é um
+      título em aberto, e o sistema não o trata como tal.
+
+- [ ] **Ordem de Serviço de INSTALAÇÃO** (prioridade a definir)
+      A OS entregue é de **pós-venda / manutenção de equipamentos**. Uma OS de
+      instalação é outro processo, e será outra entidade — nada no módulo atual
+      a antecipa, de propósito (ADR-0418).
+
+- [ ] **Pedido de Venda** (prioridade a definir)
+      Continua fora do sistema, como desde o ADR-0400.
+
+- [ ] **Cards de Pós-venda no Dashboard** (prioridade baixa)
+      A Sprint não tocou no Dashboard por decisão explícita (spec §67). Quando
+      entrar, os candidatos naturais são: trocas com devolução pendente, total
+      pendente de retorno e OS abertas por status.
+
+- [ ] **Relatórios gerenciais de Pós-venda** (prioridade baixa)
+      Defeito recorrente por produto, tempo médio de retorno, custo por processo.
+      O `produtoId` REAL já é preservado nos itens justamente para viabilizar
+      isso depois (ADR-0418) — mas nenhuma tela agrega nada hoje.
+
+### Decisões de desenho que podem ser afrouxadas depois
+
+- [ ] **Múltiplas OS por Troca** (prioridade média)
+      Hoje a cardinalidade é **zero ou uma**, garantida pelo `@unique` em
+      `pos_venda_ordens_servico."trocaAntecipadaId"` (ADR-0419).
+      **Quando vira necessidade:** uma troca de 7 interruptores em que as peças
+      são analisadas em lotes separados, por técnicos diferentes.
+      **Custo de mudar:** `DROP INDEX` do unique — migration aditiva, sem perda
+      de dados —, mais o ajuste de `TrocaAntecipada.ordemServico` de 0..1 para
+      1:N, do DTO e da listagem. A regra do service (`TROCA_JA_TEM_OS`) sai
+      junto.
+
+- [ ] **Sincronização Troca → OS** (prioridade baixa — e provavelmente NUNCA)
+      A OS recebe um **snapshot** dos produtos devolvidos no momento da criação
+      (ADR-0419). Mudar a Troca depois não altera a OS, e **não existe código de
+      sincronização** — nem desligado, nem atrás de flag.
+      **Registrado aqui como aviso, não como pendência:** "sincronizar" parece
+      uma melhoria até alguém perceber que a OS passou a mentir sobre o que
+      efetivamente chegou para análise. Se um dia for pedido, precisa ser decisão
+      de produto explícita, não refatoração.
+
+- [ ] **Custos de Troca e OS não se somam em lugar nenhum** (prioridade baixa)
+      São históricos independentes (spec §36). Se algum dia alguém quiser "quanto
+      custou este problema por inteiro", isso é um **relatório novo** que soma os
+      dois agregados na leitura — nunca uma coluna, nunca uma cópia de custo.
+
+- [ ] **A grade de produtos da Troca não valida no formulário** (prioridade baixa)
+      A validação de linha (`devolvida ≤ esperada`, XOR de identificação) roda no
+      **service**, e o erro chega por toast. Na tela há um aviso imediato de
+      "devolvido maior que o esperado", mas não é uma validação de campo do React
+      Hook Form.
+      **Por que ficou assim:** a grade é estado local controlado, como o
+      `CustosEditor` das Instalações, e o projeto não usa `useFieldArray` em
+      lugar nenhum. Introduzir um segundo padrão de array em formulário custaria
+      mais do que a mensagem por toast custa hoje.
+
+- [ ] **Categoria de custo é uma enum só para os dois submódulos**
+      (prioridade baixa)
+      A separação entre custos de ENVIO (Troca) e de REPARO (OS) é da interface,
+      não do banco (ADR-0418). Um chamador que forjasse a Server Action
+      conseguiria gravar `PECA` numa Troca — seria um custo classificado de forma
+      estranha, nada além disso. Endurecer no schema exigiria dois schemas de
+      registro para ganhar uma garantia que o `Select` já dá.
+
 ## Apurado na Sprint 4.5 — Anexos Word/Excel e tabela de Instalações (2026-08-31)
 
 - [ ] **Validação de anexo é por MIME declarado, não por conteúdo**

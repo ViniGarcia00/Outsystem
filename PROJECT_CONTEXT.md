@@ -138,6 +138,17 @@ UX, testes e preparação)** concluídas.
   vincular com backfill dirigido pelos dados → remover as colunas antigas de
   texto), sem perder nenhum nome já gravado. Cadastro nasce vazio, sem dados de
   seed. Ver ADR-0408 (supersede parcial do ADR-0400).
+- ✅ **Sprint 4.6 — Módulo Pós-venda (1.9.0):** segundo módulo operacional, com
+  **dois submódulos**: **Troca Antecipada** (envio do substituto antes do retorno
+  do defeituoso — controla enviado, esperado, devolvido e o que ainda está
+  pendente) e **Ordem de Serviço de pós-venda/manutenção** (análise, reparo e
+  histórico técnico). Os dois têm numeração própria (1001+), timeline com custos,
+  anexos, status, cancelamento que preserva histórico e busca sem acento. A OS
+  **funciona sem Troca** — a criação manual é o fluxo principal —, e o vínculo é
+  opcional, com cardinalidade zero-ou-uma garantida por `@unique` no banco. O
+  botão "Criar Ordem de Serviço" copia os produtos devolvidos como **snapshot**:
+  alterar a Troca depois não muda a OS, e não há código de sincronização. Dez
+  tabelas novas com prefixo `pos_venda_`, migration aditiva. Ver ADR-0418..0421.
 - ✅ `lint`, `build` e `typecheck` sem erros.
 
 ## Dashboard (entregue na Sprint 4.0.3)
@@ -146,6 +157,9 @@ UX, testes e preparação)** concluídas.
 Instalações A Agendar, Agendadas, Aguardando Material, Em Andamento e
 Concluídas; custos extras acumulados; e até 5 próximas instalações agendadas.
 Sem gráficos e sem dado fictício — tudo vem do banco (ADR-0405).
+
+**A Sprint 4.6 NÃO tocou no Dashboard**, por decisão: nenhum card de Troca ou de
+Ordem de Serviço foi criado. Os candidatos naturais estão no `BACKLOG.md`.
 
 ## Tela "About" (planejada — não implementada)
 
@@ -208,6 +222,35 @@ About é voltada ao usuário final e existirá também em produção.
 > não por conteúdo — `application/vnd.ms-excel` é reportado por alguns ambientes
 > para arquivos que não são XLS estrito, CSV inclusive. Nada executa e nada
 > escapa da raiz de uploads; inspeção de magic bytes ficou fora de propósito.
+>
+> **Estado atual (2026-09-01): Sprint 4.6 concluída na versão 1.9.0.** Módulo
+> **Pós-venda**, o segundo operacional. Nasceu de dois casos reais: uma fechadura
+> substituída antes da devolução, e sete interruptores enviados com o retorno
+> vindo em duas etapas. O que se perdia no WhatsApp — quantas peças ainda estão
+> pendentes, quanto custou o motoboy, o que foi encontrado na análise — passou a
+> ter registro.
+>
+> São **dois processos separados por decisão** (ADR-0418): a Troca responde "o
+> defeituoso voltou?", a Ordem de Serviço responde "qual era o defeito e o que
+> foi feito?". A OS existe sem Troca, e é isso que impede o módulo de forçar uma
+> troca fantasma para toda análise técnica.
+>
+> Três garantias que valem destacar: a **origem** da OS é derivada do vínculo, não
+> uma coluna; a cardinalidade **zero-ou-uma** mora no `@unique` do banco; e o
+> pré-preenchimento Troca → OS é **snapshot sem sincronização** — a ausência de
+> código de sincronização é o que torna a garantia real (ADR-0419). A finalização
+> tem guardas diferentes nos dois: a Troca pede confirmação forte enumerando as
+> pendências e **nunca bloqueia**; a OS **exige informação técnica**, porque
+> finalizar em branco recriaria o buraco que o módulo veio fechar (ADR-0420).
+>
+> **Responsável com exigência diferente nos dois** (ADR-0422): a Troca aceita
+> qualquer usuário **ativo**, porque acompanhar envio, devolução, frete e
+> cobrança é trabalho frequentemente administrativo; a OS exige **técnico**,
+> porque ali o trabalho é análise e reparo. Nenhum papel novo foi criado.
+>
+> **Fora de escopo, por decisão:** estoque, número de série, garantia,
+> financeiro/cobrança, OS de instalação, Pedido de Venda, múltiplas OS por Troca,
+> sincronização Troca → OS e cards de Dashboard. Todos no `BACKLOG.md`.
 > Ver ADR-0417 e `BACKLOG.md`.
 >
 > **Dívida registrada na 1.7.0:** desconto, frete, forma de pagamento, previsão

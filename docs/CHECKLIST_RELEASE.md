@@ -87,6 +87,19 @@ Fundir as duas tornaria toda a suíte dependente de banco. Quem roda o gate roda
   pontas e **falha** se sobrar pasta de instalação de teste sob a raiz de
   uploads. Conferir a linha `pastas de anexos removidas: N` e o resíduo zero na
   saída do `npm run test:e2e`, não só as contagens do banco.
+- **Desde a 1.9.0 a varredura cobre TRÊS raízes de upload:** `instalacoes/`,
+  `pos-venda/trocas/` e `pos-venda/ordens-servico/`. A limpeza remove as pastas
+  **por agregado**, nunca as raízes — `alvoDentroDaRaiz` recusa explicitamente um
+  alvo igual à raiz de uploads. Portanto `storage/uploads/pos-venda/trocas`
+  **existir e estar vazio** é o estado correto ao fim do gate, exatamente como
+  `storage/uploads/instalacoes`. Resíduo é arquivo ou pasta de agregado dentro
+  delas, não a pasta do módulo.
+- **Toda relação NOVA com `Usuario` precisa entrar em `removeUsuario`
+  (desde a 1.9.0).** Eram três contagens; com o Pós-venda passaram a ser sete.
+  Esquecer uma não abre brecha de integridade — o `Restrict` do banco continua
+  barrando —, mas troca a mensagem que orienta a inativar por um erro cru de FK
+  na tela. Não é automatizável: é item de revisão quando uma FK para `usuarios`
+  é criada.
 - **Pré-condição de implantação (não é item de gate, é de deploy).** `UPLOAD_PATH`
   precisa existir e ser gravável pela conta do serviço, ou essa conta precisa
   poder criar a árvore. O `mkdir` recursivo da aplicação cria diretórios dentro

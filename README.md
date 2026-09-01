@@ -224,8 +224,10 @@ Ambiente oficial: **PostgreSQL nativo** no servidor. Caminhos de arquivo são
 4. 🔴 **Garantir que `UPLOAD_PATH` existe e é gravável** pela conta que roda a
    aplicação — ou que essa conta pode criar a árvore.
 
-   A partir da versão 1.6.0 os **anexos da cronologia** gravam arquivos ali. O
-   service faz `mkdir` recursivo, mas isso cria diretórios **dentro de uma raiz
+   A partir da versão 1.6.0 os **anexos da cronologia** gravam arquivos ali, e
+   desde a **1.9.0** os anexos do **Pós-venda** também — sob
+   `pos-venda/trocas/` e `pos-venda/ordens-servico/`, ao lado de `instalacoes/`.
+   O service faz `mkdir` recursivo, mas isso cria diretórios **dentro de uma raiz
    existente e acessível**: não cria um drive que não existe, nem contorna falta
    de permissão. Com `UPLOAD_PATH` apontando para um caminho inalcançável, o
    upload falha com `ENOENT` — comprovado durante a Sprint 4.3, com o
