@@ -177,6 +177,11 @@ model Cliente {
   propostas   Proposta[]
   instalacoes Instalacao[]
 
+  /// Pós-venda (Sprint 4.6). Lado inverso apenas — não gera DDL. As FKs são
+  /// RESTRICT: cliente usado em Troca ou OS nunca é excluído.
+  trocasAntecipadas TrocaAntecipada[]
+  ordensServico     OrdemServicoPosVenda[]
+
   @@index([ativo])
   @@map("clientes")
 }
@@ -197,6 +202,12 @@ model Produto {
 
   /// Itens de proposta que referenciam este produto (regra de exclusão ADR-0104).
   itens PropostaItem[]
+
+  /// Itens de Pós-venda (Sprint 4.6). Mesma regra: RESTRICT, produto usado não
+  /// é excluído. É o vínculo que torna possível, no futuro, analisar defeito
+  /// recorrente por produto.
+  trocaItens        TrocaAntecipadaItem[]
+  ordemServicoItens OrdemServicoPosVendaItem[]
 
   @@index([ativo])
   @@map("produtos")
@@ -236,6 +247,17 @@ model Usuario {
   propostasComoVendedor Proposta[]           @relation("PropostaVendedor")
   instalacoes           Instalacao[]         @relation("InstalacaoTecnico")
   registros             InstalacaoRegistro[] @relation("RegistroTecnico")
+
+  /// Pós-venda (Sprint 4.6). Quatro vínculos NOVOS, todos RESTRICT — o mesmo
+  /// tratamento dos três acima. `removeUsuario` passa a contar as SETE
+  /// relações; sem isso, excluir um usuário usado no Pós-venda devolveria erro
+  /// cru de FK em vez da mensagem que orienta a inativar.
+  ///
+  /// Nenhum papel novo foi criado: o responsável de Pós-venda usa `ehTecnico`.
+  trocasAntecipadas     TrocaAntecipada[]              @relation("TrocaResponsavel")
+  trocaRegistros        TrocaAntecipadaRegistro[]      @relation("TrocaRegistroResponsavel")
+  ordensServico         OrdemServicoPosVenda[]         @relation("OrdemServicoResponsavel")
+  ordemServicoRegistros OrdemServicoPosVendaRegistro[] @relation("OrdemServicoRegistroResponsavel")
 
   @@index([ativo])
   @@map("usuarios")
@@ -331,7 +353,7 @@ model Proposta {
   /// (fluxo workspace-first). Regra de negócio: proposta válida/emitida SEMPRE
   /// tem cliente — garantido pela guarda de emissão. ADR-0210+ (refino 2.3).
   clienteId  String?
-  cliente    Cliente?  @relation(fields: [clienteId], references: [id])
+  cliente    Cliente? @relation(fields: [clienteId], references: [id])
   /// Usuário que atua como VENDEDOR nesta proposta (ADR-0410). A coluna nomeia
   /// o PAPEL no vínculo, não a tabela de origem — por isso o nome não mudou
   /// quando `Vendedor` virou `Usuario`, e o mapper do PDF segue intacto.
@@ -719,19 +741,19 @@ model InstalacaoRegistroAnexo {
 
   /// Nome que o usuário enviou. Exibição e `Content-Disposition` apenas —
   /// **NUNCA** participa da construção de um caminho físico.
-  nomeOriginal String
+  nomeOriginal    String
   /// Chave física gerada no SERVIDOR: `<cuid>.<ext>`, com a extensão vinda da
   /// allowlist de MIME, nunca do nome enviado pelo navegador.
-  nomeArmazenado String
+  nomeArmazenado  String
   /// Caminho RELATIVO a `storagePaths.upload`, com separadores POSIX. Caminho
   /// absoluto nunca é persistido: depende do servidor e de `UPLOAD_PATH`, que
   /// mudam entre ambientes.
   caminhoRelativo String
   /// MIME da allowlist. O download deriva o `Content-Type` da allowlist, nunca
   /// ecoando este valor diretamente.
-  mimeType String
+  mimeType        String
   /// Tamanho em bytes.
-  tamanho Int
+  tamanho         Int
 
   createdAt DateTime @default(now())
 
@@ -756,4 +778,483 @@ model InstalacaoCusto {
 
   @@index([registroId])
   @@map("instalacao_custos")
+}
+
+// ---------------------------------------------------------------------------
+// Pós-venda (Sprint 4.6) — Troca Antecipada e Ordem de Serviço
+// ---------------------------------------------------------------------------
+//
+// DOIS processos distintos, deliberadamente separados (ADR-0418):
+//
+//   Troca Antecipada  responde "o produto defeituoso voltou?"
+//   Ordem de Serviço  responde "qual era o defeito, e o que foi feito?"
+//
+// A OS **existe sem Troca** — uma peça pode chegar para conserto sem nunca ter
+// havido envio antecipado. Modelar as duas como uma coisa só forçaria uma Troca
+// fantasma para toda análise técnica.
+//
+// NÃO reutiliza `Instalacao`: os padrões de UX e de arquitetura são copiados,
+// as entidades e regras são próprias.
+//
+// **Esta OS é de PÓS-VENDA / MANUTENÇÃO DE EQUIPAMENTOS.** Não confundir com
+// uma futura OS de instalação, que será outra entidade.
+
+/// Estado operacional da Troca Antecipada. Sem máquina de estados rígida —
+/// qualquer transição é permitida, como em `StatusInstalacao`.
+///
+/// `VALOR_PENDENTE` é status **operacional**, não financeiro: sinaliza que
+/// alguém precisa decidir o que fazer com um valor. O módulo não cria conta a
+/// pagar, cobrança nem baixa (fora de escopo por decisão da Sprint).
+enum StatusTrocaAntecipada {
+  ABERTA
+  ENVIO_PENDENTE
+  DEVOLUCAO_PENDENTE
+  EM_ANALISE
+  VALOR_PENDENTE
+  FINALIZADA
+  CANCELADA
+}
+
+/// Para quem o produto substituto foi enviado.
+///
+/// `CLIENTE` usa o próprio Cliente da Troca como referência visual e dispensa
+/// `destinatarioNome`. `INSTALADOR` e `OUTRO` exigem o nome/descrição — NÃO há
+/// cadastro de parceiro/instalador nesta Sprint, de propósito.
+enum DestinatarioTroca {
+  CLIENTE
+  INSTALADOR
+  OUTRO
+}
+
+/// Estado operacional da Ordem de Serviço de pós-venda. Também sem workflow
+/// rígido.
+enum StatusOrdemServicoPosVenda {
+  ABERTA
+  AGUARDANDO_ANALISE
+  EM_ANALISE
+  EM_MANUTENCAO
+  AGUARDANDO_PECA
+  FINALIZADA
+  CANCELADA
+}
+
+/// Categoria do custo operacional do Pós-venda — UMA enum para os dois
+/// submódulos (ADR-0418).
+///
+/// A Troca oferece as categorias de ENVIO (motoboy, sedex, frete, visita); a OS
+/// oferece as de REPARO (peça, material, terceirização). A restrição é da
+/// interface, em `CATEGORIAS_CUSTO_TROCA` / `CATEGORIAS_CUSTO_OS`.
+///
+/// Duas enums no banco obrigariam a duplicar o módulo de cálculo e a tabela de
+/// rótulos para ganhar uma garantia que o Select já dá.
+///
+/// **Custos da Troca e da OS nunca se somam.** São históricos independentes:
+/// nenhuma tela exibe um total combinado, e criar a OS a partir da Troca não
+/// copia custo algum.
+enum CategoriaCustoPosVenda {
+  MOTOBOY
+  SEDEX
+  FRETE
+  VISITA
+  PECA
+  MATERIAL
+  TERCEIRIZACAO
+  OUTROS
+}
+
+/// Trilha TÉCNICA do Pós-venda, compartilhada por Troca e OS. Não confundir com
+/// a timeline operacional (`*Registro`) — ver ADR-0401, que vale igual aqui.
+///
+/// `VINCULO` registra, nos DOIS lados, a criação de uma OS a partir de uma
+/// Troca.
+enum EventoPosVenda {
+  CRIACAO
+  ALTERACAO
+  MUDANCA_STATUS
+  FINALIZACAO
+  CANCELAMENTO
+  VINCULO
+}
+
+/// Troca Antecipada — raiz do agregado de controle de devolução.
+///
+/// Controle operacional SEPARADO da Instalação. Nasce quando a empresa decide
+/// enviar o substituto antes de receber o defeituoso, e fecha quando o retorno
+/// está resolvido — resolvido inclui "não vai voltar", por decisão registrada.
+model TrocaAntecipada {
+  id String @id @default(cuid())
+
+  /// Numeração OPERACIONAL própria (sequência do PostgreSQL, inicia em 1001).
+  /// Nunca o `id`, nunca `MAX(numero)+1` — mesmo padrão do ADR-0201.
+  numero Int @unique @default(autoincrement())
+
+  clienteId String
+  cliente   Cliente @relation(fields: [clienteId], references: [id], onDelete: Restrict)
+
+  /// Identificação operacional curta, dada pelo usuário. É o texto principal da
+  /// listagem: "Fechadura entrada social", "7 interruptores sala/cozinha".
+  /// Obrigatória — sem ela a linha da tabela não diz nada.
+  referencia String
+
+  /// Responsável ATUAL — estado corrente, não fato histórico. Renomear o
+  /// Usuário DEVE refletir aqui; por isso não há snapshot textual (ADR-0408).
+  /// Papel exigido: `ehTecnico` (ADR-0410). Nenhum papel novo foi criado.
+  responsavelId String?
+  responsavel   Usuario? @relation("TrocaResponsavel", fields: [responsavelId], references: [id], onDelete: Restrict)
+
+  /// O que o cliente relatou. Opcional: a Troca pode ser aberta com o mínimo e
+  /// ganhar contexto pela timeline.
+  relatoInicial String? @db.Text
+
+  status StatusTrocaAntecipada @default(ABERTA)
+
+  destinatarioTipo DestinatarioTroca @default(CLIENTE)
+  /// Obrigatório quando o destinatário é INSTALADOR ou OUTRO (validado no Zod e
+  /// no service). Ignorado quando é CLIENTE.
+  destinatarioNome String?
+
+  /// Conclusão registrada dentro da própria Troca. OPCIONAL e nunca bloqueia a
+  /// finalização — a análise técnica principal acontece depois, na OS.
+  diagnosticoConclusao String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// Carimbados na transição, nunca sobrescritos. Mesma regra de
+  /// `Proposta.emitidaAt`/`canceladaAt`.
+  finalizadaEm DateTime?
+  canceladaEm  DateTime?
+
+  itens      TrocaAntecipadaItem[]
+  registros  TrocaAntecipadaRegistro[]
+  auditorias TrocaAntecipadaAuditoria[]
+
+  /// Zero ou UMA OS principal (ADR-0419). A cardinalidade é garantida pelo
+  /// `@unique` do lado da OS, não por código. Múltiplas OS por Troca ficaram no
+  /// BACKLOG; quando entrarem, basta remover o unique — migration aditiva.
+  ordemServico OrdemServicoPosVenda?
+
+  @@index([clienteId])
+  @@index([responsavelId])
+  @@index([status])
+  @@index([updatedAt])
+  @@map("pos_venda_trocas")
+}
+
+/// Produto que participa da Troca.
+///
+/// **`produtoId` OU `descricaoManual` — nunca os dois vazios.** A regra vive em
+/// `features/pos-venda/itens.ts` (módulo puro), é aplicada no Zod e DE NOVO no
+/// service; a segunda é a que vale, porque a primeira depende de quem chamou.
+///
+/// **Sem snapshot de código/descrição, de propósito.** Diferente de
+/// `PropostaItem` (ADR-0207), que congela preço porque é documento comercial
+/// assinável, o item de pós-venda não tem preço e não vai para documento
+/// nenhum: a pergunta é *qual peça é esta*, e a resposta é sobre o cadastro
+/// ATUAL. Renomear um produto deve refletir na Troca aberta.
+model TrocaAntecipadaItem {
+  id String @id @default(cuid())
+
+  trocaAntecipadaId String
+  troca             TrocaAntecipada @relation(fields: [trocaAntecipadaId], references: [id], onDelete: Cascade)
+
+  /// Vínculo com o cadastro. RESTRICT: produto usado não é excluído (ADR-0104).
+  /// O id REAL é preservado — é o que torna possível analisar defeito recorrente
+  /// por produto no futuro, e o que a criação semiautomática da OS copia.
+  produtoId String?
+  produto   Produto? @relation(fields: [produtoId], references: [id], onDelete: Restrict)
+
+  /// Preenchida quando o produto não está no cadastro ("Outro").
+  descricaoManual String?
+
+  /// Inteiros, sempre >= 0. `quantidadeDevolvida` nunca excede
+  /// `quantidadeEsperadaRetorno` (validado no Zod e no service).
+  quantidadeEnviada         Int @default(0)
+  quantidadeEsperadaRetorno Int @default(0)
+  quantidadeDevolvida       Int @default(0)
+
+  /// NÃO existe coluna de pendência: `max(esperada - devolvida, 0)` é derivado
+  /// no módulo puro. Persistir um valor calculável é criar uma segunda verdade.
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([trocaAntecipadaId])
+  @@index([produtoId])
+  @@map("pos_venda_troca_itens")
+}
+
+/// Acontecimento da timeline da Troca.
+///
+/// É CONTEÚDO escrito pelos responsáveis, não trilha de sistema — não confundir
+/// com `TrocaAntecipadaAuditoria` (ADR-0401). Criar, editar ou excluir um
+/// registro NÃO gera entrada de auditoria.
+model TrocaAntecipadaRegistro {
+  id String @id @default(cuid())
+
+  trocaAntecipadaId String
+  troca             TrocaAntecipada @relation(fields: [trocaAntecipadaId], references: [id], onDelete: Cascade)
+
+  /// Quando o fato OCORREU. Pode ser anterior à criação da Troca (fatos
+  /// históricos são permitidos). A timeline ordena por este campo.
+  dataHora DateTime
+
+  responsavelId String
+  responsavel   Usuario @relation("TrocaRegistroResponsavel", fields: [responsavelId], references: [id], onDelete: Restrict)
+
+  /// Snapshot do nome do responsável no momento em que ELE foi atribuído a este
+  /// registro — derivado NO SERVICE, nunca recebido do navegador (ADR-0408).
+  /// Só é reescrito quando o `responsavelId` muda.
+  responsavelNome String
+
+  relato String @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  custos TrocaAntecipadaRegistroCusto[]
+  anexos TrocaAntecipadaRegistroAnexo[]
+
+  @@index([trocaAntecipadaId, dataHora])
+  @@index([responsavelId])
+  @@map("pos_venda_troca_registros")
+}
+
+/// Custo operacional pertencente a um acontecimento da Troca.
+/// Interno: NÃO altera proposta, NÃO gera cobrança, NÃO soma com a OS.
+model TrocaAntecipadaRegistroCusto {
+  id String @id @default(cuid())
+
+  registroId String
+  registro   TrocaAntecipadaRegistro @relation(fields: [registroId], references: [id], onDelete: Cascade)
+
+  categoria CategoriaCustoPosVenda
+  descricao String?
+  /// Monetário: Decimal, NUNCA Float. Sempre > 0 (Zod e service).
+  valor     Decimal                @db.Decimal(12, 2)
+
+  createdAt DateTime @default(now())
+
+  @@index([registroId])
+  @@map("pos_venda_troca_custos")
+}
+
+/// Arquivo anexado a um acontecimento da Troca. Mesma arquitetura do ADR-0414,
+/// com entidade PRÓPRIA — nenhuma FK aponta para `Instalacao`.
+///
+/// **O banco é a autoridade.** Arquivo órfão em disco é tolerado e logável;
+/// linha apontando para arquivo inexistente é o estado a evitar.
+model TrocaAntecipadaRegistroAnexo {
+  id String @id @default(cuid())
+
+  registroId String
+  registro   TrocaAntecipadaRegistro @relation(fields: [registroId], references: [id], onDelete: Cascade)
+
+  /// Nome que o usuário enviou. Exibição e `Content-Disposition` apenas —
+  /// **NUNCA** participa da construção de um caminho físico.
+  nomeOriginal    String
+  /// Chave física gerada no SERVIDOR: `<aleatório>.<ext>`, com a extensão vinda
+  /// da allowlist de MIME, nunca do nome enviado pelo navegador.
+  nomeArmazenado  String
+  /// Caminho RELATIVO a `storagePaths.upload`, com separadores POSIX.
+  caminhoRelativo String
+  /// MIME da allowlist. O download deriva o `Content-Type` da allowlist.
+  mimeType        String
+  tamanho         Int
+
+  createdAt DateTime @default(now())
+
+  @@index([registroId])
+  @@map("pos_venda_troca_anexos")
+}
+
+/// Trilha técnica da Troca. Gravada na MESMA transação da escrita.
+model TrocaAntecipadaAuditoria {
+  id String @id @default(cuid())
+
+  trocaAntecipadaId String
+  troca             TrocaAntecipada @relation(fields: [trocaAntecipadaId], references: [id], onDelete: Cascade)
+
+  evento     EventoPosVenda
+  observacao String?        @db.Text
+
+  createdAt DateTime @default(now())
+
+  @@index([trocaAntecipadaId])
+  @@map("pos_venda_troca_auditorias")
+}
+
+/// Ordem de Serviço de PÓS-VENDA / MANUTENÇÃO DE EQUIPAMENTOS.
+///
+/// **Não confundir com uma futura OS de instalação.** Esta existe para
+/// analisar, reparar e registrar o histórico técnico de produtos que voltaram.
+///
+/// Funciona COMPLETAMENTE sem Troca Antecipada: a criação manual é o fluxo
+/// obrigatório, e `trocaAntecipadaId` é opcional.
+model OrdemServicoPosVenda {
+  id String @id @default(cuid())
+
+  /// Numeração própria, sequência independente da Troca, inicia em 1001.
+  numero Int @unique @default(autoincrement())
+
+  clienteId String
+  cliente   Cliente @relation(fields: [clienteId], references: [id], onDelete: Restrict)
+
+  /// Vínculo OPCIONAL com a Troca que originou esta OS (ADR-0419).
+  ///
+  /// `@unique` = uma Troca tem ZERO OU UMA OS. A cardinalidade mora no banco,
+  /// não em código: é a única forma de a regra não depender de quem escreve.
+  ///
+  /// RESTRICT: apagar a Troca não pode arrastar a OS junto. Na prática Troca
+  /// não é apagada (é cancelada), mas a FK não depende disso.
+  ///
+  /// **NÃO existe coluna `origem`.** A origem é DERIVADA deste campo: nulo =
+  /// DIRETA, preenchido = TROCA_ANTECIPADA. Uma coluna seria um segundo lugar
+  /// onde a mesma verdade mora, e no dia em que divergisse do vínculo não
+  /// haveria como saber qual das duas está certa.
+  trocaAntecipadaId String?          @unique
+  trocaAntecipada   TrocaAntecipada? @relation(fields: [trocaAntecipadaId], references: [id], onDelete: Restrict)
+
+  /// Identificação operacional curta. Obrigatória, como na Troca.
+  referencia String
+
+  responsavelId String?
+  responsavel   Usuario? @relation("OrdemServicoResponsavel", fields: [responsavelId], references: [id], onDelete: Restrict)
+
+  relatoInicial String? @db.Text
+
+  status StatusOrdemServicoPosVenda @default(ABERTA)
+
+  /// Conclusão técnica geral. Opcional durante a execução; na FINALIZAÇÃO,
+  /// preencher isto OU o diagnóstico/solução de ao menos um item é exigido
+  /// (ADR-0420) — a OS existe justamente para registrar isso.
+  diagnosticoConclusao String? @db.Text
+
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  finalizadaEm DateTime?
+  canceladaEm  DateTime?
+
+  itens      OrdemServicoPosVendaItem[]
+  registros  OrdemServicoPosVendaRegistro[]
+  auditorias OrdemServicoPosVendaAuditoria[]
+
+  @@index([clienteId])
+  @@index([responsavelId])
+  @@index([status])
+  @@index([updatedAt])
+  @@map("pos_venda_ordens_servico")
+}
+
+/// Produto analisado/reparado na OS. Mesma regra XOR do item da Troca.
+///
+/// Quando a OS nasce de uma Troca, este item é um SNAPSHOT do momento da
+/// criação: `quantidade` recebe a `quantidadeDevolvida` de então. Alterações
+/// posteriores na Troca NÃO chegam aqui — e não existe código de sincronização
+/// para desligar, que é o que torna a garantia real (ADR-0419).
+model OrdemServicoPosVendaItem {
+  id String @id @default(cuid())
+
+  ordemServicoId String
+  ordemServico   OrdemServicoPosVenda @relation(fields: [ordemServicoId], references: [id], onDelete: Cascade)
+
+  produtoId String?
+  produto   Produto? @relation(fields: [produtoId], references: [id], onDelete: Restrict)
+
+  descricaoManual String?
+
+  /// Inteiro, sempre > 0 — item de OS com quantidade zero não é item.
+  quantidade Int @default(1)
+
+  /// O que foi ENCONTRADO e o que foi FEITO, por peça. Opcionais durante a
+  /// execução; participam da guarda de finalização (ADR-0420).
+  diagnosticoItem String? @db.Text
+  solucaoItem     String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ordemServicoId])
+  @@index([produtoId])
+  @@map("pos_venda_os_itens")
+}
+
+/// Acontecimento da timeline da OS. Conteúdo, não trilha de sistema.
+model OrdemServicoPosVendaRegistro {
+  id String @id @default(cuid())
+
+  ordemServicoId String
+  ordemServico   OrdemServicoPosVenda @relation(fields: [ordemServicoId], references: [id], onDelete: Cascade)
+
+  dataHora DateTime
+
+  responsavelId String
+  responsavel   Usuario @relation("OrdemServicoRegistroResponsavel", fields: [responsavelId], references: [id], onDelete: Restrict)
+
+  /// Snapshot derivado no service, reescrito só quando o responsável muda.
+  responsavelNome String
+
+  relato String @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  custos OrdemServicoPosVendaRegistroCusto[]
+  anexos OrdemServicoPosVendaRegistroAnexo[]
+
+  @@index([ordemServicoId, dataHora])
+  @@index([responsavelId])
+  @@map("pos_venda_os_registros")
+}
+
+/// Custo próprio da OS. NUNCA copiado da Troca, NUNCA somado com ela.
+model OrdemServicoPosVendaRegistroCusto {
+  id String @id @default(cuid())
+
+  registroId String
+  registro   OrdemServicoPosVendaRegistro @relation(fields: [registroId], references: [id], onDelete: Cascade)
+
+  categoria CategoriaCustoPosVenda
+  descricao String?
+  valor     Decimal                @db.Decimal(12, 2)
+
+  createdAt DateTime @default(now())
+
+  @@index([registroId])
+  @@map("pos_venda_os_custos")
+}
+
+/// Arquivo anexado a um acontecimento da OS. Entidade própria; mesmas regras.
+model OrdemServicoPosVendaRegistroAnexo {
+  id String @id @default(cuid())
+
+  registroId String
+  registro   OrdemServicoPosVendaRegistro @relation(fields: [registroId], references: [id], onDelete: Cascade)
+
+  nomeOriginal    String
+  nomeArmazenado  String
+  caminhoRelativo String
+  mimeType        String
+  tamanho         Int
+
+  createdAt DateTime @default(now())
+
+  @@index([registroId])
+  @@map("pos_venda_os_anexos")
+}
+
+/// Trilha técnica da OS.
+model OrdemServicoPosVendaAuditoria {
+  id String @id @default(cuid())
+
+  ordemServicoId String
+  ordemServico   OrdemServicoPosVenda @relation(fields: [ordemServicoId], references: [id], onDelete: Cascade)
+
+  evento     EventoPosVenda
+  observacao String?        @db.Text
+
+  createdAt DateTime @default(now())
+
+  @@index([ordemServicoId])
+  @@map("pos_venda_os_auditorias")
 }
